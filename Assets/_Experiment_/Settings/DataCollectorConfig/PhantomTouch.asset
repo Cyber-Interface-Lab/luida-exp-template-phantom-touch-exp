@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22975fc05975d2a4f9b750cd520d63a0, type: 3}
+  m_Name: PhantomTouch
+  m_EditorClassIdentifier: ClusterMetaverseLab.Luida::LuidaDataCollectorConfig
+  schemaVersion: 2
+  collectedLabels:
+  - label: avatar
+    type: 6
+    ignoreOnSave: 0
+  - label: rating
+    type: 6
+    ignoreOnSave: 0
+  - label: mc
+    type: 6
+    ignoreOnSave: 0
+  - label: ptype
+    type: 6
+    ignoreOnSave: 0
+  - label: ploc
+    type: 6
+    ignoreOnSave: 0
+  - label: trace
+    type: 6
+    ignoreOnSave: 0
+  fields: []
+  customJsSuffix: 
+  useCustomCodeMode: 1
+  rawJs: "// Study 4 (phantom touch): one row per trial / setup / device check.\n//
+    Written by Study4SceneBuilder (Code mode). Values are pushed by the state-listening
+    items\n// (SendDataToCollector) and by the NPC item (group state). Labels that
+    a row does not use keep\n// the value of the previous save, so interpret rows
+    by stateLog.name.\nconst CD = (typeof COLLECTED_DATA !== 'undefined' && COLLECTED_DATA)
+    ? COLLECTED_DATA : {};\nreturn {\n    stateLog: CD['stateLog'],\n    cond: CONDITION
+    || {},\n    savedAt: Date.now(),\n    // block setup (Trial - Start, rep == 1)\n   
+    avatar: CD['avatar'],\n    avatarArmLen: CD['avatarArmLen'], avatarShoulder:
+    CD['avatarShoulder'],\n    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'],
+    avatarIsTransparent: CD['avatarIsTransparent'],\n    setupSec: CD['setupSec'],
+    setupRetry: CD['setupRetry'],\n    // device check\n    deviceCheckSec: CD['deviceCheckSec'],
+    deviceCheckForced: CD['deviceCheckForced'],\n    // per-trial report\n    rating:
+    CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs:
+    CD['reportDoneTs'],\n    // NPC measurements\n    social: CD['social'], npcBlock:
+    CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs:
+    CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'],
+    retractEndTs: CD['retractEndTs'],\n    pathLen: CD['pathLen'], reachDur: CD['reachDur'],
+    contactDist: CD['contactDist'], reachable: CD['reachable'],\n    headPos0: CD['headPos0'],
+    headRot0: CD['headRot0'],\n    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist:
+    CD['retreatDist'], oscAmp: CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'],
+    lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n   
+    trace: CD['trace'],\n};\n"

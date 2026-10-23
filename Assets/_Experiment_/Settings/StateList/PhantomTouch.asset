@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 903632a1e1d0d4e27be675b7680dc266, type: 3}
+  m_Name: PhantomTouch
+  m_EditorClassIdentifier: 
+  States:
+  - StateName: Start
+    DestStateName: DeviceCheck
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 1
+  - StateName: DeviceCheck
+    DestStateName: Trial - Start
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - Start
+    DestStateName: Trial - Touch
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - Touch
+    DestStateName: Trial - Report
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - Report
+    DestStateName: Trial - VEQ1
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - VEQ1
+    DestStateName: Trial - VEQ2
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 2
+  - StateName: Trial - VEQ2
+    DestStateName: Trial - Rest
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 3
+  - StateName: Trial - Rest
+    DestStateName: SocialPresence
+    HasExitTime: 1
+    ExitTime: 1
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: SocialPresence
+    DestStateName: PersonalExperience
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 4
+  - StateName: PersonalExperience
+    DestStateName: Debrief
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 5
+  - StateName: Debrief
+    DestStateName: End
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 6
+  - StateName: End
+    DestStateName: 
+    HasExitTime: 0
+    ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0

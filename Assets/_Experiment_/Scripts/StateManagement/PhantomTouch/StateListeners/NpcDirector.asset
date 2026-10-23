@@ -1,0 +1,193 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acb8c4c8a0a4dc6418e2f4d59454f5e3, type: 3}
+  m_Name: NpcDirector
+  m_EditorClassIdentifier: ClusterMetaverseLab.Luida::StateListeningItemData
+  stateListeners:
+  - stateID: 2
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Sleep
+        displayLabel: 
+        codeSnippet: '{_seconds_}'
+        variables:
+        - seconds
+        category: State machine
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - seconds
+      _variableValuesList:
+      - 0.5
+    - predefinedActionTemplate:
+        actionType: Set participant position
+        displayLabel: 
+        codeSnippet: PARTICIPANTS[{_participantIndex_}].setPosition(new Vector3({_x_},
+          {_y_}, {_z_}));
+        variables:
+        - participantIndex
+        - x
+        - y
+        - z
+        category: Participant transform
+      customAction: 
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
+      _variableKeys:
+      - participantIndex
+      - x
+      - y
+      - z
+      _variableValuesList:
+      - 1
+      - 0
+      - 0
+      - -2
+    - predefinedActionTemplate:
+        actionType: Set participant rotation
+        displayLabel: 
+        codeSnippet: PARTICIPANTS[{_participantIndex_}].setRotation(new Quaternion().setFromEulerAngles(new
+          Vector3({_x_}, {_y_}, {_z_})));
+        variables:
+        - participantIndex
+        - x
+        - y
+        - z
+        category: Participant transform
+      customAction: 
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
+      _variableKeys:
+      - participantIndex
+      - x
+      - y
+      - z
+      _variableValuesList:
+      - 1
+      - 0
+      - 0
+      - 0
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: '$.worldItemReference(''NPC'').send(''npc_setup'', { social:
+        CONDITION[''social''] === ''with'', block: CONDITION[''block''] });'
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  - stateID: 3
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: "nd_arm();\n$.state.nd_touchStartTs = Date.now();\nSendDataToCollector('trialStartTs',
+        $.state.nd_touchStartTs);\nSendDataToCollector('npcTimeout', false);\n$.worldItemReference('NPC').send('npc_trial_start',
+        {\n  block: CONDITION['block'], rep: CONDITION['rep'],\n  avatar: nd_avatarForBlock(CONDITION['block']),
+        social: CONDITION['social'] === 'with' });"
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: "if (nd_donePulse()) { ToNextState(); }\nelse if ($.state.nd_touchStartTs
+        && Date.now() - $.state.nd_touchStartTs > 120000) {\n  $.log('[NpcDirector]
+        NPC did not finish within 120 s; moving on');\n  SendDataToCollector('npcTimeout',
+        true);\n  $.worldItemReference('NPC').send('npc_abort', {});\n  $.state.nd_touchStartTs
+        = 0;\n  ToNextState();\n}"
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    onStateExitedActions: []
+  - stateID: 5
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (!(CONDITION['block'] === '1' && CONDITION['rep'] === '2'))
+        ToNextState();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  - stateID: 6
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (!(CONDITION['block'] === '2' && CONDITION['rep'] === '2'))
+        ToNextState();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  - stateID: 11
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Upload collected data
+        displayLabel: Upload saved data from collector
+        codeSnippet: $.sendSignalCompat('this', 'exp_uploadCustomData');
+        variables: []
+        category: Data collection
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  eventHandlers: []
+  otherImplementation: "// ---- Study 4: NpcDirector helpers (shared by the actions
+    above) ----\nfunction nd_avatarForBlock(block) {\n  const dailyFirst = CONDITION
+    && CONDITION['order'] === 'daily_first';\n  return (dailyFirst === (String(block)
+    === '1')) ? 'daily' : 'assigned';\n}\nfunction nd_signalTime(key) {\n  const
+    d = $.getStateCompat('global', key, 'signal');\n  if (!d) return 0;\n  return
+    (typeof d.getTime === 'function') ? d.getTime() : (Number(d) || 0);\n}\n// Remember
+    the current timestamp of the global signal so only a NEW pulse counts.\nfunction
+    nd_arm() { $.state.nd_lastDone = nd_signalTime('npc_done'); }\nfunction nd_donePulse()
+    {\n  const t = nd_signalTime('npc_done');\n  if (t !== ($.state.nd_lastDone ||
+    0)) { $.state.nd_lastDone = t; return t !== 0; }\n  return false;\n}\n"

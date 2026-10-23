@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study 4 実装設計</title>
+<style>
+:root{
+  --bg:#f7f7f5; --surface:#ffffff; --surface-2:#f0efeb; --text:#1d1d1b; --muted:#5f5e5a;
+  --border:#dcdad3; --accent:#2f5d8a; --accent-soft:#e3ecf5; --warn:#9a5b00; --warn-soft:#fbf0dc;
+  --risk:#a33a2b; --risk-soft:#f8e4e0; --ok:#2d6a3e; --ok-soft:#e2f0e5; --code:#f3f2ee;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161615; --surface:#1f1f1d; --surface-2:#2a2a27; --text:#ecebe6; --muted:#a6a49d;
+    --border:#3a3935; --accent:#8db6e0; --accent-soft:#22313f; --warn:#e3b05a; --warn-soft:#3a2f1c;
+    --risk:#ec8f80; --risk-soft:#3d2420; --ok:#86c79a; --ok-soft:#1f3326; --code:#262623;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161615; --surface:#1f1f1d; --surface-2:#2a2a27; --text:#ecebe6; --muted:#a6a49d;
+  --border:#3a3935; --accent:#8db6e0; --accent-soft:#22313f; --warn:#e3b05a; --warn-soft:#3a2f1c;
+  --risk:#ec8f80; --risk-soft:#3d2420; --ok:#86c79a; --ok-soft:#1f3326; --code:#262623;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.75 "Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:32px 16px 64px}
+header{border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:8px}
+h1{font-size:26px;line-height:1.35;margin:0 0 6px}
+.sub{color:var(--muted);font-size:13.5px;margin:0}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 0}
+nav a{font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid var(--border);
+  background:var(--surface);border-radius:999px;padding:3px 10px}
+nav a:hover{background:var(--accent-soft)}
+section{margin-top:40px}
+h2{font-size:19px;margin:0 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+h3{font-size:15.5px;margin:22px 0 8px}
+p{margin:8px 0}
+.muted{color:var(--muted)}
+code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:.88em;
+  background:var(--code);border:1px solid var(--border);border-radius:4px;padding:0 4px;word-break:break-word}
+pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:12px 14px;
+  overflow-x:auto;font-size:12.5px;line-height:1.55;margin:10px 0}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card h4{margin:0 0 4px;font-size:14.5px}
+.card p{margin:0;font-size:13.5px}
+.card .why{color:var(--muted);font-size:12.5px;margin-top:6px}
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--border)}
+th{background:var(--surface-2);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.callout{border-radius:10px;padding:12px 16px;margin:12px 0;border:1px solid}
+.callout.warn{background:var(--warn-soft);border-color:var(--warn)}
+.callout.risk{background:var(--risk-soft);border-color:var(--risk)}
+.callout.ok{background:var(--ok-soft);border-color:var(--ok)}
+.callout b.label{display:block;margin-bottom:2px}
+.callout.warn b.label{color:var(--warn)} .callout.risk b.label{color:var(--risk)} .callout.ok b.label{color:var(--ok)}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:10px 0}
+.step{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;line-height:1.4}
+.step small{display:block;color:var(--muted);font-size:11px}
+.step.loop{background:var(--accent-soft);border-color:var(--accent)}
+.arrow{align-self:center;color:var(--muted);font-size:12px}
+.loopbox{border:1.5px dashed var(--accent);border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.loopbox .tag{width:100%;font-size:11.5px;color:var(--accent);font-weight:600}
+ol.steps{padding-left:22px;margin:8px 0} ol.steps li{margin:6px 0}
+.pill{display:inline-block;font-size:11.5px;border-radius:999px;padding:1px 8px;border:1px solid var(--border);background:var(--surface-2);white-space:nowrap}
+.pill.high{color:var(--risk);border-color:var(--risk);background:var(--risk-soft)}
+.pill.mid{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+details{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin:10px 0}
+summary{cursor:pointer;font-weight:600;font-size:14px}
+.themebtn{float:right;font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);
+  border-radius:6px;padding:3px 9px;cursor:pointer}
+footer{margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);padding-top:14px}
+@media (max-width:600px){ h1{font-size:21px} .wrap{padding-top:20px} th{white-space:normal} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <button class="themebtn" id="themebtn" type="button">表示切替</button>
+  <h1>Study 4（Phantom Touch Illusion）実験ワールド 実装設計</h1>
+  <p class="sub">2026-10-23 ／ 博士論文 第6章の実験計画を LUIDA 実装テンプレート（CCK 3.3.0）で実現する案。原本は同フォルダの <code>implementation-plan.md</code>。</p>
+  <nav>
+    <a href="#summary">要約</a><a href="#flow">実験の流れ</a><a href="#vars">変数</a><a href="#avatar">自己アバター</a>
+    <a href="#npc">NPC</a><a href="#report">試行内報告</a><a href="#q">質問紙</a><a href="#data">データ</a>
+    <a href="#pitfalls">注意点</a><a href="#assets">アセット</a><a href="#test">テストとリスク</a>
+  </nav>
+</header>
+
+<section id="summary">
+  <h2>要約</h2>
+  <p>LUIDA 本体には手を入れず、GUI で組める部分は GUI で組みます。Cluster Script を書くのは 4 箇所だけです。</p>
+  <div class="grid">
+    <div class="card"><h4>実装方針</h4><p>変数・ステート・質問紙・Data Collector・アバター登録は GUI。スクリプトは NPC、アバター切替ゲート、報告パネル、デバイスチェックのみ。</p><p class="why">公開直前の本体改修リスクを避ける。</p></div>
+    <div class="card"><h4>要因配置</h4><p>参加者間 <code>social</code>・<code>order</code> をサーバ均衡割付。参加者内 <code>block</code>×<code>rep</code> で 4 試行。アバター条件は <code>order</code>×<code>block</code> から導出。</p><p class="why"><code>isRandom</code> は反復をブロック化しないため。</p></div>
+    <div class="card"><h4>ステート</h4><p>標準の試行ループ内に Setup・Touch・Report・VEQ を置き、条件に合わない回は即スキップ。</p><p class="why">設定量が最小で、GUI の If ゲートも使える。</p></div>
+    <div class="card"><h4>NPC</h4><p>既存 VRM を LUIDA でラッパー化し、自作スクリプトで 2 ボーン IK のリーチと注視を動かす。</p><p class="why">アイテムには HumanoidAnimation を適用できない。</p></div>
+    <div class="card"><h4>自己アバター</h4><p>参加者自身が着替え、骨の長さで自動判定し、ボタン＋二段階確認で開始。1 ワールド内で完結し、ポータルは不要。</p><p class="why">ご指定の手順に、取り違え検出を加えた。</p></div>
+    <div class="card"><h4>データ</h4><p>1 試行 1 行で蓄積し、End で 1 回だけアップロード。ルームログは補完。</p><p class="why">サーバは同名ファイルを上書きするため。</p></div>
+  </div>
+</section>
+
+<section id="requirements">
+  <h2>第6章の要件と実装上の扱い</h2>
+  <div class="tbl"><table>
+    <tr><th>要件</th><th>論文の内容</th><th>実装</th></tr>
+    <tr><td>計画</td><td>2×2 混合。参加者間: 社会的手がかり。参加者内: 普段使い／割当アバター（順序カウンターバランス）</td><td>参加者間 <code>social</code>・<code>order</code></td></tr>
+    <tr><td>社会的手がかり</td><td>with: NPC が注視とアニメーションで反応。without: リーチのみ</td><td>腕の動きは共通、頭・目・補助動作だけ切替</td></tr>
+    <tr><td>刺激</td><td>2 cm/s で顔へ。目標は頭部トラッキング位置から</td><td>IK で頭ボーン位置に合わせる</td></tr>
+    <tr><td>参加者</td><td>HMD 利用者、普段使いアバター所有、18 歳以上</td><td>Allowed platforms = VR、同意質問紙</td></tr>
+    <tr><td>アバター特徴</td><td>身長と人型か否か</td><td>頭ボーン高・腕長を自動計測、人型かは自己申告</td></tr>
+    <tr><td>測度</td><td>0–10 評定（1 以上で種類・部位）、操作チェック、頭部運動、VEQ、社会的プレゼンス、個人経験</td><td>報告パネル＋質問紙＋10 Hz 軌跡</td></tr>
+    <tr><td>規模</td><td>約 200 名、2 週間、2026 年 11 月公開</td><td><code>maxSessionCount</code> と手動クローズ</td></tr>
+  </table></div>
+</section>
+
+<section id="flow">
+  <h2>実験の流れ（ステート構成）</h2>
+  <div class="flow">
+    <div class="step">Start<small>同意 qID1</small></div><span class="arrow">→</span>
+    <div class="step">DeviceCheck<small>頭・両手</small></div><span class="arrow">→</span>
+    <div class="loopbox">
+      <span class="tag">試行ループ ×4（block 1–2 × rep 1–2）</span>
+      <div class="step loop">Trial - Start<small>rep=1 のときアバター切替</small></div><span class="arrow">→</span>
+      <div class="step loop">Trial - Touch<small>NPC 接近 約30秒</small></div><span class="arrow">→</span>
+      <div class="step loop">Trial - Report<small>報告パネル</small></div><span class="arrow">→</span>
+      <div class="step loop">VEQ1 / VEQ2<small>各ブロック2試行目のみ</small></div><span class="arrow">→</span>
+      <div class="step loop">Trial - Rest<small>1秒</small></div>
+    </div><span class="arrow">→</span>
+    <div class="step">SocialPresence<small>qID4</small></div><span class="arrow">→</span>
+    <div class="step">PersonalExperience<small>qID5</small></div><span class="arrow">→</span>
+    <div class="step">Debrief<small>qID6</small></div><span class="arrow">→</span>
+    <div class="step">End<small>アップロード</small></div>
+  </div>
+  <p class="muted">個人経験は期待効果を避けるため最後に聞きます。VEQ は別 qID（2 と 3）にして、回答 DB にセッション ID がない問題を回避します。</p>
+  <div class="callout ok"><b class="label">確認済み（2026-10-23）</b>試行ループで同じステートに戻ったとき、質問紙は再び開きます。この構成で進めます。</div>
+</section>
+
+<section id="vars">
+  <h2>実験変数</h2>
+  <div class="tbl"><table>
+    <tr><th>区分</th><th>Name</th><th>Values</th><th>isRandom</th></tr>
+    <tr><td>参加者間</td><td><code>social</code></td><td>with, without</td><td>（常にランダム・均衡）</td></tr>
+    <tr><td>参加者間</td><td><code>order</code></td><td>daily_first, assigned_first</td><td>（同上）</td></tr>
+    <tr><td>参加者内</td><td><code>block</code></td><td>1, 2</td><td>オフ（先に定義）</td></tr>
+    <tr><td>参加者内</td><td><code>rep</code></td><td>1, 2</td><td>オフ</td></tr>
+  </table></div>
+  <p>Trials Count per Condition は 1 です。試行順は (1,1)(1,2)(2,1)(2,2) になります。</p>
+<pre><code>// CONDITION の値は文字列
+function avatarForBlock(block) {
+  const dailyFirst = CONDITION['order'] === 'daily_first';
+  return (dailyFirst === (block === '1')) ? 'daily' : 'assigned';
+}</code></pre>
+</section>
+
+<section id="avatar">
+  <h2>自己アバター条件の操作</h2>
+  <p>入室時は透明アバターです。Web Console の参加者アバターモードを HIDE にすると、管理ボットが「入室時に透明アバター、自分のアバターへの切替は許可」と設定します（反映は翌日）。</p>
+  <ol class="steps">
+    <li><b>指示</b>：普段使い条件なら「普段いちばん使うアバターに」、割当条件なら「最初に着ていた透明アバターに」着替えるよう表示します。</li>
+    <li><b>自動判定</b>：腕の長さと肩幅で透明アバターかどうかを毎フレーム判定し、目標と一致したときだけ「着替えました」ボタンを出します。</li>
+    <li><b>一段階目</b>：「着替えました」を押します。</li>
+    <li><b>二段階目</b>：「いま着ているのは普段最もよく使うアバターですか？」などに「はい／いいえ」で答えます。「いいえ」なら手順 1 に戻ります。</li>
+    <li><b>記録して開始</b>：腕長・肩幅・頭の高さ・切替にかかった時間を保存し、試行へ進みます。</li>
+  </ol>
+<pre><code>// 透明アバター（transparent-avatar.vrm）の実測値。実機で更新する
+const T_ARM = 0.485, T_SHOULDER = 0.332, TOL = 0.015;
+// 腕長と肩幅がどちらも許容差内なら透明アバター（1 秒連続で採用）</code></pre>
+  <div class="callout ok"><b class="label">確認済み（2026-10-23）</b>入室時に割り当てられた透明アバターは、参加者が一覧から再び選べます。</div>
+  <h3>ポータルは不要</h3>
+  <p>Study 2 では Cluster が入室時にしかアバターを割り当てないため、条件ごとに別ワールドを作りポータルで移動させていました。本案では参加者が同じワールド内で着替えるので、2 つのアバター条件を 1 ワールド・1 インスタンスで実施できます。ワールド移動による脱落（Study 2 では 9.2%）も起きません。</p>
+  <p class="muted">残るゲートは、終了後に募集ワールドへ戻る <code>WorldGateToLuidaBar</code> と、不適格者を送り出す既存の仕組みだけです。</p>
+</section>
+
+<section id="npc">
+  <h2>NPC（社会的手がかり）</h2>
+  <h3>作り方</h3>
+  <ol class="steps">
+    <li>既存の <code>YoungAvatar.vrm</code> を LUIDA の Configure avatars に登録し、生成されたラッパーと骨マップを複製します。</li>
+    <li>同期スクリプトを外し、自作の <code>NpcController.js</code> を載せます。</li>
+    <li>CCK の Global Logic で、NPC の完了シグナル <code>npc_done</code> をグローバルへ中継します。</li>
+  </ol>
+  <h3>1 試行のタイムライン</h3>
+  <div class="tbl"><table>
+    <tr><th>時刻</th><th>動作</th></tr>
+    <tr><td>0 秒</td><td>待機。with 条件は注視し、参加者と目が合えば会釈と手振り</td></tr>
+    <tr><td>2 秒</td><td>右手が 2 cm/s で顔へ接近を開始。10 Hz で記録開始</td></tr>
+    <tr><td>約 20 秒</td><td>顔の 3 cm 手前で停止し 2 秒保持</td></tr>
+    <tr><td>約 26 秒</td><td>手を戻して完了。状態機械が報告へ進む</td></tr>
+  </table></div>
+  <h3>with と without の違い</h3>
+  <div class="tbl"><table>
+    <tr><th>手がかり</th><th>with</th><th>without</th></tr>
+    <tr><td>注視</td><td>頭・首・目で参加者の頭を追う</td><td>正面固定</td></tr>
+    <tr><td>反応</td><td>会釈と手振り</td><td>なし</td></tr>
+    <tr><td>上体</td><td>少し前傾、保持中に頷く</td><td>直立</td></tr>
+    <tr><td>微小動揺</td><td>呼吸のような揺れ</td><td>静止</td></tr>
+  </table></div>
+  <p class="muted">腕のリーチ軌道は両条件で同一です。差は手がかりだけになります。</p>
+</section>
+
+<section id="report">
+  <h2>試行内報告パネル</h2>
+  <p>試行ごとの報告は質問紙ではなく、自作のボタンパネルで取ります。評定 0 のときに後の質問を飛ばせることと、NPC の計測値と同じ行に保存できることが理由です。</p>
+  <ol class="steps">
+    <li>顔に何か感じたか（0–10）</li>
+    <li>NPC が自分に注意を向けていたか（1–7）</li>
+    <li>評定が 1 以上なら、感覚の種類（複数選択）</li>
+    <li>評定が 1 以上なら、感じた部位（複数選択）</li>
+    <li>保存して次へ</li>
+  </ol>
+</section>
+
+<section id="q">
+  <h2>質問紙（Web Console に登録）</h2>
+  <div class="tbl"><table>
+    <tr><th>qID</th><th>ステート</th><th>内容</th></tr>
+    <tr><td>1</td><td>Start</td><td>説明と同意（18 歳以上、普段使いアバター所有、HMD 参加、同意）</td></tr>
+    <tr><td>2</td><td>Trial - VEQ1</td><td>VEQ（テンプレート、12 項目、1–7）</td></tr>
+    <tr><td>3</td><td>Trial - VEQ2</td><td>VEQ（qID 2 と同じ内容）</td></tr>
+    <tr><td>4</td><td>SocialPresence</td><td>NPC との共在感・社会的プレゼンス</td></tr>
+    <tr><td>5</td><td>PersonalExperience</td><td>利用時間、アバター利用期間、人型か、既知か、経験回数、年齢・性別、HMD</td></tr>
+    <tr><td>6</td><td>Debrief</td><td>デブリーフ確認、報酬送付先メール</td></tr>
+  </table></div>
+  <p>qID は登録順で決まります。登録後に並べ替えや編集をしないでください。</p>
+</section>
+
+<section id="data">
+  <h2>データ</h2>
+  <div class="tbl"><table>
+    <tr><th>行</th><th>件数</th><th>主な内容</th></tr>
+    <tr><td>試行行</td><td>4</td><td>条件、評定、操作チェック、種類・部位、手–頭距離、頭部軌跡（10 Hz）、時刻</td></tr>
+    <tr><td>セットアップ行</td><td>2</td><td>アバターの腕長・肩幅・頭の高さ、切替時間、やり直し回数</td></tr>
+    <tr><td>デバイスチェック行</td><td>1</td><td>合格までの時間、救済ボタン使用の有無</td></tr>
+  </table></div>
+  <p>合計 7 行、30–40 KB の見込みで、上限 100 KB に収まります。後退距離・振動振幅などの運動指標は、頭部軌跡から分析時に算出します。</p>
+</section>
+
+<section id="pitfalls">
+  <h2>コードで判明した注意点</h2>
+  <p class="muted">ドキュメントや論文と食い違う箇所は、実コードの挙動を採用しています。</p>
+  <div class="tbl"><table>
+    <tr><th>事実</th><th>影響と対処</th></tr>
+    <tr><td>アップロードのたびにサーバが同名ファイルを上書きする</td><td>途中で送ると前の行が消える。End で 1 回だけ送る</td></tr>
+    <tr><td>スクリプトはグローバル状態に書き込めない</td><td>NPC の完了通知は CCK の Global Logic で中継する</td></tr>
+    <tr><td>GUI の If ゲートは試行関連ステートにしか出ない</td><td>試行外の分岐は Customized Action に書く</td></tr>
+    <tr><td>質問紙の回答にセッション ID がない</td><td>VEQ を別 qID にし、pID と時刻で結合する</td></tr>
+    <tr><td>質問は作成順で返る</td><td>質問の並べ替えをしない</td></tr>
+    <tr><td>収集データのラベルは保存後もリセットされない</td><td>評定 0 の試行では種類・部位を空文字で上書きする</td></tr>
+  </table></div>
+</section>
+
+<section id="assets">
+  <h2>必要なアセット</h2>
+  <div class="callout ok"><b class="label">新規の 3D モデルは不要</b>プロジェクト内の既存資産で足ります。</div>
+  <div class="tbl"><table>
+    <tr><th>用途</th><th>既存で済むもの</th><th>新たに用意するもの</th></tr>
+    <tr><td>NPC の身体</td><td><code>YoungAvatar.vrm</code>（目ボーンあり）</td><td>別の中立的な見た目にしたい場合のみ VRM</td></tr>
+    <tr><td>割当アバター</td><td>Cluster の透明アバター、<code>transparent-avatar.vrm</code></td><td>なし</td></tr>
+    <tr><td>ボタン・パネル・床</td><td>Cube、Quad、CCK TextView</td><td>なし</td></tr>
+    <tr><td>環境</td><td>テンプレートの床とライト</td><td>任意で簡素な壁</td></tr>
+    <tr><td>質問紙</td><td>VEQ テンプレート、同意文の既定文</td><td>社会的プレゼンス尺度、個人経験項目、デブリーフ文</td></tr>
+    <tr><td>スクリプト</td><td>アバター同期の数式を流用</td><td><code>NpcController.js</code> と各アイテムの Customized Action</td></tr>
+  </table></div>
+</section>
+
+<section id="test">
+  <h2>テストとリスク</h2>
+  <div class="tbl"><table>
+    <tr><th>#</th><th>確認すること</th><th>合格条件</th></tr>
+    <tr><td><span class="pill">T0</span></td><td>試行ループ内で質問紙が再び開くか</td><td><b>確認済み</b></td></tr>
+    <tr><td><span class="pill">T1</span></td><td>透明アバターを自分で再選択できるか</td><td><b>確認済み</b></td></tr>
+    <tr><td><span class="pill mid">T3</span></td><td>着替え後もボーン取得や PlayerScript が途切れないか</td><td>着替え後に頭・手の位置が取れ、参加者が二重登録されない</td></tr>
+    <tr><td><span class="pill mid">T2</span></td><td>自動判定の精度</td><td>着替えで判定が正しく切り替わる。実測値で定数を更新</td></tr>
+    <tr><td><span class="pill">T4</span></td><td>NPC のリーチ</td><td>2 cm/s、3 cm 手前で停止、身長の違うアバターでも届く</td></tr>
+    <tr><td><span class="pill">T5</span></td><td>with／without の差</td><td>without で頭と目が動かない</td></tr>
+    <tr><td><span class="pill">T7</span></td><td>データ</td><td>Custom Log に 7 行、100 KB 未満</td></tr>
+    <tr><td><span class="pill">T8</span></td><td>均衡割付</td><td>4 セッションで 4 セルが 1 回ずつ</td></tr>
+    <tr><td><span class="pill">T10</span></td><td>所要時間</td><td>1 セッション 15–20 分</td></tr>
+  </table></div>
+  <p class="muted">HIDE モードは翌日反映なので、テスト日程に 1 日の余裕を取ってください。重複参加はサーバで防げないため、分析時に pID で除外します。</p>
+</section>
+
+<section id="appendix">
+  <h2>付録</h2>
+  <details>
+    <summary>A. 代替案：全ステートを並べる構成（T0 確認済みのため現在は不要）</summary>
+    <p>参加者内変数を使わず、2 ブロック × 2 試行を個別のステートとして並べます。各質問紙は 1 回しか使わないので、再表示の問題が起きません。NPC・パネル・ゲートの設計はそのまま使えます。</p>
+    <p class="muted">Start → DeviceCheck → B1_Setup → B1_T1_Touch → B1_T1_Report → B1_T2_Touch → B1_T2_Report → B1_VEQ → B2_Setup → … → B2_VEQ → Trial - Start → Trial - Rest → SocialPresence → PersonalExperience → Debrief → End</p>
+  </details>
+  <details>
+    <summary>B. 2 ボーン IK（肘位置の計算）</summary>
+<pre><code>function solveElbow(S, T, L1, L2, bendHint) {
+  const toT = T.clone().sub(S); let d = toT.length();
+  d = Math.max(0.01, Math.min(L1 + L2 - 0.001, d));
+  const dir = toT.normalize();
+  const cosS = (L1*L1 + d*d - L2*L2) / (2*L1*d);
+  const angS = Math.acos(Math.max(-1, Math.min(1, cosS)));
+  const n = dir.clone().cross(bendHint).normalize();
+  const q = new Quaternion().setFromAxisAngle(n, angS * 180 / Math.PI);
+  return S.clone().add(dir.clone().applyQuaternion(q).multiplyScalar(L1));
+}</code></pre>
+  </details>
+  <details>
+    <summary>C. 報告パネルのボタン読み取り</summary>
+<pre><code>// During State の Customized Action
+const b = $.getStateCompat('this', 'rp_btn', 'integer');
+if (b &gt; 0) { $.setStateCompat('this', 'rp_btn', 0); onButton(b - 1); }</code></pre>
+  </details>
+</section>
+
+<footer>詳細な根拠（ファイルパスと行番号）、全コード片、データ項目の完全な一覧は <code>implementation-plan.md</code> を参照してください。</footer>
+</div>
+<script>
+(function(){
+  var btn=document.getElementById('themebtn'), root=document.documentElement;
+  try{var saved=localStorage.getItem('s4theme'); if(saved) root.setAttribute('data-theme',saved);}catch(e){}
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('s4theme',next);}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

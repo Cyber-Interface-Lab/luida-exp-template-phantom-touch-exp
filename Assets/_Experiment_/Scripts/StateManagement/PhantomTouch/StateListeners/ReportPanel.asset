@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acb8c4c8a0a4dc6418e2f4d59454f5e3, type: 3}
+  m_Name: ReportPanel
+  m_EditorClassIdentifier: ClusterMetaverseLab.Luida::StateListeningItemData
+  stateListeners:
+  - stateID: 0
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: rp_hideAll(); HideChild('Text');
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  - stateID: 4
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: rp_begin();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: rp_update(deltaTime);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: rp_end();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+  eventHandlers:
+  - eventType: Update
+    actions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: rp_flush();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+  otherImplementation: "// ---- Study 4: ReportPanel (0-10 rating -> manipulation
+    check -> type -> location) ----\nconst RP_BTN = ['RP_0', 'RP_1', 'RP_2', 'RP_3',
+    'RP_4', 'RP_5', 'RP_6', 'RP_7', 'RP_8', 'RP_9', 'RP_10'];\nconst RP_DONE = 'RP_Done';\nconst
+    RP_TYPES = ['\u5727\u8FEB\u611F', '\u305E\u308F\u305E\u308F\u30FB\u3080\u305A\u3080\u305A',
+    '\u6E29\u304B\u3055', '\u51B7\u305F\u3055', '\u98A8\u30FB\u7A7A\u6C17\u306E\u52D5\u304D',
+    '\u3057\u3073\u308C', '\u305D\u306E\u4ED6'];\nconst RP_LOCS = ['\u984D', '\u76EE\u306E\u307E\u308F\u308A',
+    '\u982C', '\u9F3B\u30FB\u53E3\u306E\u307E\u308F\u308A', '\u3042\u3054', '\u982D\u306E\u5074\u9762\u30FB\u8033',
+    '\u9996', '\u305D\u306E\u4ED6'];\nlet rp_queue = [];\nfunction rp_enqueue(id,
+    cfg) { rp_queue.push({ id: id, cfg: cfg }); }\n// Messages to other items are
+    rate-limited (10/s per item); spread them over frames.\nfunction rp_flush() {\n 
+    let n = 0;\n  while (rp_queue.length > 0 && n < 4) {\n    const m = rp_queue.shift();\n   
+    try { const h = $.worldItemReference(m.id); if (h) h.send('btn_cfg', m.cfg);
+    } catch (e) { $.log('[ReportPanel] send ' + m.id + ': ' + e); }\n    n++;\n 
+    }\n}\nfunction rp_showOptions(labels, multi) {\n  for (let i = 0; i < RP_BTN.length;
+    i++) {\n    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label:
+    labels[i], on: false } : { visible: false, on: false });\n  }\n  rp_enqueue(RP_DONE,
+    { visible: !!multi, label: '\u6C7A\u5B9A', on: false });\n  $.state.rp_sel =
+    [];\n}\nfunction rp_hideAll() {\n  for (let i = 0; i < RP_BTN.length; i++) rp_enqueue(RP_BTN[i],
+    { visible: false, on: false });\n  rp_enqueue(RP_DONE, { visible: false, on:
+    false });\n}\nfunction rp_begin() {\n  $.state.rp_step = 1; $.state.rp_active
+    = true;\n  $.state.rp_rating = -1; $.state.rp_mc = -1; $.state.rp_type = '';
+    $.state.rp_loc = '';\n  $.state.rp_startTs = Date.now();\n  ShowChild('Text');\n 
+    rp_render();\n}\nfunction rp_render() {\n  const s = $.state.rp_step;\n  if (s
+    === 1) {\n    SetText('\u76F8\u624B\u306E\u624B\u304C\u8FD1\u3065\u3044\u305F\u3068\u304D\u3001\u9854\u306B\u4F55\u304B\u611F\u3058\u307E\u3057\u305F\u304B\uFF1F\\n0
+    = \u307E\u3063\u305F\u304F\u611F\u3058\u306A\u304B\u3063\u305F\u3000\u2026\u300010
+    = \u975E\u5E38\u306B\u5F37\u304F\u611F\u3058\u305F');\n    rp_showOptions(['0',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], false);\n  } else if (s ===
+    2) {\n    SetText('\u76F8\u624B\u306F\u3042\u306A\u305F\u306B\u6CE8\u610F\u3092\u5411\u3051\u3066\u3044\u308B\u3068\u611F\u3058\u307E\u3057\u305F\u304B\uFF1F\\n1
+    = \u307E\u3063\u305F\u304F\u611F\u3058\u306A\u304B\u3063\u305F\u3000\u2026\u30007
+    = \u5F37\u304F\u611F\u3058\u305F');\n    rp_showOptions(['1', '2', '3', '4',
+    '5', '6', '7'], false);\n  } else if (s === 3) {\n    SetText('\u3069\u3093\u306A\u611F\u899A\u3067\u3057\u305F\u304B\uFF1F\\n\u5F53\u3066\u306F\u307E\u308B\u3082\u306E\u3092\u3059\u3079\u3066\u9078\u3073\u3001\u300C\u6C7A\u5B9A\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002');\n   
+    rp_showOptions(RP_TYPES, true);\n  } else if (s === 4) {\n    SetText('\u3069\u3053\u306B\u611F\u3058\u307E\u3057\u305F\u304B\uFF1F\\n\u5F53\u3066\u306F\u307E\u308B\u3082\u306E\u3092\u3059\u3079\u3066\u9078\u3073\u3001\u300C\u6C7A\u5B9A\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002');\n   
+    rp_showOptions(RP_LOCS, true);\n  }\n}\nfunction rp_update(dt) {\n  rp_flush();\n 
+    if (!$.state.rp_active) return;\n  const b = $.getStateCompat('this', 'rp_btn',
+    'integer');\n  if (!(b > 0)) return;\n  $.setStateCompat('this', 'rp_btn', 0);\n 
+    const idx = b - 1;              // 0..10 = option buttons, 11 = Done\n  const
+    s = $.state.rp_step;\n  if (s === 1) {\n    if (idx >= 0 && idx <= 10) { $.state.rp_rating
+    = idx; $.state.rp_step = 2; rp_render(); }\n  } else if (s === 2) {\n    if (idx
+    >= 0 && idx <= 6) {\n      $.state.rp_mc = idx + 1;\n      if ($.state.rp_rating
+    >= 1) { $.state.rp_step = 3; rp_render(); } else rp_finish();\n    }\n  } else
+    if (s === 3 || s === 4) {\n    const labels = s === 3 ? RP_TYPES : RP_LOCS;\n   
+    if (idx === 11) {\n      const sel = $.state.rp_sel || [];\n      if (sel.length
+    === 0) return;\n      const val = sel.slice().sort((a, b2) => a - b2).map(i =>
+    i + 1).join(',');\n      if (s === 3) { $.state.rp_type = val; $.state.rp_step
+    = 4; rp_render(); }\n      else { $.state.rp_loc = val; rp_finish(); }\n    }
+    else if (idx >= 0 && idx < labels.length) {\n      let sel = $.state.rp_sel ||
+    [];\n      const k = sel.indexOf(idx);\n      if (k >= 0) sel.splice(k, 1); else
+    sel.push(idx);\n      $.state.rp_sel = sel;\n      rp_enqueue(RP_BTN[idx], {
+    on: k < 0 });\n    }\n  }\n}\nfunction rp_finish() {\n  $.state.rp_active = false;\n 
+    SendDataToCollector('rating', $.state.rp_rating);\n  SendDataToCollector('mc',
+    $.state.rp_mc);\n  SendDataToCollector('ptype', $.state.rp_type || '');\n  SendDataToCollector('ploc',
+    $.state.rp_loc || '');\n  SendDataToCollector('reportDoneTs', Date.now());\n 
+    ProcessAndSaveCollectedData();\n  rp_hideAll();\n  SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
+    ToNextState();\n}\nfunction rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active
+    = false; }\n"

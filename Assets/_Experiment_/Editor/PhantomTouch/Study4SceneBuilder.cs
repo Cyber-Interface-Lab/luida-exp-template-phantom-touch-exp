@@ -1,0 +1,1240 @@
+// Study 4 (phantom touch illusion) scene builder.
+//
+// Generates the complete "PhantomTouch" experiment scene on top of LUIDA's own editor
+// utilities (scene template, state machine, state-listening items, questionnaires,
+// data collector, avatar wrapper builder). Everything the LUIDA GUI would have
+// produced is produced here programmatically, so the result can be inspected and
+// further edited with the normal LUIDA windows.
+//
+//   Menu:  LUIDA > Study4 > Build PhantomTouch scene
+//   Batch: Unity.exe -batchmode -quit -projectPath <proj> -executeMethod Study4SceneBuilder.BuildFromBatch
+//
+// Design document: research/study4-phantom-touch/implementation-plan.md
+#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using ClusterMetaverseLab.Luida.Scripting;
+using ClusterVR.CreatorKit.Gimmick;
+using ClusterVR.CreatorKit.Gimmick.Implements;
+using ClusterVR.CreatorKit.Item.Implements;
+using ClusterVR.CreatorKit.Operation.Implements;
+using ClusterVR.CreatorKit.Trigger.Implements;
+using ClusterVR.CreatorKit.World.Implements.TextView;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
+
+public static class Study4SceneBuilder
+{
+    // ------------------------------------------------------------------ paths
+    public const string SceneName = "PhantomTouch";
+    const string ScenePath = "Assets/_Experiment_/Scenes/" + SceneName + ".unity";
+    const string StateListPath = "Assets/_Experiment_/Settings/StateList/" + SceneName + ".asset";
+    const string VariablesPath = "Assets/_Experiment_/Settings/ExperimentVariables/" + SceneName + ".js";
+    const string DataCollectorConfigPath = "Assets/_Experiment_/Settings/DataCollectorConfig/" + SceneName + ".asset";
+    const string DataCollectorJsPath = "Assets/_Experiment_/Scripts/DataCollectors/" + SceneName + ".js";
+    const string ItemScriptsFolder = "Assets/_Experiment_/Scripts/StateManagement/" + SceneName;
+    const string AvatarsFolder = "Assets/_Experiment_/Avatars/" + SceneName;
+    const string PrefabsFolder = "Assets/_Experiment_/Prefabs/" + SceneName;
+    const string MaterialsFolder = "Assets/_Experiment_/Materials/" + SceneName;
+    const string NpcPrefabPath = PrefabsFolder + "/NPC.prefab";
+
+    const string StateListTemplatePath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/ExpSettings/StateList/Template.asset";
+    const string VariablesTemplatePath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/ExpSettings/VariablesTemplate.js";
+    const string ConditionManagerJsPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Scripts/ConditionManagement/ConditionManager.js";
+    const string GatePrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/WorldGateToLuidaBar.prefab";
+    const string DataCollectorPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/CustomDataCollection/LUIDA-DataCollector.prefab";
+    const string ExpManagersPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/LUIDA-ExpManagers.prefab";
+    const string ConditionManagerPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/ConditionManagement/ConditionManager.prefab";
+    const string ResetLogicResourcePath = "ClusterMetaverseLab/LuidaExpTemplate/FakeGimmickSources/ResetGlobalBool";
+
+    const string NpcVrmPath = "Assets/_Experiment_/Avatars/ProteusSample/Source/YoungAvatar.vrm";
+    const string NpcControllerJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/NpcController.js";
+    const string ButtonJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Button.js";
+
+    // ------------------------------------------------------------------ state ids
+    const int S_START = 0, S_DEVICE = 1, S_TSTART = 2, S_TOUCH = 3, S_REPORT = 4,
+              S_VEQ1 = 5, S_VEQ2 = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+
+    // ------------------------------------------------------------------ entry points
+    [MenuItem("LUIDA/Study4/Build PhantomTouch scene")]
+    public static void BuildFromMenu()
+    {
+        if (!EditorUtility.DisplayDialog("Build PhantomTouch scene",
+            "This (re)generates the PhantomTouch scene and all of its per-scene LUIDA assets.\n" +
+            "Existing PhantomTouch assets will be deleted first. Continue?", "Build", "Cancel"))
+            return;
+        Build();
+        EditorUtility.DisplayDialog("Study 4", "PhantomTouch scene generated.\nSee research/study4-phantom-touch/ for the design document.", "OK");
+    }
+
+    /// <summary>Same as the menu above but without the confirmation dialog (for remote/automated execution).</summary>
+    [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
+    public static void BuildNoPrompt()
+    {
+        Build();
+    }
+
+    /// <summary>Batch-mode entry (-executeMethod Study4SceneBuilder.BuildFromBatch).</summary>
+    public static void BuildFromBatch()
+    {
+        try
+        {
+            Build();
+            Debug.Log("[Study4] BUILD OK");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[Study4] BUILD FAILED: " + e);
+            throw;
+        }
+    }
+
+    public static void Build()
+    {
+        Debug.Log("[Study4] ---- building scene " + SceneName + " ----");
+        CleanPrevious();
+
+        LuidaSceneUtility.CreateNewSceneFromTemplate(SceneName);
+        var scene = EditorSceneManager.GetActiveScene();
+        if (scene.name != SceneName) throw new Exception("Scene creation failed: active scene is " + scene.name);
+
+        EnsureAutomationAssets();
+        var stateList = WriteStateList();
+        WriteVariablesJs(stateList);
+        WireConditionManagerCombiner();
+        BuildStateObjects();
+        ConfigureDataCollector();
+
+        var layout = ComputeLayout();
+        var materials = CreateMaterials();
+        BuildFloorMarker(layout, materials);
+
+        var collectorItem = FindDataCollectorItem();
+        var npc = BuildNpc(layout, collectorItem);
+        BuildStateListeningItems(layout, materials, npc, collectorItem);
+
+        LuidaScriptCombiner.CombineAll();
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("[Study4] ---- done ----");
+    }
+
+    // ------------------------------------------------------------------ 0. cleanup
+    static void CleanPrevious()
+    {
+        var active = EditorSceneManager.GetActiveScene();
+        if (active.path == ScenePath)
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        string[] paths =
+        {
+            ScenePath, StateListPath, VariablesPath, DataCollectorConfigPath, DataCollectorJsPath,
+            ItemScriptsFolder, AvatarsFolder, PrefabsFolder,
+        };
+        foreach (var p in paths)
+        {
+            if (File.Exists(p) || Directory.Exists(p))
+            {
+                if (!AssetDatabase.DeleteAsset(p))
+                {
+                    if (Directory.Exists(p)) Directory.Delete(p, true); else File.Delete(p);
+                    if (File.Exists(p + ".meta")) File.Delete(p + ".meta");
+                }
+                Debug.Log("[Study4] removed " + p);
+            }
+        }
+        AssetDatabase.Refresh();
+    }
+
+    // ------------------------------------------------------------------ 1. automation assets
+    static void EnsureAutomationAssets()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(StateListPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(VariablesPath));
+        if (!File.Exists(StateListPath)) AssetDatabase.CopyAsset(StateListTemplatePath, StateListPath);
+        if (!File.Exists(VariablesPath)) File.Copy(VariablesTemplatePath, VariablesPath);
+        AssetDatabase.Refresh();
+        AssetDatabase.ImportAsset(VariablesPath, ImportAssetOptions.ForceUpdate);
+    }
+
+    static StateList.State S(string name, int qID = 0, bool hasExit = false, float exit = 0f)
+    {
+        return new StateList.State
+        {
+            StateName = name, DestStateName = "", HasExitTime = hasExit, ExitTime = exit,
+            IsRepeated = false, RepeatDestStateName = "", RepeatCount = 1, qID = qID,
+        };
+    }
+
+    static StateList WriteStateList()
+    {
+        var sl = AssetDatabase.LoadAssetAtPath<StateList>(StateListPath);
+        if (sl == null) throw new Exception("StateList asset missing: " + StateListPath);
+        var states = new[]
+        {
+            S("Start", qID: 1),                 // consent questionnaire
+            S("DeviceCheck"),                   // head / hand tracking check
+            S("Trial - Start"),                 // block setup (avatar switch) when rep == 1
+            S("Trial - Touch"),                 // NPC reaches toward the face
+            S("Trial - Report"),                // 0-10 rating, manipulation check, type, location
+            S("Trial - VEQ1", qID: 2),          // VEQ after block 1 (block 1 & rep 2 only)
+            S("Trial - VEQ2", qID: 3),          // VEQ after block 2 (block 2 & rep 2 only)
+            S("Trial - Rest", hasExit: true, exit: 1f),
+            S("SocialPresence", qID: 4),
+            S("PersonalExperience", qID: 5),
+            S("Debrief", qID: 6),
+            S("End"),
+        };
+        for (int i = 0; i < states.Length - 1; i++) states[i].DestStateName = states[i + 1].StateName;
+        sl.States = states;
+        EditorUtility.SetDirty(sl);
+        AssetDatabase.SaveAssets();
+        return sl;
+    }
+
+    static void WriteVariablesJs(StateList sl)
+    {
+        var names = string.Join(", ", sl.States.Select(s => "\"" + s.StateName + "\""));
+        string js =
+            "const trialsCountForEachUniqueCondition = 1;\n" +
+            "const within_subjects_variables = [\n" +
+            "    { name: \"block\", values: [\"1\", \"2\"], isRandom: false },\n" +
+            "    { name: \"rep\", values: [\"1\", \"2\"], isRandom: false },\n" +
+            "];\n" +
+            "const between_subjects_variables = [\n" +
+            "    { name: \"social\", values: [\"with\", \"without\"], isRandom: true, debugValue: null },\n" +
+            "    { name: \"order\", values: [\"daily_first\", \"assigned_first\"], isRandom: true, debugValue: null },\n" +
+            "];\n" +
+            "const state_names = [" + names + "];\n";
+        File.WriteAllText(VariablesPath, js);
+        AssetDatabase.ImportAsset(VariablesPath, ImportAssetOptions.ForceUpdate);
+    }
+
+    static void WireConditionManagerCombiner()
+    {
+        var cm = GameObject.Find("ConditionManager");
+        if (cm == null) throw new Exception("ConditionManager not found in scene");
+        var combiner = cm.GetComponent<LuidaScriptCombiner>();
+        var variables = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(VariablesPath);
+        var manager = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(ConditionManagerJsPath);
+        combiner.ClearScripts();
+        combiner.AppendScript(variables, null);
+        combiner.AppendScript(manager, null, true);
+        EditorUtility.SetDirty(combiner);
+    }
+
+    // State GameObjects + per-state questionnaire forms, via LUIDA's own State Machine tab logic.
+    static void BuildStateObjects()
+    {
+        var tab = ScriptableObject.CreateInstance<StateMachineConfigTab>();
+        try
+        {
+            tab.OnEnable();
+            var update = typeof(StateMachineConfigTab).GetMethod("UpdateSceneObjects", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (update == null) throw new Exception("StateMachineConfigTab.UpdateSceneObjects not found (LUIDA version mismatch)");
+            update.Invoke(tab, null);
+        }
+        finally
+        {
+            Object.DestroyImmediate(tab);
+        }
+        // sanity
+        var states = GameObject.Find("States");
+        if (states == null || states.transform.childCount != 12)
+            throw new Exception("States container not generated as expected");
+        var qRoot = GameObject.Find("LUIDA-QuestionnaireByState");
+        if (qRoot == null || qRoot.transform.childCount != 6)
+            Debug.LogWarning("[Study4] expected 6 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
+    }
+
+    // ------------------------------------------------------------------ 2. data collector
+    static void ConfigureDataCollector()
+    {
+        var config = DataCollectorCreateMenu.FindOrCreateBuilderConfig();
+        if (config == null) throw new Exception("Data collector config not found");
+        config.useCustomCodeMode = true;
+        config.rawJs = DataCollectorJs;
+        config.collectedLabels.Clear();
+        foreach (var (label, type) in new (string, CollectedValueType)[]
+                 {
+                     ("avatar", CollectedValueType.String), ("rating", CollectedValueType.Integer), ("mc", CollectedValueType.Integer),
+                     ("ptype", CollectedValueType.String), ("ploc", CollectedValueType.String), ("trace", CollectedValueType.String),
+                 })
+        {
+            // Registered as String so that no CCK sync header is generated; values are written by scripts.
+            config.collectedLabels.Add(new CollectedLabel { label = label, type = CollectedValueType.String });
+        }
+        EditorUtility.SetDirty(config);
+        AssetDatabase.SaveAssets();
+        DataCollectorJsSaver.WriteAndCombine(config);
+    }
+
+    const string DataCollectorJs = @"// Study 4 (phantom touch): one row per trial / setup / device check.
+// Written by Study4SceneBuilder (Code mode). Values are pushed by the state-listening items
+// (SendDataToCollector) and by the NPC item (group state). Labels that a row does not use keep
+// the value of the previous save, so interpret rows by stateLog.name.
+const CD = (typeof COLLECTED_DATA !== 'undefined' && COLLECTED_DATA) ? COLLECTED_DATA : {};
+return {
+    stateLog: CD['stateLog'],
+    cond: CONDITION || {},
+    savedAt: Date.now(),
+    // block setup (Trial - Start, rep == 1)
+    avatar: CD['avatar'],
+    avatarArmLen: CD['avatarArmLen'], avatarShoulder: CD['avatarShoulder'],
+    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsTransparent: CD['avatarIsTransparent'],
+    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'],
+    // device check
+    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
+    // per-trial report
+    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
+    // NPC measurements
+    social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
+    trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
+    pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
+    headPos0: CD['headPos0'], headRot0: CD['headRot0'],
+    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
+    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],
+    npcTimeout: CD['npcTimeout'],
+    trace: CD['trace'],
+};
+";
+
+    // ------------------------------------------------------------------ 3. layout
+    class Layout
+    {
+        public Vector3 origin;   // participant standing spot (floor)
+        public Vector3 fwd;      // participant facing direction (horizontal)
+        public Vector3 right;
+        public Vector3 P(float r, float u, float f) => origin + right * r + Vector3.up * u + fwd * f;
+        public Quaternion FaceAwayFromViewer(Vector3 pos)
+        {
+            var viewer = origin + Vector3.up * 1.5f;
+            var d = pos - viewer; d.y = 0;
+            return Quaternion.LookRotation(d.sqrMagnitude > 1e-6f ? d.normalized : fwd, Vector3.up);
+        }
+    }
+
+    static Layout ComputeLayout()
+    {
+        Transform spawn = null;
+        var sp = GameObject.Find("SpawnPoints");
+        if (sp != null && sp.transform.childCount > 0) spawn = sp.transform.GetChild(0);
+        var l = new Layout();
+        l.origin = spawn != null ? spawn.position : Vector3.zero;
+        var f = spawn != null ? spawn.forward : Vector3.forward;
+        f.y = 0; if (f.sqrMagnitude < 1e-6f) f = Vector3.forward;
+        l.fwd = f.normalized;
+        l.right = Vector3.Cross(Vector3.up, l.fwd).normalized;
+        Debug.Log("[Study4] layout origin=" + l.origin + " fwd=" + l.fwd);
+        return l;
+    }
+
+    class Materials { public Material btn, btnOn, marker, panel; }
+
+    static Materials CreateMaterials()
+    {
+        Directory.CreateDirectory(MaterialsFolder);
+        var m = new Materials
+        {
+            btn = MakeMaterial("Btn", new Color(0.18f, 0.20f, 0.25f)),
+            btnOn = MakeMaterial("BtnOn", new Color(0.95f, 0.55f, 0.15f)),
+            marker = MakeMaterial("FloorMarker", new Color(0.35f, 0.60f, 0.90f)),
+            panel = MakeMaterial("Panel", new Color(0.10f, 0.10f, 0.12f)),
+        };
+        AssetDatabase.SaveAssets();
+        return m;
+    }
+
+    static Material MakeMaterial(string name, Color color)
+    {
+        string path = MaterialsFolder + "/" + name + ".mat";
+        var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (existing != null) { existing.color = color; EditorUtility.SetDirty(existing); return existing; }
+        var shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
+        var mat = new Material(shader) { color = color };
+        AssetDatabase.CreateAsset(mat, path);
+        return mat;
+    }
+
+    static void BuildFloorMarker(Layout l, Materials m)
+    {
+        var marker = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        marker.name = "FloorMarker";
+        Object.DestroyImmediate(marker.GetComponent<Collider>());
+        marker.transform.position = l.origin + Vector3.up * 0.01f;
+        marker.transform.rotation = Quaternion.Euler(90f, Quaternion.LookRotation(l.fwd).eulerAngles.y, 0f);
+        marker.transform.localScale = new Vector3(0.6f, 0.6f, 1f);
+        marker.GetComponent<MeshRenderer>().sharedMaterial = m.marker;
+    }
+
+    // ------------------------------------------------------------------ 4. NPC
+    static Item FindDataCollectorItem()
+    {
+        foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root) == DataCollectorPrefabPath)
+                return root.GetComponent<Item>();
+        }
+        var dc = Object.FindFirstObjectByType<LuidaDataCollector>();
+        return dc != null ? dc.GetComponent<Item>() : null;
+    }
+
+    static GameObject BuildNpc(Layout l, Item collectorItem)
+    {
+        var registry = AvatarsConfigAssetUtil.EnsureRegistryAsset();
+        if (registry == null) throw new Exception("Avatar registry could not be created");
+        var vrm = AssetDatabase.LoadAssetAtPath<GameObject>(NpcVrmPath);
+        if (vrm == null) throw new Exception("NPC VRM not found: " + NpcVrmPath);
+
+        var entry = new AvatarEntry
+        {
+            avatarID = "NpcBody", displayName = "NPC body (YoungAvatar)", sourceVrmPrefab = vrm,
+            scaleMode = AvatarScaleMode.OriginalScale, syncHipsY = true, hipsYOffset = 0f,
+        };
+        string wrapperPath = VrmWrapperBuilder.Build(vrm, entry, registry);
+        if (wrapperPath == null) throw new Exception("VrmWrapperBuilder failed for NPC");
+
+        string sceneFolder = AvatarsConfigAssetUtil.GetSceneFolderFromRegistry(registry);
+        string boneMapPath = AvatarsConfigAssetUtil.GetGeneratedFolder(sceneFolder) + "/NpcBody_BoneMap.js";
+        AppendEyeBonesToBoneMap(boneMapPath, vrm);
+        string npcBoneMapPath = AvatarsConfigAssetUtil.GetGeneratedFolder(sceneFolder) + "/NPC_BoneMap.js";
+        if (File.Exists(npcBoneMapPath)) AssetDatabase.DeleteAsset(npcBoneMapPath);
+        AssetDatabase.MoveAsset(boneMapPath, npcBoneMapPath);
+        AssetDatabase.ImportAsset(npcBoneMapPath, ImportAssetOptions.ForceUpdate);
+
+        var boneMapAsset = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(npcBoneMapPath);
+        var controllerAsset = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(NpcControllerJsPath);
+        if (boneMapAsset == null || controllerAsset == null) throw new Exception("NPC scripts not importable");
+
+        Directory.CreateDirectory(PrefabsFolder);
+        var contents = PrefabUtility.LoadPrefabContents(wrapperPath);
+        try
+        {
+            contents.name = "NPC";
+            var combiner = contents.GetComponent<LuidaScriptCombiner>();
+            combiner.ClearScripts();
+            combiner.AppendScript(boneMapAsset, null);
+            combiner.AppendScript(controllerAsset, null, true);
+
+            var item = contents.GetComponent<Item>();
+            SetItemName(item, "NPC");
+            AddSignalRelay(contents, item, "npc_done");
+
+            PrefabUtility.SaveAsPrefabAsset(contents, NpcPrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(contents);
+        }
+        AssetDatabase.DeleteAsset(wrapperPath);
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcPrefabPath);
+        var npc = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        npc.name = "NPC";
+        npc.transform.position = l.P(0f, 0f, 1.0f);
+        npc.transform.rotation = Quaternion.LookRotation(-l.fwd, Vector3.up);
+        AddItemGroupMember(npc);
+        if (collectorItem != null) AddWorldItemReference(npc, "luida-data-collector", collectorItem);
+        return npc;
+    }
+
+    // Append LeftEye/RightEye to the generated BONE_MAP / BONE_PARENT so the NPC can move its eyes.
+    static void AppendEyeBonesToBoneMap(string boneMapPath, GameObject vrm)
+    {
+        var preview = EditorSceneManager.NewPreviewScene();
+        GameObject instance = null;
+        try
+        {
+            instance = (GameObject)PrefabUtility.InstantiatePrefab(vrm, preview);
+            var animator = instance.GetComponentInChildren<Animator>();
+            if (animator == null || animator.avatar == null || !animator.avatar.isHuman) return;
+            var left = animator.GetBoneTransform(HumanBodyBones.LeftEye);
+            var right = animator.GetBoneTransform(HumanBodyBones.RightEye);
+            if (left == null || right == null) { Debug.LogWarning("[Study4] NPC model has no eye bones; gaze will use head only"); return; }
+
+            string js = File.ReadAllText(boneMapPath);
+            string Entry(string bone, Transform t) => string.Format(CultureInfo.InvariantCulture,
+                "  {{ bone: HumanoidBone.{0}, name: \"{1}\", rest: {2}, restParent: {3} }},\n",
+                bone, t.name.Replace("\"", "\\\""), Q(t.rotation), Q(t.parent != null ? t.parent.rotation : Quaternion.identity));
+
+            int mapStart = js.IndexOf("const BONE_MAP = [", StringComparison.Ordinal);
+            int mapEnd = js.IndexOf("];", mapStart, StringComparison.Ordinal);
+            js = js.Insert(mapEnd, Entry("LeftEye", left) + Entry("RightEye", right));
+
+            int parentStart = js.IndexOf("const BONE_PARENT = {", StringComparison.Ordinal);
+            int parentEnd = js.IndexOf("};", parentStart, StringComparison.Ordinal);
+            js = js.Insert(parentEnd, "  [HumanoidBone.LeftEye]: HumanoidBone.Head,\n  [HumanoidBone.RightEye]: HumanoidBone.Head,\n");
+
+            File.WriteAllText(boneMapPath, js);
+            AssetDatabase.ImportAsset(boneMapPath, ImportAssetOptions.ForceUpdate);
+        }
+        finally
+        {
+            if (instance != null) Object.DestroyImmediate(instance);
+            EditorSceneManager.ClosePreviewScene(preview);
+        }
+    }
+
+    static string Q(Quaternion q) => string.Format(CultureInfo.InvariantCulture,
+        "new Quaternion({0:G7}, {1:G7}, {2:G7}, {3:G7})", q.x, q.y, q.z, q.w);
+
+    // Item-scope signal <key> on this item -> Global signal <key> (same relay pattern LUIDA uses).
+    static void AddSignalRelay(GameObject go, Item item, string key)
+    {
+        var templatePrefab = Resources.Load<GameObject>(ResetLogicResourcePath);
+        if (templatePrefab == null) throw new Exception("ResetGlobalBool template missing");
+        var template = templatePrefab.GetComponent<GlobalLogic>();
+        var relay = go.AddComponent<GlobalLogic>();
+        EditorUtility.CopySerialized(template, relay);
+
+        var gimmickKey = Activator.CreateInstance(typeof(GlobalGimmickKey));
+        typeof(GlobalGimmickKey).GetField("key", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.SetValue(gimmickKey, new GimmickKey(GimmickTarget.Item, key));
+        typeof(GlobalGimmickKey).GetField("item", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.SetValue(gimmickKey, item);
+        typeof(GlobalLogic).GetField("globalGimmickKey", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.SetValue(relay, gimmickKey);
+        LuidaFakeGimmick.PatchStatementAtSignal(relay, 0, key);
+        EditorUtility.SetDirty(relay);
+    }
+
+    static void AddItemGroupMember(GameObject go)
+    {
+        var member = go.GetComponent<ItemGroupMember>() ?? go.AddComponent<ItemGroupMember>();
+        ItemGroupHost host = null;
+        foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root) != ExpManagersPrefabPath) continue;
+            for (int i = 0; i < root.transform.childCount; i++)
+            {
+                var child = root.transform.GetChild(i).gameObject;
+                if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(child) == ConditionManagerPrefabPath)
+                    host = child.GetComponent<ItemGroupHost>();
+            }
+        }
+        if (host == null) { Debug.LogWarning("[Study4] ConditionManager ItemGroupHost not found"); return; }
+        var so = new SerializedObject(member);
+        so.FindProperty("host").objectReferenceValue = host;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    static void AddWorldItemReference(GameObject go, string id, Item target)
+    {
+        var list = go.GetComponent<WorldItemReferenceList>() ?? go.AddComponent<WorldItemReferenceList>();
+        var so = new SerializedObject(list);
+        var prop = so.FindProperty("worldItemReferences");
+        for (int i = 0; i < prop.arraySize; i++)
+        {
+            var e = prop.GetArrayElementAtIndex(i);
+            if (e.FindPropertyRelative("id").stringValue == id)
+            {
+                e.FindPropertyRelative("item").objectReferenceValue = target;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                return;
+            }
+        }
+        prop.InsertArrayElementAtIndex(prop.arraySize);
+        var el = prop.GetArrayElementAtIndex(prop.arraySize - 1);
+        el.FindPropertyRelative("id").stringValue = id;
+        el.FindPropertyRelative("item").objectReferenceValue = target;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    static void SetItemName(Item item, string name)
+    {
+        if (item == null) return;
+        var so = new SerializedObject(item);
+        var p = so.FindProperty("itemName");
+        if (p != null) { p.stringValue = name; so.ApplyModifiedPropertiesWithoutUndo(); }
+    }
+
+    // ------------------------------------------------------------------ 5. state-listening items
+    static void BuildStateListeningItems(Layout l, Materials m, GameObject npc, Item collectorItem)
+    {
+        var tab = ScriptableObject.CreateInstance<ItemsManagerConfigTab>();
+        try
+        {
+            tab.OnEnable();
+
+            // -- Instruction board ------------------------------------------------
+            var instruction = CreateSli(tab, "Instruction");
+            instruction.transform.position = l.P(0f, 1.95f, 2.3f);
+            instruction.transform.rotation = l.FaceAwayFromViewer(instruction.transform.position);
+            AddText(instruction, "Text", Vector3.zero, 0.07f, 1.0f);
+            WriteItemData(instruction, InstructionListeners(), null, "");
+
+            // -- NpcDirector --------------------------------------------------------
+            var director = CreateSli(tab, "NpcDirector");
+            director.transform.position = l.P(0f, 0f, 1.0f);
+            AddWorldItemReference(director, "NPC", npc.GetComponent<Item>());
+            WriteItemData(director, NpcDirectorListeners(l), null, NpcDirectorLegacy);
+
+            // -- AvatarGate (left side) ---------------------------------------------
+            var gateGroup = new GameObject("AvatarGateUI");
+            gateGroup.transform.position = l.P(-0.8f, 1.3f, 0.9f);
+            gateGroup.transform.rotation = l.FaceAwayFromViewer(gateGroup.transform.position);
+            var avatarGate = CreateSli(tab, "AvatarGate");
+            avatarGate.transform.SetParent(gateGroup.transform, false);
+            AddText(avatarGate, "Text", new Vector3(0f, 0.32f, 0f), 0.045f, 1.0f);
+            var agBtns = new (string id, string label, Vector3 pos, Vector3 size, int value)[]
+            {
+                ("AG_Changed", "着替えました", new Vector3(0f, 0.05f, 0f), new Vector3(0.34f, 0.09f, 0.05f), 1),
+                ("AG_Yes", "はい", new Vector3(-0.2f, -0.12f, 0f), new Vector3(0.24f, 0.09f, 0.05f), 2),
+                ("AG_No", "いいえ", new Vector3(0.2f, -0.12f, 0f), new Vector3(0.24f, 0.09f, 0.05f), 3),
+            };
+            foreach (var b in agBtns)
+            {
+                var btn = CreateButton(gateGroup.transform, b.id, b.label, b.pos, b.size, avatarGate.GetComponent<Item>(), "gate_btn", b.value, m);
+                AddWorldItemReference(avatarGate, b.id, btn.GetComponent<Item>());
+            }
+            WriteItemData(avatarGate, AvatarGateListeners(), null, AvatarGateLegacy);
+
+            // -- DeviceCheck ----------------------------------------------------------
+            var dcGroup = new GameObject("DeviceCheckUI");
+            dcGroup.transform.position = l.P(0.8f, 1.1f, 0.9f);
+            dcGroup.transform.rotation = l.FaceAwayFromViewer(dcGroup.transform.position);
+            var deviceCheck = CreateSli(tab, "DeviceCheck");
+            deviceCheck.transform.SetParent(dcGroup.transform, false);
+            AddText(deviceCheck, "Text", new Vector3(0f, 0.25f, 0f), 0.04f, 1.0f);
+            var dcBtn = CreateButton(dcGroup.transform, "DC_Force", "トラッキングが確認できない場合はこちら", new Vector3(0f, -0.05f, 0f), new Vector3(0.55f, 0.09f, 0.05f),
+                deviceCheck.GetComponent<Item>(), "dc_btn", 1, m, 0.028f);
+            AddWorldItemReference(deviceCheck, "DC_Force", dcBtn.GetComponent<Item>());
+            WriteItemData(deviceCheck, DeviceCheckListeners(), null, DeviceCheckLegacy);
+
+            // -- ReportPanel (right side) -------------------------------------------
+            var rpGroup = new GameObject("ReportPanelUI");
+            rpGroup.transform.position = l.P(0.85f, 1.35f, 0.9f);
+            rpGroup.transform.rotation = l.FaceAwayFromViewer(rpGroup.transform.position);
+            var reportPanel = CreateSli(tab, "ReportPanel");
+            reportPanel.transform.SetParent(rpGroup.transform, false);
+            AddText(reportPanel, "Text", new Vector3(0f, 0.36f, 0f), 0.04f, 1.0f);
+            for (int i = 0; i <= 10; i++)
+            {
+                int row = i <= 5 ? 0 : 1;
+                float x = row == 0 ? (i - 2.5f) * 0.14f : (i - 6 - 2f) * 0.14f;
+                float y = row == 0 ? 0.14f : -0.02f;
+                var btn = CreateButton(rpGroup.transform, "RP_" + i, i.ToString(), new Vector3(x, y, 0f), new Vector3(0.12f, 0.10f, 0.05f),
+                    reportPanel.GetComponent<Item>(), "rp_btn", i + 1, m, 0.03f);
+                AddWorldItemReference(reportPanel, "RP_" + i, btn.GetComponent<Item>());
+            }
+            var done = CreateButton(rpGroup.transform, "RP_Done", "決定", new Vector3(0f, -0.2f, 0f), new Vector3(0.3f, 0.09f, 0.05f),
+                reportPanel.GetComponent<Item>(), "rp_btn", 12, m);
+            AddWorldItemReference(reportPanel, "RP_Done", done.GetComponent<Item>());
+            WriteItemData(reportPanel, ReportPanelListeners(), ReportPanelHandlers(), ReportPanelLegacy);
+
+            // -- ExitPortal (gate back to the recruitment world, shown at End) -------
+            var exitPortal = CreateSli(tab, "ExitPortal");
+            exitPortal.transform.position = l.P(2.5f, 0f, 0.5f);
+            exitPortal.transform.rotation = Quaternion.LookRotation(-l.right, Vector3.up);
+            var gate = FindRootGateInstance();
+            if (gate != null)
+            {
+                gate.transform.SetParent(exitPortal.transform, false);
+                gate.transform.localPosition = Vector3.zero;
+                gate.transform.localRotation = Quaternion.identity;
+                gate.name = "WorldGateToLuidaBar";
+                gate.SetActive(false);
+            }
+            else Debug.LogWarning("[Study4] WorldGateToLuidaBar instance not found in the template scene");
+            WriteItemData(exitPortal, ExitPortalListeners(), null, "");
+
+            // -- generate JS for all items -------------------------------------------
+            ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
+            ItemsManagerAssetUtil.ApplyAssetsToScripts(tab);
+        }
+        finally
+        {
+            tab.OnDisable();
+            Object.DestroyImmediate(tab);
+        }
+    }
+
+    static GameObject CreateSli(ItemsManagerConfigTab tab, string name)
+    {
+        ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
+        tab.newItemName = name;
+        ItemsManagerAssetUtil.CreateStateListeningItem(tab);
+        ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
+        var go = tab.stateListeningItems.FirstOrDefault(g => g != null && g.name == name);
+        if (go == null) throw new Exception("Failed to create state-listening item " + name);
+        SetItemName(go.GetComponent<Item>(), name);
+        return go;
+    }
+
+    static GameObject FindRootGateInstance()
+    {
+        foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root) == GatePrefabPath) return root;
+        }
+        return null;
+    }
+
+    static void AddText(GameObject parent, string name, Vector3 localPos, float size, float maxWidth)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent.transform, false);
+        go.transform.localPosition = localPos;
+        var tv = go.AddComponent<TextView>();
+        var so = new SerializedObject(tv);
+        so.FindProperty("text").stringValue = "";
+        so.FindProperty("size").floatValue = size;
+        so.FindProperty("textAnchor").enumValueIndex = (int)TextAnchor.MiddleCenter;
+        so.FindProperty("textAlignment").enumValueIndex = (int)TextAlignment.Center;
+        so.FindProperty("color").colorValue = Color.white;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    static GameObject CreateButton(Transform parent, string id, string label, Vector3 localPos, Vector3 size,
+        Item owner, string key, int value, Materials m, float labelSize = 0.035f)
+    {
+        var go = new GameObject(id);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPos;
+
+        var item = go.AddComponent<Item>();
+        SetItemName(item, id);
+        var scriptable = go.AddComponent<ScriptableItem>();
+        var buttonJs = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(ButtonJsPath);
+        if (buttonJs == null) throw new Exception("Study4Button.js not importable: " + ButtonJsPath);
+        var sso = new SerializedObject(scriptable);
+        sso.FindProperty("sourceCodeAsset").objectReferenceValue = buttonJs;
+        sso.ApplyModifiedPropertiesWithoutUndo();
+
+        var trigger = go.AddComponent<InteractItemTrigger>();
+        var tso = new SerializedObject(trigger);
+        tso.FindProperty("item").objectReferenceValue = item;
+        var triggers = tso.FindProperty("triggers");
+        triggers.ClearArray();
+        triggers.InsertArrayElementAtIndex(0);
+        var t = triggers.GetArrayElementAtIndex(0);
+        t.FindPropertyRelative("target").enumValueIndex = (int)ClusterVR.CreatorKit.Trigger.TriggerTarget.SpecifiedItem;
+        t.FindPropertyRelative("specifiedTargetItem").objectReferenceValue = owner;
+        t.FindPropertyRelative("key").stringValue = key;
+        t.FindPropertyRelative("type").enumValueIndex = (int)ClusterVR.CreatorKit.ParameterType.Integer;
+        t.FindPropertyRelative("value").FindPropertyRelative("integerValue").intValue = value;
+        tso.ApplyModifiedPropertiesWithoutUndo();
+
+        // visuals: Visual (default), VisualOn (highlighted, hidden by default), Label
+        var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        visual.name = "Visual";
+        visual.transform.SetParent(go.transform, false);
+        visual.transform.localScale = size;
+        visual.GetComponent<MeshRenderer>().sharedMaterial = m.btn;
+
+        var visualOn = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        visualOn.name = "VisualOn";
+        visualOn.transform.SetParent(go.transform, false);
+        visualOn.transform.localScale = size * 1.06f;
+        visualOn.GetComponent<MeshRenderer>().sharedMaterial = m.btnOn;
+        visualOn.SetActive(false);
+
+        var labelGo = new GameObject("Label");
+        labelGo.transform.SetParent(go.transform, false);
+        labelGo.transform.localPosition = new Vector3(0f, 0f, -size.z * 0.5f - 0.005f);
+        var tv = labelGo.AddComponent<TextView>();
+        var lso = new SerializedObject(tv);
+        lso.FindProperty("text").stringValue = label;
+        lso.FindProperty("size").floatValue = labelSize;
+        lso.FindProperty("textAnchor").enumValueIndex = (int)TextAnchor.MiddleCenter;
+        lso.FindProperty("textAlignment").enumValueIndex = (int)TextAlignment.Center;
+        lso.FindProperty("color").colorValue = Color.white;
+        lso.ApplyModifiedPropertiesWithoutUndo();
+
+        // Buttons start hidden; the owner item shows them when needed (Study4Button.js keeps them hidden until told).
+        visual.SetActive(false);
+        labelGo.SetActive(false);
+        return go;
+    }
+
+    static void WriteItemData(GameObject item, List<StateListener> listeners, List<EventHandlerData> handlers, string legacy)
+    {
+        var path = ItemsManagerAssetUtil.GetItemDataAssetPath(item);
+        var data = AssetDatabase.LoadAssetAtPath<StateListeningItemData>(path);
+        if (data == null) throw new Exception("StateListeningItemData missing for " + item.name + " at " + path);
+        data.stateListeners = listeners.ToArray();
+        data.eventHandlers = handlers ?? new List<EventHandlerData>();
+        data.otherImplementation = legacy ?? "";
+        EditorUtility.SetDirty(data);
+        AssetDatabase.SaveAssets();
+    }
+
+    // ------------------------------------------------------------------ action helpers
+    static StateListeningAction T_ShowItem => new StateListeningAction("Show item", "$.setStateCompat('this', 'exp_showItem', true);", _category: "Item");
+    static StateListeningAction T_SetText => new StateListeningAction("Set text", "$.subNode('Text').setText(`{_text_}`);", new[] { "text" }, _category: "Item");
+    static StateListeningAction T_ToNext => new StateListeningAction("To next state", "$.sendSignalCompat('this', 'state_triggerTransition');", _category: "State machine");
+    static StateListeningAction T_Sleep => new StateListeningAction("Sleep", "{_seconds_}", new[] { "seconds" }, _category: "State machine");
+    static StateListeningAction T_Upload => new StateListeningAction("Upload collected data", "$.sendSignalCompat('this', 'exp_uploadCustomData');", _displayLabel: "Upload saved data from collector", _category: "Data collection");
+    static StateListeningAction T_ShowChild => new StateListeningAction("Show child", "$.subNode('{_childName_}').setEnabled(true)", new[] { "childName" }, _category: "Item child");
+    static StateListeningAction T_HideChild => new StateListeningAction("Hide child", "$.subNode('{_childName_}').setEnabled(false)", new[] { "childName" }, _category: "Item child");
+    static StateListeningAction T_SetParticipantPos => new StateListeningAction("Set participant position",
+        "PARTICIPANTS[{_participantIndex_}].setPosition(new Vector3({_x_}, {_y_}, {_z_}));", new[] { "participantIndex", "x", "y", "z" }, _category: "Participant transform");
+    static StateListeningAction T_SetParticipantRot => new StateListeningAction("Set participant rotation",
+        "PARTICIPANTS[{_participantIndex_}].setRotation(new Quaternion().setFromEulerAngles(new Vector3({_x_}, {_y_}, {_z_})));", new[] { "participantIndex", "x", "y", "z" }, _category: "Participant transform");
+    static StateListeningAction T_Custom => new StateListeningAction("Customized Action", "", null);
+
+    static StateListenerAction Act(StateListeningAction template, params (string key, string value)[] vars)
+    {
+        var a = new StateListenerAction(template);
+        foreach (var (key, value) in vars) a.variableValues[key] = value;
+        return a;
+    }
+    static StateListenerAction Custom(string code) => new StateListenerAction(T_Custom) { customAction = code };
+    static StateListenerAction If(StateListenerAction a, string variable, string value)
+    {
+        a.isConditional = true; a.conditionVariable = variable; a.conditionValue = value; return a;
+    }
+    static StateListenerAction SetText(string text) => Act(T_SetText, ("text", text));
+    static StateListenerAction Sleep(float seconds) => Act(T_Sleep, ("seconds", seconds.ToString(CultureInfo.InvariantCulture)));
+    static string F(float v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    static StateListener Listener(int stateId, List<StateListenerAction> start = null, List<StateListenerAction> during = null, List<StateListenerAction> exit = null)
+    {
+        return new StateListener
+        {
+            stateID = stateId,
+            onStateStartedActions = start ?? new List<StateListenerAction>(),
+            duringStateActions = during ?? new List<StateListenerAction>(),
+            onStateExitedActions = exit ?? new List<StateListenerAction>(),
+        };
+    }
+    static List<StateListenerAction> L(params StateListenerAction[] a) => a.ToList();
+
+    // ------------------------------------------------------------------ Instruction
+    static List<StateListener> InstructionListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_START, L(Act(T_ShowItem), SetText("ようこそ。\\n目の前の質問紙で研究の説明を読み、各項目にチェックを入れて進んでください。"))),
+            Listener(S_DEVICE, L(SetText("トラッキングの確認をします。\\n1) 頭をゆっくり左右に向けてください\\n2) 両手を頭より高く上げてください"))),
+            Listener(S_TSTART, L(Custom("SetText('ブロック ' + CONDITION['block'] + ' / 2');"))),
+            Listener(S_TOUCH, L(SetText("正面の相手の手がゆっくり近づきます。\\n顔の正面を向いたまま、楽な姿勢で立って見ていてください。"))),
+            Listener(S_REPORT, L(SetText("右側のパネルで質問に答えてください。"))),
+            Listener(S_VEQ1, L(Custom("if (CONDITION['block'] === '1' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
+            Listener(S_VEQ2, L(Custom("if (CONDITION['block'] === '2' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
+            Listener(S_TREST, L(SetText("少し休憩します…"))),
+            Listener(S_SOCIAL, L(SetText("正面の相手（NPC）についての質問紙に答えてください。"))),
+            Listener(S_PERSONAL, L(SetText("最後に、あなた自身のメタバース利用についての質問紙に答えてください。"))),
+            Listener(S_DEBRIEF, L(SetText("ご協力ありがとうございました。\\nこの実験は、他者のアバターの手が近づいたときに生じる感覚（ファントムタッチ）を調べるものでした。\\n質問紙で確認とギフト券送付先の入力をお願いします。"))),
+            Listener(S_END, L(SetText("ご参加ありがとうございました。\\n右側のゲートから募集ワールドへ戻れます。"))),
+        };
+    }
+
+    // ------------------------------------------------------------------ NpcDirector
+    static List<StateListener> NpcDirectorListeners(Layout l)
+    {
+        var yaw = Quaternion.LookRotation(l.fwd, Vector3.up).eulerAngles.y;
+        return new List<StateListener>
+        {
+            Listener(S_TSTART, L(
+                Sleep(0.5f),
+                If(Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z))), "rep", "1"),
+                If(Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0")), "rep", "1"),
+                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', block: CONDITION['block'] });"), "rep", "1")
+            )),
+            Listener(S_TOUCH,
+                L(Custom(
+                    "nd_arm();\n" +
+                    "$.state.nd_touchStartTs = Date.now();\n" +
+                    "SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\n" +
+                    "SendDataToCollector('npcTimeout', false);\n" +
+                    "$.worldItemReference('NPC').send('npc_trial_start', {\n" +
+                    "  block: CONDITION['block'], rep: CONDITION['rep'],\n" +
+                    "  avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });")),
+                L(Custom(
+                    "if (nd_donePulse()) { ToNextState(); }\n" +
+                    "else if ($.state.nd_touchStartTs && Date.now() - $.state.nd_touchStartTs > 120000) {\n" +
+                    "  $.log('[NpcDirector] NPC did not finish within 120 s; moving on');\n" +
+                    "  SendDataToCollector('npcTimeout', true);\n" +
+                    "  $.worldItemReference('NPC').send('npc_abort', {});\n" +
+                    "  $.state.nd_touchStartTs = 0;\n" +
+                    "  ToNextState();\n" +
+                    "}"))),
+            // VEQ is answered once per block (after the 2nd trial); every other visit is skipped immediately.
+            Listener(S_VEQ1, L(Custom("if (!(CONDITION['block'] === '1' && CONDITION['rep'] === '2')) ToNextState();"))),
+            Listener(S_VEQ2, L(Custom("if (!(CONDITION['block'] === '2' && CONDITION['rep'] === '2')) ToNextState();"))),
+            Listener(S_END, L(Act(T_Upload))),
+        };
+    }
+
+    const string NpcDirectorLegacy = @"// ---- Study 4: NpcDirector helpers (shared by the actions above) ----
+function nd_avatarForBlock(block) {
+  const dailyFirst = CONDITION && CONDITION['order'] === 'daily_first';
+  return (dailyFirst === (String(block) === '1')) ? 'daily' : 'assigned';
+}
+function nd_signalTime(key) {
+  const d = $.getStateCompat('global', key, 'signal');
+  if (!d) return 0;
+  return (typeof d.getTime === 'function') ? d.getTime() : (Number(d) || 0);
+}
+// Remember the current timestamp of the global signal so only a NEW pulse counts.
+function nd_arm() { $.state.nd_lastDone = nd_signalTime('npc_done'); }
+function nd_donePulse() {
+  const t = nd_signalTime('npc_done');
+  if (t !== ($.state.nd_lastDone || 0)) { $.state.nd_lastDone = t; return t !== 0; }
+  return false;
+}
+";
+
+    // ------------------------------------------------------------------ AvatarGate
+    static List<StateListener> AvatarGateListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_START, L(Custom("ag_showButtons(false, false); HideChild('Text');"))),
+            Listener(S_TSTART,
+                L(Sleep(0.5f), Custom("ag_begin();")),
+                L(Custom("ag_update(deltaTime);")),
+                L(Custom("ag_end();"))),
+        };
+    }
+
+    const string AvatarGateLegacy = @"// ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
+// Bone-length signature of the LUIDA transparent avatar (transparent-avatar.vrm). Update after test T2.
+const AG_T_ARM = 0.485;      // upper arm + forearm (m)
+const AG_T_SHOULDER = 0.332; // distance between the two upper-arm joints (m)
+const AG_TOL = 0.015;
+const AG_STABLE_MS = 1000;
+
+function ag_send(id, cfg) {
+  try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[AvatarGate] send ' + id + ': ' + e); }
+}
+function ag_showButtons(changed, yesNo) {
+  ag_send('AG_Changed', { visible: changed, label: '着替えました' });
+  ag_send('AG_Yes', { visible: yesNo, label: 'はい' });
+  ag_send('AG_No', { visible: yesNo, label: 'いいえ' });
+}
+function ag_signature(p) {
+  const ua = p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);
+  const la = p.getHumanoidBonePosition(HumanoidBone.LeftLowerArm);
+  const h = p.getHumanoidBonePosition(HumanoidBone.LeftHand);
+  const rua = p.getHumanoidBonePosition(HumanoidBone.RightUpperArm);
+  const head = p.getHumanoidBonePosition(HumanoidBone.Head);
+  const hips = p.getHumanoidBonePosition(HumanoidBone.Hips);
+  const root = p.getPosition();
+  if (!ua || !la || !h || !rua || !head || !root) return null;
+  return {
+    armLen: ua.clone().sub(la).length() + la.clone().sub(h).length(),
+    shoulder: ua.clone().sub(rua).length(),
+    headH: head.y - root.y,
+    hipsH: hips ? hips.y - root.y : -1,
+  };
+}
+function ag_isTransparent(s) {
+  return !!s && Math.abs(s.armLen - AG_T_ARM) < AG_TOL && Math.abs(s.shoulder - AG_T_SHOULDER) < AG_TOL;
+}
+function ag_targetMatches(sig) {
+  if (!sig) return false;
+  const transparent = ag_isTransparent(sig);
+  return $.state.ag_avatar === 'assigned' ? transparent : !transparent;
+}
+function ag_begin() {
+  $.state.ag_active = false;
+  if (!CONDITION || CONDITION['rep'] !== '1') {
+    // second trial of a block: no avatar change, skip the setup immediately
+    HideChild('Text');
+    ag_showButtons(false, false);
+    ToNextState();
+    return;
+  }
+  const dailyFirst = CONDITION['order'] === 'daily_first';
+  $.state.ag_avatar = (dailyFirst === (CONDITION['block'] === '1')) ? 'daily' : 'assigned';
+  $.state.ag_step = 1;
+  $.state.ag_active = true;
+  $.state.ag_startTs = Date.now();
+  $.state.ag_retry = 0;
+  $.state.ag_lastMatch = null;
+  $.state.ag_matchSince = Date.now();
+  $.state.ag_okShown = null;
+  ShowChild('Text');
+  ag_showButtons(false, false);
+  ag_renderText('');
+  $.log('[AvatarGate] block ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);
+}
+function ag_renderText(note) {
+  const daily = $.state.ag_avatar === 'daily';
+  let t;
+  if ($.state.ag_step === 1) {
+    t = daily
+      ? 'メニューを開き、普段いちばんよく使うアバターに着替えてください。\n着替え終わったら「着替えました」を押してください。'
+      : 'メニューを開き、この実験で最初に着ていた透明アバターに着替えてください。\n着替え終わったら「着替えました」を押してください。';
+  } else {
+    t = daily
+      ? 'いま着ているアバターは、あなたが普段最もよく使うアバターですか？'
+      : 'いま着ているのは透明アバター（自分の体が見えない状態）ですか？';
+  }
+  if (note) t += '\n' + note;
+  SetText(t);
+}
+function ag_update(dt) {
+  if (!$.state.ag_active) return;
+  const p = PARTICIPANTS[1];
+  if (!p || !p.exists()) return;
+  const sig = ag_signature(p);
+  const match = ag_targetMatches(sig);
+  if (match !== $.state.ag_lastMatch) { $.state.ag_lastMatch = match; $.state.ag_matchSince = Date.now(); }
+  const ok = match && (Date.now() - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS;
+  if (ok !== $.state.ag_okShown) {
+    $.state.ag_okShown = ok;
+    if ($.state.ag_step === 1) {
+      ag_showButtons(ok, false);
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターになっていません）' : '（まだ透明アバターのままです）'));
+    }
+  }
+  const b = $.getStateCompat('this', 'gate_btn', 'integer');
+  if (!(b > 0)) return;
+  $.setStateCompat('this', 'gate_btn', 0);
+  if (b === 1 && $.state.ag_step === 1 && ok) {
+    $.state.ag_step = 2;
+    ag_showButtons(false, true);
+    ag_renderText('');
+  } else if (b === 2 && $.state.ag_step === 2) {
+    if (!ok) {
+      $.state.ag_step = 1;
+      $.state.ag_okShown = null;
+      ag_showButtons(false, false);
+      ag_renderText('（アバターが目標と一致していません。もう一度着替えてください）');
+      return;
+    }
+    ag_confirm(sig);
+  } else if (b === 3 && $.state.ag_step === 2) {
+    $.state.ag_retry = ($.state.ag_retry || 0) + 1;
+    $.state.ag_step = 1;
+    $.state.ag_okShown = null;
+    ag_showButtons(false, false);
+    ag_renderText('');
+  }
+}
+function ag_confirm(sig) {
+  $.state.ag_active = false;
+  SendDataToCollector('avatar', $.state.ag_avatar);
+  SendDataToCollector('avatarArmLen', sig ? sig.armLen : -1);
+  SendDataToCollector('avatarShoulder', sig ? sig.shoulder : -1);
+  SendDataToCollector('avatarHeadH', sig ? sig.headH : -1);
+  SendDataToCollector('avatarHipsH', sig ? sig.hipsH : -1);
+  SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));
+  SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now())) / 1000);
+  SendDataToCollector('setupRetry', $.state.ag_retry || 0);
+  ProcessAndSaveCollectedData();
+  ag_showButtons(false, false);
+  SetText('ありがとうございます。まもなく始まります。');
+  ToNextState();
+}
+function ag_end() {
+  ag_showButtons(false, false);
+  HideChild('Text');
+  $.state.ag_active = false;
+}
+";
+
+    // ------------------------------------------------------------------ DeviceCheck
+    static List<StateListener> DeviceCheckListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_START, L(Custom("dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');"))),
+            Listener(S_DEVICE,
+                L(Custom("dc_begin();")),
+                L(Custom("dc_update(deltaTime);")),
+                L(Custom("dc_end();"))),
+        };
+    }
+
+    const string DeviceCheckLegacy = @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
+const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
+function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
+function dc_begin() {
+  $.state.dc_active = true;
+  $.state.dc_start = Date.now();
+  $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
+  $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText = '';
+  ShowChild('Text');
+  dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' });
+  dc_render();
+}
+function dc_yaw(p) {
+  const r = p.getHumanoidBoneRotation(HumanoidBone.Head);
+  if (!r) return null;
+  const f = new Vector3(0, 0, 1).applyQuaternion(r);
+  return Math.atan2(f.x, f.z) * 180 / Math.PI;
+}
+function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }
+function dc_render() {
+  const t = 'トラッキングの確認\n' +
+    (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
+    (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より高く上げる（1秒）';
+  if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }
+}
+function dc_update(dt) {
+  if (!$.state.dc_active) return;
+  const p = PARTICIPANTS[1];
+  if (!p || !p.exists()) return;
+  const yaw = dc_yaw(p);
+  if (yaw !== null) {
+    if ($.state.dc_yaw0 === null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;
+    const d = dc_angleDiff(yaw, $.state.dc_yaw0);
+    if (d <= -DC_YAW_DEG) $.state.dc_left = true;
+    if (d >= DC_YAW_DEG) $.state.dc_right = true;
+  }
+  const head = p.getHumanoidBonePosition(HumanoidBone.Head);
+  const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);
+  const rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);
+  if (head && lh && rh && lh.y > head.y && rh.y > head.y) $.state.dc_hands = ($.state.dc_hands || 0) + dt;
+  else if (($.state.dc_hands || 0) < DC_HANDS_SEC) $.state.dc_hands = 0;
+  const elapsed = (Date.now() - ($.state.dc_start || Date.now())) / 1000;
+  if (elapsed > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({ visible: true }); }
+  let forced = false;
+  const b = $.getStateCompat('this', 'dc_btn', 'integer');
+  if (b > 0) { $.setStateCompat('this', 'dc_btn', 0); if ($.state.dc_rescue) forced = true; }
+  const passed = $.state.dc_left && $.state.dc_right && ($.state.dc_hands || 0) >= DC_HANDS_SEC;
+  if (passed || forced) { dc_finish(elapsed, forced); return; }
+  dc_render();
+}
+function dc_finish(elapsed, forced) {
+  $.state.dc_active = false;
+  SendDataToCollector('deviceCheckSec', elapsed);
+  SendDataToCollector('deviceCheckForced', !!forced);
+  ProcessAndSaveCollectedData();
+  dc_send({ visible: false });
+  SetText('確認できました。ありがとうございます。');
+  ToNextState();
+}
+function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_active = false; }
+";
+
+    // ------------------------------------------------------------------ ReportPanel
+    static List<StateListener> ReportPanelListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_START, L(Custom("rp_hideAll(); HideChild('Text');"))),
+            Listener(S_REPORT,
+                L(Custom("rp_begin();")),
+                L(Custom("rp_update(deltaTime);")),
+                L(Custom("rp_end();"))),
+        };
+    }
+
+    static List<EventHandlerData> ReportPanelHandlers()
+    {
+        var update = new EventHandlerData("Update");
+        update.actions.Add(Custom("rp_flush();"));
+        return new List<EventHandlerData> { update };
+    }
+
+    const string ReportPanelLegacy = @"// ---- Study 4: ReportPanel (0-10 rating -> manipulation check -> type -> location) ----
+const RP_BTN = ['RP_0', 'RP_1', 'RP_2', 'RP_3', 'RP_4', 'RP_5', 'RP_6', 'RP_7', 'RP_8', 'RP_9', 'RP_10'];
+const RP_DONE = 'RP_Done';
+const RP_TYPES = ['圧迫感', 'ぞわぞわ・むずむず', '温かさ', '冷たさ', '風・空気の動き', 'しびれ', 'その他'];
+const RP_LOCS = ['額', '目のまわり', '頬', '鼻・口のまわり', 'あご', '頭の側面・耳', '首', 'その他'];
+let rp_queue = [];
+function rp_enqueue(id, cfg) { rp_queue.push({ id: id, cfg: cfg }); }
+// Messages to other items are rate-limited (10/s per item); spread them over frames.
+function rp_flush() {
+  let n = 0;
+  while (rp_queue.length > 0 && n < 4) {
+    const m = rp_queue.shift();
+    try { const h = $.worldItemReference(m.id); if (h) h.send('btn_cfg', m.cfg); } catch (e) { $.log('[ReportPanel] send ' + m.id + ': ' + e); }
+    n++;
+  }
+}
+function rp_showOptions(labels, multi) {
+  for (let i = 0; i < RP_BTN.length; i++) {
+    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label: labels[i], on: false } : { visible: false, on: false });
+  }
+  rp_enqueue(RP_DONE, { visible: !!multi, label: '決定', on: false });
+  $.state.rp_sel = [];
+}
+function rp_hideAll() {
+  for (let i = 0; i < RP_BTN.length; i++) rp_enqueue(RP_BTN[i], { visible: false, on: false });
+  rp_enqueue(RP_DONE, { visible: false, on: false });
+}
+function rp_begin() {
+  $.state.rp_step = 1; $.state.rp_active = true;
+  $.state.rp_rating = -1; $.state.rp_mc = -1; $.state.rp_type = ''; $.state.rp_loc = '';
+  $.state.rp_startTs = Date.now();
+  ShowChild('Text');
+  rp_render();
+}
+function rp_render() {
+  const s = $.state.rp_step;
+  if (s === 1) {
+    SetText('相手の手が近づいたとき、顔に何か感じましたか？\n0 = まったく感じなかった　…　10 = 非常に強く感じた');
+    rp_showOptions(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], false);
+  } else if (s === 2) {
+    SetText('相手はあなたに注意を向けていると感じましたか？\n1 = まったく感じなかった　…　7 = 強く感じた');
+    rp_showOptions(['1', '2', '3', '4', '5', '6', '7'], false);
+  } else if (s === 3) {
+    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    rp_showOptions(RP_TYPES, true);
+  } else if (s === 4) {
+    SetText('どこに感じましたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    rp_showOptions(RP_LOCS, true);
+  }
+}
+function rp_update(dt) {
+  rp_flush();
+  if (!$.state.rp_active) return;
+  const b = $.getStateCompat('this', 'rp_btn', 'integer');
+  if (!(b > 0)) return;
+  $.setStateCompat('this', 'rp_btn', 0);
+  const idx = b - 1;              // 0..10 = option buttons, 11 = Done
+  const s = $.state.rp_step;
+  if (s === 1) {
+    if (idx >= 0 && idx <= 10) { $.state.rp_rating = idx; $.state.rp_step = 2; rp_render(); }
+  } else if (s === 2) {
+    if (idx >= 0 && idx <= 6) {
+      $.state.rp_mc = idx + 1;
+      if ($.state.rp_rating >= 1) { $.state.rp_step = 3; rp_render(); } else rp_finish();
+    }
+  } else if (s === 3 || s === 4) {
+    const labels = s === 3 ? RP_TYPES : RP_LOCS;
+    if (idx === 11) {
+      const sel = $.state.rp_sel || [];
+      if (sel.length === 0) return;
+      const val = sel.slice().sort((a, b2) => a - b2).map(i => i + 1).join(',');
+      if (s === 3) { $.state.rp_type = val; $.state.rp_step = 4; rp_render(); }
+      else { $.state.rp_loc = val; rp_finish(); }
+    } else if (idx >= 0 && idx < labels.length) {
+      let sel = $.state.rp_sel || [];
+      const k = sel.indexOf(idx);
+      if (k >= 0) sel.splice(k, 1); else sel.push(idx);
+      $.state.rp_sel = sel;
+      rp_enqueue(RP_BTN[idx], { on: k < 0 });
+    }
+  }
+}
+function rp_finish() {
+  $.state.rp_active = false;
+  SendDataToCollector('rating', $.state.rp_rating);
+  SendDataToCollector('mc', $.state.rp_mc);
+  SendDataToCollector('ptype', $.state.rp_type || '');
+  SendDataToCollector('ploc', $.state.rp_loc || '');
+  SendDataToCollector('reportDoneTs', Date.now());
+  ProcessAndSaveCollectedData();
+  rp_hideAll();
+  SetText('ありがとうございます。');
+  ToNextState();
+}
+function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; }
+";
+
+    // ------------------------------------------------------------------ ExitPortal
+    static List<StateListener> ExitPortalListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_END, L(Act(T_ShowChild, ("childName", "WorldGateToLuidaBar")))),
+        };
+    }
+}
+#endif

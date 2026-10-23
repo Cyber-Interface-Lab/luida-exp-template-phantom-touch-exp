@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acb8c4c8a0a4dc6418e2f4d59454f5e3, type: 3}
+  m_Name: ExitPortal
+  m_EditorClassIdentifier: ClusterMetaverseLab.Luida::StateListeningItemData
+  stateListeners:
+  - stateID: 11
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Show child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - WorldGateToLuidaBar
+    duringStateActions: []
+    onStateExitedActions: []
+  eventHandlers: []
+  otherImplementation: 

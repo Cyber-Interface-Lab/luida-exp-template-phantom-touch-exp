@@ -1,0 +1,152 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acb8c4c8a0a4dc6418e2f4d59454f5e3, type: 3}
+  m_Name: AvatarGate
+  m_EditorClassIdentifier: ClusterMetaverseLab.Luida::StateListeningItemData
+  stateListeners:
+  - stateID: 0
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ag_showButtons(false, false); HideChild('Text');
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
+  - stateID: 2
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Sleep
+        displayLabel: 
+        codeSnippet: '{_seconds_}'
+        variables:
+        - seconds
+        category: State machine
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - seconds
+      _variableValuesList:
+      - 0.5
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ag_begin();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ag_update(deltaTime);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ag_end();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+  eventHandlers: []
+  otherImplementation: "// ---- Study 4: AvatarGate (avatar switch instruction +
+    automatic check + two-step confirmation) ----\n// Bone-length signature of the
+    LUIDA transparent avatar (transparent-avatar.vrm). Update after test T2.\nconst
+    AG_T_ARM = 0.485;      // upper arm + forearm (m)\nconst AG_T_SHOULDER = 0.332;
+    // distance between the two upper-arm joints (m)\nconst AG_TOL = 0.015;\nconst
+    AG_STABLE_MS = 1000;\n\nfunction ag_send(id, cfg) {\n  try { const h = $.worldItemReference(id);
+    if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[AvatarGate] send ' + id
+    + ': ' + e); }\n}\nfunction ag_showButtons(changed, yesNo) {\n  ag_send('AG_Changed',
+    { visible: changed, label: '\u7740\u66FF\u3048\u307E\u3057\u305F' });\n  ag_send('AG_Yes',
+    { visible: yesNo, label: '\u306F\u3044' });\n  ag_send('AG_No', { visible: yesNo,
+    label: '\u3044\u3044\u3048' });\n}\nfunction ag_signature(p) {\n  const ua =
+    p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);\n  const la = p.getHumanoidBonePosition(HumanoidBone.LeftLowerArm);\n 
+    const h = p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n  const rua = p.getHumanoidBonePosition(HumanoidBone.RightUpperArm);\n 
+    const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const hips = p.getHumanoidBonePosition(HumanoidBone.Hips);\n 
+    const root = p.getPosition();\n  if (!ua || !la || !h || !rua || !head || !root)
+    return null;\n  return {\n    armLen: ua.clone().sub(la).length() + la.clone().sub(h).length(),\n   
+    shoulder: ua.clone().sub(rua).length(),\n    headH: head.y - root.y,\n    hipsH:
+    hips ? hips.y - root.y : -1,\n  };\n}\nfunction ag_isTransparent(s) {\n  return
+    !!s && Math.abs(s.armLen - AG_T_ARM) < AG_TOL && Math.abs(s.shoulder - AG_T_SHOULDER)
+    < AG_TOL;\n}\nfunction ag_targetMatches(sig) {\n  if (!sig) return false;\n 
+    const transparent = ag_isTransparent(sig);\n  return $.state.ag_avatar === 'assigned'
+    ? transparent : !transparent;\n}\nfunction ag_begin() {\n  $.state.ag_active
+    = false;\n  if (!CONDITION || CONDITION['rep'] !== '1') {\n    // second trial
+    of a block: no avatar change, skip the setup immediately\n    HideChild('Text');\n   
+    ag_showButtons(false, false);\n    ToNextState();\n    return;\n  }\n  const
+    dailyFirst = CONDITION['order'] === 'daily_first';\n  $.state.ag_avatar = (dailyFirst
+    === (CONDITION['block'] === '1')) ? 'daily' : 'assigned';\n  $.state.ag_step
+    = 1;\n  $.state.ag_active = true;\n  $.state.ag_startTs = Date.now();\n  $.state.ag_retry
+    = 0;\n  $.state.ag_lastMatch = null;\n  $.state.ag_matchSince = Date.now();\n 
+    $.state.ag_okShown = null;\n  ShowChild('Text');\n  ag_showButtons(false, false);\n 
+    ag_renderText('');\n  $.log('[AvatarGate] block ' + CONDITION['block'] + ' ->
+    ' + $.state.ag_avatar);\n}\nfunction ag_renderText(note) {\n  const daily = $.state.ag_avatar
+    === 'daily';\n  let t;\n  if ($.state.ag_step === 1) {\n    t = daily\n     
+    ? '\u30E1\u30CB\u30E5\u30FC\u3092\u958B\u304D\u3001\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u306B\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7740\u66FF\u3048\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002'\n     
+    : '\u30E1\u30CB\u30E5\u30FC\u3092\u958B\u304D\u3001\u3053\u306E\u5B9F\u9A13\u3067\u6700\u521D\u306B\u7740\u3066\u3044\u305F\u900F\u660E\u30A2\u30D0\u30BF\u30FC\u306B\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7740\u66FF\u3048\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002';\n 
+    } else {\n    t = daily\n      ? '\u3044\u307E\u7740\u3066\u3044\u308B\u30A2\u30D0\u30BF\u30FC\u306F\u3001\u3042\u306A\u305F\u304C\u666E\u6BB5\u6700\u3082\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u3067\u3059\u304B\uFF1F'\n     
+    : '\u3044\u307E\u7740\u3066\u3044\u308B\u306E\u306F\u900F\u660E\u30A2\u30D0\u30BF\u30FC\uFF08\u81EA\u5206\u306E\u4F53\u304C\u898B\u3048\u306A\u3044\u72B6\u614B\uFF09\u3067\u3059\u304B\uFF1F';\n 
+    }\n  if (note) t += '\\n' + note;\n  SetText(t);\n}\nfunction ag_update(dt) {\n 
+    if (!$.state.ag_active) return;\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists())
+    return;\n  const sig = ag_signature(p);\n  const match = ag_targetMatches(sig);\n 
+    if (match !== $.state.ag_lastMatch) { $.state.ag_lastMatch = match; $.state.ag_matchSince
+    = Date.now(); }\n  const ok = match && (Date.now() - ($.state.ag_matchSince ||
+    0)) >= AG_STABLE_MS;\n  if (ok !== $.state.ag_okShown) {\n    $.state.ag_okShown
+    = ok;\n    if ($.state.ag_step === 1) {\n      ag_showButtons(ok, false);\n     
+    ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '\uFF08\u307E\u3060\u900F\u660E\u30A2\u30D0\u30BF\u30FC\u306B\u306A\u3063\u3066\u3044\u307E\u305B\u3093\uFF09'
+    : '\uFF08\u307E\u3060\u900F\u660E\u30A2\u30D0\u30BF\u30FC\u306E\u307E\u307E\u3067\u3059\uFF09'));\n   
+    }\n  }\n  const b = $.getStateCompat('this', 'gate_btn', 'integer');\n  if (!(b
+    > 0)) return;\n  $.setStateCompat('this', 'gate_btn', 0);\n  if (b === 1 && $.state.ag_step
+    === 1 && ok) {\n    $.state.ag_step = 2;\n    ag_showButtons(false, true);\n   
+    ag_renderText('');\n  } else if (b === 2 && $.state.ag_step === 2) {\n    if
+    (!ok) {\n      $.state.ag_step = 1;\n      $.state.ag_okShown = null;\n     
+    ag_showButtons(false, false);\n      ag_renderText('\uFF08\u30A2\u30D0\u30BF\u30FC\u304C\u76EE\u6A19\u3068\u4E00\u81F4\u3057\u3066\u3044\u307E\u305B\u3093\u3002\u3082\u3046\u4E00\u5EA6\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\uFF09');\n     
+    return;\n    }\n    ag_confirm(sig);\n  } else if (b === 3 && $.state.ag_step
+    === 2) {\n    $.state.ag_retry = ($.state.ag_retry || 0) + 1;\n    $.state.ag_step
+    = 1;\n    $.state.ag_okShown = null;\n    ag_showButtons(false, false);\n   
+    ag_renderText('');\n  }\n}\nfunction ag_confirm(sig) {\n  $.state.ag_active =
+    false;\n  SendDataToCollector('avatar', $.state.ag_avatar);\n  SendDataToCollector('avatarArmLen',
+    sig ? sig.armLen : -1);\n  SendDataToCollector('avatarShoulder', sig ? sig.shoulder
+    : -1);\n  SendDataToCollector('avatarHeadH', sig ? sig.headH : -1);\n  SendDataToCollector('avatarHipsH',
+    sig ? sig.hipsH : -1);\n  SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));\n 
+    SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now()))
+    / 1000);\n  SendDataToCollector('setupRetry', $.state.ag_retry || 0);\n  ProcessAndSaveCollectedData();\n 
+    ag_showButtons(false, false);\n  SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002\u307E\u3082\u306A\u304F\u59CB\u307E\u308A\u307E\u3059\u3002');\n 
+    ToNextState();\n}\nfunction ag_end() {\n  ag_showButtons(false, false);\n  HideChild('Text');\n 
+    $.state.ag_active = false;\n}\n"
