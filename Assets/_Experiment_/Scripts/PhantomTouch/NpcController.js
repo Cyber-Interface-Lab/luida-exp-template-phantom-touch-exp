@@ -23,15 +23,17 @@ const NPC_CFG = {
   REACH_SPEED: 0.02,       // m/s (thesis 6.2.3)
   PREP_SEC: 2.0,           // wait (and step closer) before the hand is raised
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
-  READY_FWD: 0.12,         // ready fingertip: in front of the shoulder (m)
-  READY_UP: 0.02,
-  READY_IN: 0.06,          // ... and slightly toward the body midline
+  READY_FRAC: 0.35,        // ready palm point: this fraction of the way from the right shoulder to the face
+                           // (the approach then extends the arm along the shoulder->face line)
   HOLD_SEC: 2.0,           // hold at the face
   RETRACT_SPEED: 0.10,     // m/s
   STOP_MARGIN: 0.03,       // stop this far before the face surface
   FACE_UP: 0.05,           // face point: head bone + up*FACE_UP + forward*FACE_FWD (head frame)
   FACE_FWD: 0.10,
-  FINGER_LEN: 0.09,        // wrist -> fingertip along the forearm direction
+  PALM_LEN: 0.085,         // wrist -> palm contact point along the hand axis (m)
+  PALM_OFF: 0.015,         // palm surface offset along the palm normal (m)
+  HAND_UP: 1.0,            // reaching hand: fingers tilted up by atan(HAND_UP) (= 45 deg) from the approach
+                           // direction (never past vertical), palm turned toward the participant's face
   SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
   STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
   MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)
@@ -123,6 +125,22 @@ function qnormalize(q) {
 function qangleDeg(q) { return 2 * Math.acos(Math.max(-1, Math.min(1, Math.abs(q.w)))) * 180 / Math.PI; }
 function qclamp(q, maxDeg) { const a = qangleDeg(q); return a > maxDeg ? qslerp(IDENT, q, maxDeg / a) : q; }
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+function perpTo(v, axis) { const a = vnorm(axis); return vsub(v, vscale(a, vdot(v, a))); }
+// Rotation that maps restAxis -> axis AND turns restRef (perpendicular to restAxis) as close as
+// possible to ref (projected perpendicular to axis). This fixes the twist around the bone axis
+// (e.g. which way the palm faces), which a minimal from-to rotation leaves undetermined.
+function basisRot(restAxis, restRef, axis, ref) {
+  const q1 = qfromTo(restAxis, axis);
+  const a = vnorm(axis);
+  const p1 = perpTo(qrot(q1, restRef), a);
+  const p2 = perpTo(ref, a);
+  if (vlen(p1) < 1e-4 || vlen(p2) < 1e-4) return q1;
+  const u1 = vnorm(p1), u2 = vnorm(p2);
+  const ang = Math.acos(Math.max(-1, Math.min(1, vdot(u1, u2)))) * 180 / Math.PI;
+  const sign = vdot(vcross(u1, u2), a) < 0 ? -1 : 1;
+  return qmul(qaxis(a, sign * ang), q1);
+}
+function slerpArm(a, b, t) { return { u: qslerp(a.u, b.u, t), l: qslerp(a.l, b.l, t), h: qslerp(a.h, b.h, t) }; }
 function easeInOut(x) { x = clamp01(x); return x * x * (3 - 2 * x); }
 function f3(x) { return (Math.round(x * 1000) / 1000).toString(); }
 function nowSec() { return Date.now() / 1000; }
@@ -305,20 +323,29 @@ function facePointWorld(head) {
   return vadd(head.pos, qrot(head.rot, v3(0, NPC_CFG.FACE_UP, NPC_CFG.FACE_FWD)));
 }
 
-// Standing pose in front of the participant. extraDist = 0 -> reach spot (fingertip reaches the
+// Standing pose in front of the participant. extraDist = 0 -> reach spot (the palm reaches the
 // face point with a slightly bent arm); extraDist > 0 -> that much farther (conversation distance).
 function standPose(extraDist) {
   const p = participant(); if (!p) return null;
   const head = headOf(p); if (!head) return null;
   const rest = restGeom(); if (!rest) return null;
   const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5, head.pos.z);
-  const reachTotal = (rest.L1 + rest.L2 + NPC_CFG.FINGER_LEN) * NPC_CFG.STAND_FACTOR;
+  const reach = (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR;
   const shoulderY = rest.sR.y + root.y;
   const dy = (head.pos.y + NPC_CFG.FACE_UP) - shoulderY;
-  const horizShoulderToFace = Math.sqrt(Math.max(0, reachTotal * reachTotal - dy * dy));
-  const lateral = Math.abs(rest.sR.x);
-  const fwdShoulderToFace = Math.sqrt(Math.max(0, horizShoulderToFace * horizShoulderToFace - lateral * lateral));
-  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, fwdShoulderToFace + NPC_CFG.FACE_FWD) + (extraDist || 0);
+  const lateral = Math.abs(vdot(rest.sR, rest.right));
+  // Bisection on x = forward distance from the right shoulder to the face point, so that the
+  // wrist needed at the stop position (palm STOP_MARGIN before the face) is `reach` from the shoulder.
+  function wristDist(x) {
+    const face = vadd(vadd(vscale(rest.right, -lateral), vscale(UP, dy)), vscale(rest.fwd, x));
+    const d = vnorm(face);
+    const F = vsub(face, vscale(d, NPC_CFG.STOP_MARGIN));
+    return vlen(vsub(F, palmOffset(reachHandFrame(d))));
+  }
+  let lo = 0.05, hi = 1.5;
+  for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (wristDist(mid) < reach) lo = mid; else hi = mid; }
+  const shoulderFwd = vdot(rest.sR, rest.fwd);
+  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, lo + shoulderFwd + NPC_CFG.FACE_FWD) + (extraDist || 0);
   const pfwd = vhoriz(head.fwd);
   const pos = v3(head.pos.x + pfwd.x * horiz, root.y, head.pos.z + pfwd.z * horiz);
   const faceDir = vhoriz(vsub(head.pos, pos));
@@ -415,20 +442,24 @@ let traceBuf = [];
 let sampleTimer = 0;
 let baseSamples = [];
 
-function readyFingertip(rest) {
-  return vadd(vadd(vadd(rest.sR, vscale(rest.fwd, NPC_CFG.READY_FWD)), vscale(UP, NPC_CFG.READY_UP)), vscale(rest.right, -NPC_CFG.READY_IN));
+// Ready palm point on the shoulder->face line (local). T = face target (local).
+function readyContact(rest, T) {
+  return vadd(rest.sR, vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));
 }
 
 function beginApproach(head, rest, ip) {
-  const H0 = readyFingertip(rest);  // local; the hand is already here after the READY phase
   const T = toLocal(facePointWorld(head), ip);
+  const H0 = readyContact(rest, T);  // local palm point; the hand is already here after the READY phase
   const full = vlen(vsub(T, H0));
   const L = Math.max(0.02, full - NPC_CFG.STOP_MARGIN);
   $.state.npc_H0 = H0;
   $.state.npc_T = T;
   $.state.npc_L = L;
   $.state.npc_dir = vnorm(vsub(T, H0));
-  $.state.npc_reachable = (vlen(vsub(T, rest.sR)) <= (rest.L1 + rest.L2 + NPC_CFG.FINGER_LEN));
+  const frame = reachHandFrame($.state.npc_dir);
+  $.state.npc_frame = frame;    // hand orientation is kept fixed during the approach
+  const Wend = vsub(vsub(T, vscale($.state.npc_dir, NPC_CFG.STOP_MARGIN)), palmOffset(frame));
+  $.state.npc_reachable = vlen(vsub(Wend, rest.sR)) <= (rest.L1 + rest.L2);
   $.state.npc_phase = "approach";
   $.state.npc_t = 0;
   $.state.npc_reachStartTs = Date.now();
@@ -503,19 +534,65 @@ function pushData(obj) {
 }
 
 // ---------------------------------------------------------------- pose building
-function idleArmDirs(rest) {
-  const R = rest.right, F = rest.fwd, Lf = vscale(rest.right, -1);
+// Arm description (item-local directions): upper = shoulder->elbow, lower = elbow->wrist,
+// hand = wrist->fingers, palm = palm normal. Rest (T-pose, VRM convention): arms horizontal,
+// palms facing down, elbows flexing forward.
+const PALM_DOWN = new Vector3(0, -1, 0);
+
+function armRots(rest, side, arm) {
+  const restU = side === "R" ? rest.axisRU : rest.axisLU;
+  const restL = side === "R" ? rest.axisRL : rest.axisLL;
   return {
-    ru: vnorm(vadd(vadd(vscale(UP, -1.0), vscale(R, 0.22)), vscale(F, 0.05))),
-    rl: vnorm(vadd(vadd(vscale(UP, -0.92), vscale(F, 0.30)), vscale(R, 0.12))),
-    lu: vnorm(vadd(vadd(vscale(UP, -1.0), vscale(Lf, 0.22)), vscale(F, 0.05))),
-    ll: vnorm(vadd(vadd(vscale(UP, -0.92), vscale(F, 0.30)), vscale(Lf, 0.12))),
+    u: basisRot(restU, rest.fwd, arm.upper, arm.lower),   // elbow bends toward the forearm
+    l: basisRot(restL, PALM_DOWN, arm.lower, arm.palm),   // forearm twist follows the palm
+    h: basisRot(restL, PALM_DOWN, arm.hand, arm.palm),    // hand: fingers + palm direction
   };
 }
-function fingertipFromDirs(S, L1, L2, upperDir, lowerDir) {
-  const E = vadd(S, vscale(upperDir, L1));
-  const W = vadd(E, vscale(lowerDir, L2));
-  return vadd(W, vscale(lowerDir, NPC_CFG.FINGER_LEN));
+// Relaxed arm hanging at the side, palm facing the thigh (toward the body midline).
+function idleArm(rest, side) {
+  const R = vscale(rest.right, side === "R" ? 1 : -1), F = rest.fwd;
+  const lower = vnorm(vadd(vadd(vscale(UP, -0.92), vscale(F, 0.30)), vscale(R, 0.12)));
+  return {
+    upper: vnorm(vadd(vadd(vscale(UP, -1.0), vscale(R, 0.22)), vscale(F, 0.05))),
+    lower: lower,
+    hand: lower,
+    palm: vscale(R, -1),
+  };
+}
+// Left arm raised for waving: forearm up (oscillating sideways), palm facing the participant.
+function waveArm(rest, gt) {
+  const Lf = vscale(rest.right, -1), F = rest.fwd;
+  const upper = vnorm(vadd(vadd(vscale(UP, -0.4), vscale(Lf, 0.75)), vscale(F, 0.2)));
+  let lower = vnorm(vadd(vadd(vscale(UP, 0.85), vscale(F, 0.25)), vscale(Lf, 0.2)));
+  lower = qrot(qaxis(F, 25 * Math.sin(2 * Math.PI * 2.5 * gt)), lower);
+  return { upper: upper, lower: lower, hand: lower, palm: F };
+}
+// Reaching hand: fingers tilted up from the approach direction d, palm facing along d (the face).
+function reachHandFrame(d) {
+  const dn = vnorm(d);
+  let up = perpTo(UP, dn);
+  if (vlen(up) < 1e-3) up = perpTo(v3(0, 0, 1), dn);
+  let h = vnorm(vadd(dn, vscale(vnorm(up), NPC_CFG.HAND_UP)));
+  const horizD = vhoriz(dn);
+  if (vdot(h, horizD) < 0.05) h = vnorm(vadd(UP, vscale(horizD, 0.05)));   // fingers at most vertical
+  const n = vnorm(perpTo(dn, h));
+  return { h: h, n: n };
+}
+// Wrist -> palm contact point.
+function palmOffset(frame) {
+  return vadd(vscale(frame.h, NPC_CFG.PALM_LEN), vscale(frame.n, NPC_CFG.PALM_OFF));
+}
+// Right arm placing the palm contact point at F (local) with the given hand frame.
+function reachArm(rest, F, frame) {
+  const W = vsub(F, palmOffset(frame));
+  const hint = vnorm(vadd(vscale(UP, -0.8), vscale(rest.right, 0.6)));
+  const sol = solveArm(rest.sR, W, rest.L1, rest.L2, hint);
+  return { upper: sol.upperDir, lower: sol.lowerDir, hand: frame.h, palm: frame.n, frame: frame };
+}
+// Actual palm contact point of a solved right arm (accounts for IK clamping when out of reach).
+function contactOf(rest, arm) {
+  const W = vadd(vadd(rest.sR, vscale(arm.upper, rest.L1)), vscale(arm.lower, rest.L2));
+  return vadd(W, palmOffset(arm.frame));
 }
 // Two-bone IK for a wrist target W (local). Returns {upperDir, lowerDir}.
 function solveArm(S, W, L1, L2, bendHint) {
@@ -534,19 +611,6 @@ function solveArm(S, W, L1, L2, bendHint) {
   const lowerDir = vnorm(vsub(W, E));
   return { upperDir: upperDir, lowerDir: lowerDir, elbow: E };
 }
-// Arm directions so that the fingertip reaches F (local).
-function armForFingertip(rest, F) {
-  const hint = vnorm(vadd(vscale(UP, -0.8), vscale(rest.right, 0.6)));
-  let lowerDir = vnorm(vsub(F, rest.sR));
-  let sol = null;
-  for (let i = 0; i < 2; i++) {
-    const W = vsub(F, vscale(lowerDir, NPC_CFG.FINGER_LEN));
-    sol = solveArm(rest.sR, W, rest.L1, rest.L2, hint);
-    lowerDir = sol.lowerDir;
-  }
-  return sol;
-}
-
 function applyPose(Q) {
   const worldRots = {};
   for (let i = 0; i < boneNodes.length; i++) {
@@ -639,23 +703,19 @@ function tick(dt) {
     }
   }
 
-  // --- arms ---
-  const idle = idleArmDirs(rest);
-  let ru = idle.ru, rl = idle.rl, lu = idle.lu, ll = idle.ll;
+  // --- arms (bone rotations incl. twist, so the palms face the right way) ---
+  const idleR = armRots(rest, "R", idleArm(rest, "R"));
+  const idleL = armRots(rest, "L", idleArm(rest, "L"));
+  let armR = idleR, armL = idleL;
 
-  // greeting gesture (nod + left-hand wave), social only
+  // greeting gesture (nod + left-hand wave, palm toward the participant), social only
   let nodDeg = 0;
   const greet = $.state.npc_greet;
   if (social && greet) {
     const gt = (greet.t || 0) + dt;
     const u = clamp01(gt / NPC_CFG.GREET_SEC);
     const lift = Math.sin(Math.PI * u);                 // 0 -> 1 -> 0
-    const Lf = vscale(R, -1);
-    const luRaised = vnorm(vadd(vadd(vscale(UP, -0.4), vscale(Lf, 0.75)), vscale(F, 0.2)));
-    let llRaised = vnorm(vadd(vadd(vscale(UP, 0.85), vscale(F, 0.25)), vscale(Lf, 0.2)));
-    llRaised = qrot(qaxis(F, 25 * Math.sin(2 * Math.PI * 2.5 * gt)), llRaised);
-    lu = vnorm(vlerp(idle.lu, luRaised, lift));
-    ll = vnorm(vlerp(idle.ll, llRaised, lift));
+    armL = slerpArm(idleL, armRots(rest, "L", waveArm(rest, gt)), lift);
     nodDeg = 15 * Math.sin(Math.PI * clamp01(gt / 0.6));
     if (gt >= NPC_CFG.GREET_SEC) $.state.npc_greet = null; else { greet.t = gt; $.state.npc_greet = greet; }
   } else if (greet && !social) {
@@ -671,19 +731,21 @@ function tick(dt) {
       else { $.state.npc_phase = "ready"; $.state.npc_t = 0; }
     }
   } else if (phase === "ready") {
-    // raise the hand from the idle pose to the ready position (fast; the stimulus starts afterwards)
-    const Hidle = fingertipFromDirs(rest.sR, rest.L1, rest.L2, idle.ru, idle.rl);
-    const u = easeInOut(t / NPC_CFG.READY_SEC);
-    const sol = armForFingertip(rest, vlerp(Hidle, readyFingertip(rest), u));
-    ru = sol.upperDir; rl = sol.lowerDir;
+    // raise the hand from the idle pose to the ready position, palm already turned toward the
+    // participant's face (fast; the stimulus starts afterwards)
+    const T = head ? toLocal(facePointWorld(head), ip) : vadd(rest.sR, vadd(vscale(rest.fwd, 0.4), vscale(UP, 0.2)));
+    const H0 = readyContact(rest, T);
+    const readyArm = armRots(rest, "R", reachArm(rest, H0, reachHandFrame(vsub(T, H0))));
+    armR = slerpArm(idleR, readyArm, easeInOut(t / NPC_CFG.READY_SEC));
     if (t >= NPC_CFG.READY_SEC && head) beginApproach(head, rest, ip);
   } else if (phase === "approach") {
     const L = $.state.npc_L, dir = $.state.npc_dir, H0 = $.state.npc_H0;
+    const frame = $.state.npc_frame || reachHandFrame(dir);
     const s = Math.min(NPC_CFG.REACH_SPEED * t, L);
     const Ft = vadd(H0, vscale(dir, s));
-    const sol = armForFingertip(rest, Ft);
-    ru = sol.upperDir; rl = sol.lowerDir;
-    const Fw = toWorld(fingertipFromDirs(rest.sR, rest.L1, rest.L2, ru, rl), ip);
+    const arm = reachArm(rest, Ft, frame);
+    armR = armRots(rest, "R", arm);
+    const Fw = toWorld(contactOf(rest, arm), ip);
     let d = -1;
     if (head) {
       d = vlen(vsub(Fw, facePointWorld(head)));
@@ -701,26 +763,25 @@ function tick(dt) {
     }
   } else if (phase === "hold") {
     const Fc = $.state.npc_Fc || $.state.npc_T;
-    const sol = armForFingertip(rest, Fc);
-    ru = sol.upperDir; rl = sol.lowerDir;
+    const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));
+    armR = armRots(rest, "R", arm);
     if (head) {
-      const Fw = toWorld(fingertipFromDirs(rest.sR, rest.L1, rest.L2, ru, rl), ip);
+      const Fw = toWorld(contactOf(rest, arm), ip);
       sampleTrace(dt, (NPC_CFG.REACH_SPEED > 0 ? ($.state.npc_L / NPC_CFG.REACH_SPEED) : 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
     }
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
     if (t >= NPC_CFG.HOLD_SEC) {
       $.state.npc_phase = "retract";
       $.state.npc_t = 0;
-      $.state.npc_retractLen = vlen(vsub(Fc, $.state.npc_H0));
+      // duration from the distance back toward the ready point at RETRACT_SPEED (+0.8 s to settle)
+      $.state.npc_retractSec = vlen(vsub(Fc, $.state.npc_H0)) / NPC_CFG.RETRACT_SPEED + 0.8;
     }
   } else if (phase === "retract") {
-    const Fc = $.state.npc_Fc || $.state.npc_T, H0 = $.state.npc_H0;
-    const total = Math.max(0.01, $.state.npc_retractLen || vlen(vsub(Fc, H0)));
-    const u = clamp01(NPC_CFG.RETRACT_SPEED * t / total);
-    const Ft = vlerp(Fc, H0, easeInOut(u));
-    const sol = armForFingertip(rest, Ft);
-    // blend into the idle pose near the end so the arm settles naturally
-    ru = vnorm(vlerp(sol.upperDir, idle.ru, u * u)); rl = vnorm(vlerp(sol.lowerDir, idle.rl, u * u));
+    // blend the joint rotations from the hold pose back to the relaxed arm
+    const Fc = $.state.npc_Fc || $.state.npc_T;
+    const holdArm = armRots(rest, "R", reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir)));
+    const u = clamp01(t / Math.max(0.5, $.state.npc_retractSec || 2.0));
+    armR = slerpArm(holdArm, idleR, easeInOut(u));
     if (u >= 1) finishTrial();
   }
 
@@ -730,12 +791,12 @@ function tick(dt) {
     Q[HumanoidBone.Head] = qmul(Q[HumanoidBone.Head] || IDENT, qNod);
   }
 
-  Q[HumanoidBone.RightUpperArm] = qfromTo(rest.axisRU, ru);
-  Q[HumanoidBone.RightLowerArm] = qfromTo(rest.axisRL, rl);
-  Q[HumanoidBone.RightHand] = Q[HumanoidBone.RightLowerArm];
-  Q[HumanoidBone.LeftUpperArm] = qfromTo(rest.axisLU, lu);
-  Q[HumanoidBone.LeftLowerArm] = qfromTo(rest.axisLL, ll);
-  Q[HumanoidBone.LeftHand] = Q[HumanoidBone.LeftLowerArm];
+  Q[HumanoidBone.RightUpperArm] = armR.u;
+  Q[HumanoidBone.RightLowerArm] = armR.l;
+  Q[HumanoidBone.RightHand] = armR.h;
+  Q[HumanoidBone.LeftUpperArm] = armL.u;
+  Q[HumanoidBone.LeftLowerArm] = armL.l;
+  Q[HumanoidBone.LeftHand] = armL.h;
 
   applyPose(Q);
 }

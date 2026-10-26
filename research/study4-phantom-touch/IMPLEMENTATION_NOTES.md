@@ -1,6 +1,6 @@
 # Study 4（PhantomTouch）実装メモ
 
-- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート）
+- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正）
 - 設計書: `implementation-plan.md`（同フォルダ）
 - 生成シーン: `Assets/_Experiment_/Scenes/PhantomTouch.unity`
 - 生成手段: `Assets/_Experiment_/Editor/PhantomTouch/Study4SceneBuilder.cs`（メニュー `LUIDA > Study4 > Build PhantomTouch scene`）。LUIDA のエディタ API（シーンテンプレート、State Machine タブの生成処理、State-listening Item 生成、質問紙束縛、Data Collector、アバターラッパー生成）をそのまま呼び出しているので、生成物は LUIDA の各ウィンドウでそのまま編集できる。
@@ -31,7 +31,7 @@
    - social = with: NPC は参加者を注視し、参加者の視線が NPC に向いた瞬間（30° 以内、45° で解除のヒステリシス）と、参加者がどちらかの手を頭の高さ付近まで上げた瞬間に、左手を上げて振り返す（会釈つき、2.5 秒のクールダウン）。4〜7 秒おきと手を振るたびに笑顔（`Fcl_ALL_Fun`）。
    - social = without: NPC は立っているだけ（注視も反応もなし）。
    - 期間終了時に `greetSec / greetGazeEvents / greetHandRaises / greetNpcWaves / greetNpcSmiles` を収集データへ書き込む（同じブロックの 2 試行目の行にも残る）。
-5. `Trial - Touch`: NpcDirector が `npc_trial_start` を送信。NPC は 1 秒で手の届く位置（頭から約 0.47 m）へ前進しながら prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を胸前へ) → approach(2 cm/s で顔の 3 cm 手前まで) → hold(2 s) → retract → 会話距離へ後退。完了で `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移。120 秒の安全タイムアウトあり。鏡はこのステートの終了で非表示。
+5. `Trial - Touch`: NpcDirector が `npc_trial_start` を送信。NPC は 1 秒で手の届く位置（頭から約 0.5 m）へ前進しながら prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と顔を結ぶ線上の 35% 地点へ。手のひらは参加者の顔側、指は上向き) → approach(その線に沿って 2 cm/s で、手のひらが顔の 3 cm 手前に来るまで。約 15 秒) → hold(2 s) → retract → 会話距離へ後退。完了で `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移。120 秒の安全タイムアウトあり。鏡はこのステートの終了で非表示。
 6. `Trial - Report`: 0–10 → 操作チェック 1–7 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 行保存 → 遷移。
 7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙（VEQ, qID 2）の完了で遷移。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
 8. `SocialPresence`(qID 3) → `PersonalExperience`(qID 4) → `Debrief`(qID 5) → `End`: データを 1 回アップロードし、ゲートを表示。
@@ -46,3 +46,15 @@
 ## 4. 再生成
 
 `LUIDA > Study4 > Build PhantomTouch scene` を実行すると、PhantomTouch 用の生成物（シーン、Settings、Scripts/StateManagement/PhantomTouch、Avatars/PhantomTouch、Prefabs/PhantomTouch）を削除してから作り直す。手で加えた変更は失われるので、恒久的な変更は `Study4SceneBuilder.cs` 側に反映すること。
+
+## 5. NPC の腕の姿勢（手のひらの向き）
+
+各腕ボーンの回転は「骨の向き」と「ひねりの基準」の 2 つで決める（`NpcController.js` の `basisRot` / `armRots`）。T ポーズ（VRM 規約: 手のひら下向き、肘は前方へ曲がる）を基準に、上腕は肘の曲がる向き、前腕と手は手のひらの法線を合わせる。
+
+| 場面 | 手のひらの向き | 指の向き |
+|---|---|---|
+| 待機 | 体側（太もも側） | 下 |
+| 手を振る（左手） | 参加者側（正面） | 上（左右に振る） |
+| 手を伸ばす（右手） | 参加者の顔側（接近方向から 45° 上に傾く） | ほぼ真上（後ろには倒さない） |
+
+接触判定に使う点は指先ではなく手のひらの中心（手首から指方向 8.5 cm、手のひら側へ 1.5 cm）。手首の反りは 35〜40°、前腕の回内は 60〜80° に収まる（オフライン検証）。値は `NPC_CFG` の `READY_FRAC`, `HAND_UP`, `PALM_LEN`, `PALM_OFF` で調整できる。
