@@ -19,22 +19,22 @@ const stateEnterActions = {
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            $.subNode('Text').setText(`正面の相手の手がゆっくり近づきます。\n顔の正面を向いたまま、楽な姿勢で立って見ていてください。`);
+            if (CONDITION['rep'] === '1') SetText('目の前にアバターが現れます。\n15秒間、そのアバターを見て、手を振って挨拶してください。');
         } }
     ],
     4: [
         { type: "exec", action: (deltaTime) => {
-            $.subNode('Text').setText(`右側のパネルで質問に答えてください。`);
+            $.subNode('Text').setText(`正面の相手の手がゆっくり近づきます。\n顔の正面を向いたまま、楽な姿勢で立って見ていてください。`);
         } }
     ],
     5: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['block'] === '1' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');
+            $.subNode('Text').setText(`右側のパネルで質問に答えてください。`);
         } }
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['block'] === '2' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');
+            if (CONDITION['rep'] === '2') SetText('質問紙に答えてください。');
         } }
     ],
     7: [

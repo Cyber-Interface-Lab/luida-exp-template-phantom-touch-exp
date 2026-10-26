@@ -30,9 +30,17 @@ MonoBehaviour:
     RepeatCount: 1
     qID: 0
   - StateName: Trial - Start
-    DestStateName: Trial - Touch
+    DestStateName: Trial - Greeting
     HasExitTime: 0
     ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - Greeting
+    DestStateName: Trial - Touch
+    HasExitTime: 1
+    ExitTime: 15
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -46,29 +54,21 @@ MonoBehaviour:
     RepeatCount: 1
     qID: 0
   - StateName: Trial - Report
-    DestStateName: Trial - VEQ1
+    DestStateName: Trial - VEQ
     HasExitTime: 0
     ExitTime: 0
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
     qID: 0
-  - StateName: Trial - VEQ1
-    DestStateName: Trial - VEQ2
-    HasExitTime: 0
-    ExitTime: 0
-    IsRepeated: 0
-    RepeatDestStateName: 
-    RepeatCount: 1
-    qID: 2
-  - StateName: Trial - VEQ2
+  - StateName: Trial - VEQ
     DestStateName: Trial - Rest
     HasExitTime: 0
     ExitTime: 0
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
-    qID: 3
+    qID: 2
   - StateName: Trial - Rest
     DestStateName: SocialPresence
     HasExitTime: 1
@@ -84,7 +84,7 @@ MonoBehaviour:
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
-    qID: 4
+    qID: 3
   - StateName: PersonalExperience
     DestStateName: Debrief
     HasExitTime: 0
@@ -92,7 +92,7 @@ MonoBehaviour:
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
-    qID: 5
+    qID: 4
   - StateName: Debrief
     DestStateName: End
     HasExitTime: 0
@@ -100,7 +100,7 @@ MonoBehaviour:
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
-    qID: 6
+    qID: 5
   - StateName: End
     DestStateName: 
     HasExitTime: 0

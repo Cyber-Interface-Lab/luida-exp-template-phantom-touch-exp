@@ -44,6 +44,9 @@ public static class Study4SceneBuilder
     const string PrefabsFolder = "Assets/_Experiment_/Prefabs/" + SceneName;
     const string MaterialsFolder = "Assets/_Experiment_/Materials/" + SceneName;
     const string NpcPrefabPath = PrefabsFolder + "/NPC.prefab";
+    const string NpcSmileClipPath = PrefabsFolder + "/NpcSmile.anim";
+    const string NpcFaceControllerPath = PrefabsFolder + "/NpcFace.controller";
+    const string MirrorPrefabPath = "Packages/mu.cluster.cluster-creator-kit/PackageResources/Prefabs/Mirror.prefab";
 
     const string StateListTemplatePath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/ExpSettings/StateList/Template.asset";
     const string VariablesTemplatePath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/ExpSettings/VariablesTemplate.js";
@@ -59,8 +62,9 @@ public static class Study4SceneBuilder
     const string ButtonJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Button.js";
 
     // ------------------------------------------------------------------ state ids
-    const int S_START = 0, S_DEVICE = 1, S_TSTART = 2, S_TOUCH = 3, S_REPORT = 4,
-              S_VEQ1 = 5, S_VEQ2 = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+    const int S_START = 0, S_DEVICE = 1, S_TSTART = 2, S_GREET = 3, S_TOUCH = 4, S_REPORT = 5,
+              S_VEQ = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+    const float GreetingSeconds = 15f;
 
     // ------------------------------------------------------------------ entry points
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene")]
@@ -184,14 +188,14 @@ public static class Study4SceneBuilder
             S("Start", qID: 1),                 // consent questionnaire
             S("DeviceCheck"),                   // head / hand tracking check
             S("Trial - Start"),                 // block setup (avatar switch) when rep == 1
+            S("Trial - Greeting", hasExit: true, exit: GreetingSeconds), // NPC appears; greeting period (rep == 1)
             S("Trial - Touch"),                 // NPC reaches toward the face
             S("Trial - Report"),                // 0-10 rating, manipulation check, type, location
-            S("Trial - VEQ1", qID: 2),          // VEQ after block 1 (block 1 & rep 2 only)
-            S("Trial - VEQ2", qID: 3),          // VEQ after block 2 (block 2 & rep 2 only)
+            S("Trial - VEQ", qID: 2),           // VEQ after the 2nd trial of each block (skipped when rep == 1)
             S("Trial - Rest", hasExit: true, exit: 1f),
-            S("SocialPresence", qID: 4),
-            S("PersonalExperience", qID: 5),
-            S("Debrief", qID: 6),
+            S("SocialPresence", qID: 3),
+            S("PersonalExperience", qID: 4),
+            S("Debrief", qID: 5),
             S("End"),
         };
         for (int i = 0; i < states.Length - 1; i++) states[i].DestStateName = states[i + 1].StateName;
@@ -252,8 +256,13 @@ public static class Study4SceneBuilder
         if (states == null || states.transform.childCount != 12)
             throw new Exception("States container not generated as expected");
         var qRoot = GameObject.Find("LUIDA-QuestionnaireByState");
-        if (qRoot == null || qRoot.transform.childCount != 6)
-            Debug.LogWarning("[Study4] expected 6 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
+        if (qRoot == null || qRoot.transform.childCount != 5)
+            Debug.LogWarning("[Study4] expected 5 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
+        // Questionnaire containers start inactive; the state's Set Game Object Active gimmick
+        // (copied onto each container) activates them when their state begins.
+        if (qRoot != null)
+            for (int i = 0; i < qRoot.transform.childCount; i++)
+                qRoot.transform.GetChild(i).gameObject.SetActive(false);
     }
 
     // ------------------------------------------------------------------ 2. data collector
@@ -420,6 +429,9 @@ return {
         try
         {
             contents.name = "NPC";
+            // The VRM model child is toggled by NpcController.js for visibility ("Model").
+            if (contents.transform.childCount > 0) contents.transform.GetChild(0).name = "Model";
+            AddFaceSmileAnimator(contents);
             var combiner = contents.GetComponent<LuidaScriptCombiner>();
             combiner.ClearScripts();
             combiner.AppendScript(boneMapAsset, null);
@@ -440,11 +452,68 @@ return {
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcPrefabPath);
         var npc = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
         npc.name = "NPC";
-        npc.transform.position = l.P(0f, 0f, 1.0f);
+        npc.transform.position = l.P(0f, 0f, 1.4f);   // re-placed at runtime; hidden until the greeting period
         npc.transform.rotation = Quaternion.LookRotation(-l.fwd, Vector3.up);
         AddItemGroupMember(npc);
         if (collectorItem != null) AddWorldItemReference(npc, "luida-data-collector", collectorItem);
         return npc;
+    }
+
+    // Smile: an Animator on the face mesh GameObject plays a blend-shape clip on the trigger "smile".
+    // (Cluster Script cannot set blend-shape weights directly, but it can set Animator triggers.)
+    static void AddFaceSmileAnimator(GameObject npcRoot)
+    {
+        SkinnedMeshRenderer face = null;
+        string shape = null;
+        foreach (var smr in npcRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            var mesh = smr.sharedMesh;
+            if (mesh == null || mesh.blendShapeCount == 0) continue;
+            string[] prefer = { "Fcl_ALL_Fun", "Fcl_ALL_Joy", "Fun", "Joy", "joy", "fun", "happy", "smile" };
+            foreach (var pfx in prefer)
+            {
+                for (int i = 0; i < mesh.blendShapeCount && shape == null; i++)
+                {
+                    string n = mesh.GetBlendShapeName(i);
+                    if (n == pfx || n.EndsWith("." + pfx) || n.Contains(pfx)) shape = n;
+                }
+                if (shape != null) break;
+            }
+            if (shape != null) { face = smr; break; }
+        }
+        if (face == null)
+        {
+            Debug.LogWarning("[Study4] NPC model has no smile blend shape; the NPC will not smile.");
+            return;
+        }
+        face.gameObject.name = "Face";
+
+        var clip = new AnimationClip { name = "NpcSmile", legacy = false };
+        var curve = new AnimationCurve(
+            new Keyframe(0f, 0f), new Keyframe(0.35f, 85f), new Keyframe(1.3f, 85f), new Keyframe(1.9f, 0f));
+        clip.SetCurve("", typeof(SkinnedMeshRenderer), "blendShape." + shape, curve);
+        AssetDatabase.CreateAsset(clip, NpcSmileClipPath);
+
+        var controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(NpcFaceControllerPath);
+        controller.AddParameter("smile", AnimatorControllerParameterType.Trigger);
+        var sm = controller.layers[0].stateMachine;
+        var idle = sm.AddState("Idle");
+        sm.defaultState = idle;
+        var smile = sm.AddState("Smile");
+        smile.motion = clip;
+        var toSmile = idle.AddTransition(smile);
+        toSmile.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "smile");
+        toSmile.hasExitTime = false; toSmile.duration = 0f;
+        var toIdle = smile.AddTransition(idle);
+        toIdle.hasExitTime = true; toIdle.exitTime = 1f; toIdle.duration = 0.05f;
+
+        // Unity returns a "fake null" for missing components, so do not use ?? here.
+        var animator = face.gameObject.GetComponent<Animator>();
+        if (animator == null) animator = face.gameObject.AddComponent<Animator>();
+        animator.runtimeAnimatorController = controller;
+        animator.applyRootMotion = false;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        Debug.Log("[Study4] NPC smile animator uses blend shape '" + shape + "'");
     }
 
     // Append LeftEye/RightEye to the generated BONE_MAP / BONE_PARENT so the NPC can move its eyes.
@@ -509,7 +578,8 @@ return {
 
     static void AddItemGroupMember(GameObject go)
     {
-        var member = go.GetComponent<ItemGroupMember>() ?? go.AddComponent<ItemGroupMember>();
+        var member = go.GetComponent<ItemGroupMember>();
+        if (member == null) member = go.AddComponent<ItemGroupMember>();
         ItemGroupHost host = null;
         foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
         {
@@ -529,7 +599,8 @@ return {
 
     static void AddWorldItemReference(GameObject go, string id, Item target)
     {
-        var list = go.GetComponent<WorldItemReferenceList>() ?? go.AddComponent<WorldItemReferenceList>();
+        var list = go.GetComponent<WorldItemReferenceList>();
+        if (list == null) list = go.AddComponent<WorldItemReferenceList>();
         var so = new SerializedObject(list);
         var prop = so.FindProperty("worldItemReferences");
         for (int i = 0; i < prop.arraySize; i++)
@@ -630,6 +701,23 @@ return {
                 reportPanel.GetComponent<Item>(), "rp_btn", 12, m);
             AddWorldItemReference(reportPanel, "RP_Done", done.GetComponent<Item>());
             WriteItemData(reportPanel, ReportPanelListeners(), ReportPanelHandlers(), ReportPanelLegacy);
+
+            // -- MirrorPanel (CCK mirror diagonally behind the NPC, visible during trials) --
+            var mirrorPanel = CreateSli(tab, "MirrorPanel");
+            mirrorPanel.transform.position = l.P(-1.1f, 1.15f, 2.2f);
+            mirrorPanel.transform.rotation = l.FaceAwayFromViewer(mirrorPanel.transform.position);
+            var mirrorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(MirrorPrefabPath);
+            if (mirrorPrefab != null)
+            {
+                var mirror = (GameObject)PrefabUtility.InstantiatePrefab(mirrorPrefab, mirrorPanel.transform);
+                mirror.name = "Mirror";
+                mirror.transform.localPosition = Vector3.zero;
+                mirror.transform.localRotation = Quaternion.identity;
+                mirror.transform.localScale = new Vector3(1.3f, 2.0f, 1f);
+                mirror.SetActive(false);
+            }
+            else Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath);
+            WriteItemData(mirrorPanel, MirrorPanelListeners(), null, "");
 
             // -- ExitPortal (gate back to the recruitment world, shown at End) -------
             var exitPortal = CreateSli(tab, "ExitPortal");
@@ -817,10 +905,10 @@ return {
             Listener(S_START, L(Act(T_ShowItem), SetText("ようこそ。\\n目の前の質問紙で研究の説明を読み、各項目にチェックを入れて進んでください。"))),
             Listener(S_DEVICE, L(SetText("トラッキングの確認をします。\\n1) 頭をゆっくり左右に向けてください\\n2) 両手を頭より高く上げてください"))),
             Listener(S_TSTART, L(Custom("SetText('ブロック ' + CONDITION['block'] + ' / 2');"))),
+            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') SetText('目の前にアバターが現れます。\\n15秒間、そのアバターを見て、手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(SetText("正面の相手の手がゆっくり近づきます。\\n顔の正面を向いたまま、楽な姿勢で立って見ていてください。"))),
             Listener(S_REPORT, L(SetText("右側のパネルで質問に答えてください。"))),
-            Listener(S_VEQ1, L(Custom("if (CONDITION['block'] === '1' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
-            Listener(S_VEQ2, L(Custom("if (CONDITION['block'] === '2' && CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
             Listener(S_TREST, L(SetText("少し休憩します…"))),
             Listener(S_SOCIAL, L(SetText("正面の相手（NPC）についての質問紙に答えてください。"))),
             Listener(S_PERSONAL, L(SetText("最後に、あなた自身のメタバース利用についての質問紙に答えてください。"))),
@@ -839,8 +927,20 @@ return {
                 Sleep(0.5f),
                 If(Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z))), "rep", "1"),
                 If(Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0")), "rep", "1"),
-                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', block: CONDITION['block'] });"), "rep", "1")
+                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with' });\n$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
             )),
+            // Greeting period: the NPC appears after the avatar switch (rep == 1) and, in the social-cue
+            // condition, reacts to the participant for GreetingSeconds. Skipped for the 2nd trial of a block.
+            Listener(S_GREET,
+                L(Custom(
+                    "if (CONDITION['rep'] === '1') {\n" +
+                    "  $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });\n" +
+                    "  $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });\n" +
+                    "} else {\n" +
+                    "  ToNextState();\n" +
+                    "}")),
+                null,
+                L(Custom("$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
             Listener(S_TOUCH,
                 L(Custom(
                     "nd_arm();\n" +
@@ -859,9 +959,8 @@ return {
                     "  $.state.nd_touchStartTs = 0;\n" +
                     "  ToNextState();\n" +
                     "}"))),
-            // VEQ is answered once per block (after the 2nd trial); every other visit is skipped immediately.
-            Listener(S_VEQ1, L(Custom("if (!(CONDITION['block'] === '1' && CONDITION['rep'] === '2')) ToNextState();"))),
-            Listener(S_VEQ2, L(Custom("if (!(CONDITION['block'] === '2' && CONDITION['rep'] === '2')) ToNextState();"))),
+            // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
             Listener(S_END, L(Act(T_Upload))),
         };
     }
@@ -1227,6 +1326,16 @@ function rp_finish() {
 }
 function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; }
 ";
+
+    // ------------------------------------------------------------------ MirrorPanel
+    static List<StateListener> MirrorPanelListeners()
+    {
+        return new List<StateListener>
+        {
+            Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
+            Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
+        };
+    }
 
     // ------------------------------------------------------------------ ExitPortal
     static List<StateListener> ExitPortalListeners()

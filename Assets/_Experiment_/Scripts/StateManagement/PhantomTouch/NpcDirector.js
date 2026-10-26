@@ -13,11 +13,22 @@ const stateEnterActions = {
         } },
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
-              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', block: CONDITION['block'] });
+              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with' });
+              $.worldItemReference('NPC').send('npc_hide', {});
             }
         } }
     ],
     3: [
+        { type: "exec", action: (deltaTime) => {
+            if (CONDITION['rep'] === '1') {
+              $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });
+              $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });
+            } else {
+              ToNextState();
+            }
+        } }
+    ],
+    4: [
         { type: "exec", action: (deltaTime) => {
             nd_arm();
             $.state.nd_touchStartTs = Date.now();
@@ -28,14 +39,9 @@ const stateEnterActions = {
               avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });
         } }
     ],
-    5: [
-        { type: "exec", action: (deltaTime) => {
-            if (!(CONDITION['block'] === '1' && CONDITION['rep'] === '2')) ToNextState();
-        } }
-    ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (!(CONDITION['block'] === '2' && CONDITION['rep'] === '2')) ToNextState();
+            if (CONDITION['rep'] !== '2') ToNextState();
         } }
     ],
     11: [
@@ -46,7 +52,7 @@ const stateEnterActions = {
 };
 
 const duringStateActions = {
-    3: [
+    4: [
         { type: "exec", action: (deltaTime) => {
             if (nd_donePulse()) { ToNextState(); }
             else if ($.state.nd_touchStartTs && Date.now() - $.state.nd_touchStartTs > 120000) {
@@ -61,6 +67,11 @@ const duringStateActions = {
 };
 
 const stateExitActions = {
+    3: [
+        { type: "exec", action: (deltaTime) => {
+            $.worldItemReference('NPC').send('npc_greeting_end', {});
+        } }
+    ]
 };
 
 

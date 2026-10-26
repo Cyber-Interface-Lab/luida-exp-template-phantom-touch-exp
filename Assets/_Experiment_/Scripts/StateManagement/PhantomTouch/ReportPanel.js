@@ -4,7 +4,7 @@ const stateEnterActions = {
             rp_hideAll(); HideChild('Text');
         } }
     ],
-    4: [
+    5: [
         { type: "exec", action: (deltaTime) => {
             rp_begin();
         } }
@@ -12,7 +12,7 @@ const stateEnterActions = {
 };
 
 const duringStateActions = {
-    4: [
+    5: [
         { type: "exec", action: (deltaTime) => {
             rp_update(deltaTime);
         } }
@@ -20,7 +20,7 @@ const duringStateActions = {
 };
 
 const stateExitActions = {
-    4: [
+    5: [
         { type: "exec", action: (deltaTime) => {
             rp_end();
         } }

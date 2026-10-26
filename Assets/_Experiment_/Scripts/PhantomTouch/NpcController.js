@@ -4,9 +4,13 @@
 // by LuidaScriptCombiner (BONE_MAP, BONE_PARENT, AVATAR_* constants).
 //
 // Messages (sent by the NpcDirector state-listening item):
-//   "npc_setup"        { social: boolean, block: string }   -> stand in front of the participant, idle
-//   "npc_trial_start"  { block, rep, avatar, social }       -> prep -> approach (2 cm/s) -> hold -> retract
-//   "npc_abort"        {}                                   -> back to idle
+//   "npc_setup"           { social: boolean }   -> remember the social-cue condition (NPC stays hidden)
+//   "npc_hide"            {}                    -> hide the body (avatar-switch phase)
+//   "npc_show"            { social? }           -> stand at conversation distance in front of the participant and show the body
+//   "npc_greeting_begin"  { social? }           -> greeting period: gaze + reactions (social condition only)
+//   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
+//   "npc_trial_start"     { block, rep, avatar, social } -> step closer -> prep -> raise hand -> approach (2 cm/s) -> hold -> retract -> step back
+//   "npc_abort"           {}                    -> back to idle
 // Output:
 //   item signal "npc_done" (a GlobalLogic on this item relays it to the global signal "npc_done")
 //   per-trial measurements merged into $.groupState.collectedData (this item is an ItemGroupMember)
@@ -17,7 +21,7 @@
 
 const NPC_CFG = {
   REACH_SPEED: 0.02,       // m/s (thesis 6.2.3)
-  PREP_SEC: 2.0,           // wait before the hand is raised
+  PREP_SEC: 2.0,           // wait (and step closer) before the hand is raised
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
   READY_FWD: 0.12,         // ready fingertip: in front of the shoulder (m)
   READY_UP: 0.02,
@@ -29,14 +33,23 @@ const NPC_CFG = {
   FACE_FWD: 0.10,
   FINGER_LEN: 0.09,        // wrist -> fingertip along the forearm direction
   SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
-  STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the standing spot
-  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance (m)
+  STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
+  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)
+  IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach distance + this (m)
   MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)
-  GLIDE_SEC: 1.0,          // re-placement glide at trial start
+  GLIDE_SEC: 1.0,          // step closer / step back duration
   GAZE_MAX_DEG: 60,
   LOOK_AT_DEG: 30,         // participant "looks at" the NPC when head forward is within this angle
-  GREET_SEC: 1.5,
+  LOOK_AWAY_DEG: 45,       // ... and stops when it exceeds this angle (hysteresis)
+  GREET_SEC: 1.5,          // nod + wave duration
+  WAVE_COOLDOWN_SEC: 2.5,  // minimum interval between reactive waves
+  HAND_RAISE_OFFSET: 0.10, // a hand counts as raised when above (head height - this)
+  SMILE_MIN_SEC: 4.0,      // spontaneous smiles during the greeting period, random interval
+  SMILE_MAX_SEC: 7.0,
+  SMILE_COOLDOWN_SEC: 1.5,
   RETREAT_THRESHOLD: 0.02, // m, for the in-world retreat-onset estimate
+  MODEL_NODE: "Model",     // sub-node holding the VRM model (toggled for visibility)
+  FACE_NODE: "Face",       // sub-node with the face SkinnedMeshRenderer + smile Animator
 };
 
 const IDENT = new Quaternion(0, 0, 0, 1);
@@ -112,6 +125,7 @@ function qclamp(q, maxDeg) { const a = qangleDeg(q); return a > maxDeg ? qslerp(
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 function easeInOut(x) { x = clamp01(x); return x * x * (3 - 2 * x); }
 function f3(x) { return (Math.round(x * 1000) / 1000).toString(); }
+function nowSec() { return Date.now() / 1000; }
 
 // ---------------------------------------------------------------- bone cache
 let boneNodes = [];
@@ -146,7 +160,7 @@ function itemPose() {
 function toLocal(world, ip) { return qrot(qinv(ip.rot), vsub(world, ip.pos)); }
 function toWorld(local, ip) { return vadd(ip.pos, qrot(ip.rot, local)); }
 
-// Rest geometry (item-local, measured once while the model is still in its rest pose).
+// Rest geometry (item-local, measured once while the model is still in its rest pose and visible).
 function measureRest() {
   const need = [HumanoidBone.RightUpperArm, HumanoidBone.RightLowerArm, HumanoidBone.RightHand,
                 HumanoidBone.LeftUpperArm, HumanoidBone.LeftLowerArm, HumanoidBone.LeftHand,
@@ -188,11 +202,41 @@ function restGeom() {
   return r;
 }
 
+// ---------------------------------------------------------------- visibility & face
+function applyVisibility() {
+  const node = $.subNode(NPC_CFG.MODEL_NODE);
+  if (!node) return;
+  try { node.setEnabled(!!$.state.npc_visible); } catch (e) { $.log("[NPC] setEnabled failed: " + e); }
+  $.state.npc_visibilityApplied = !!$.state.npc_visible;
+}
+function setVisible(v) {
+  $.state.npc_visible = !!v;
+  applyVisibility();
+}
+// Trigger the smile animation (Animator on the Face sub-node, trigger "smile"). Silently ignored
+// when the model has no face animator.
+function smile() {
+  const t = nowSec();
+  if (t - ($.state.npc_lastSmile || 0) < NPC_CFG.SMILE_COOLDOWN_SEC) return;
+  $.state.npc_lastSmile = t;
+  $.state.npc_smiles = ($.state.npc_smiles || 0) + 1;
+  try {
+    const face = $.subNode(NPC_CFG.FACE_NODE);
+    if (!face) return;
+    const anim = face.getUnityComponent("Animator");
+    if (anim) anim.setTrigger("smile");
+  } catch (e) {
+    if (!$.state.npc_smileWarned) { $.state.npc_smileWarned = true; $.log("[NPC] smile unavailable: " + e); }
+  }
+}
+
 // ---------------------------------------------------------------- lifecycle
 $.onStart(() => {
   $.state.npc_phase = "idle";
+  $.state.npc_mode = "none";
   $.state.npc_t = 0;
   $.state.npc_social = false;
+  $.state.npc_visible = false;
   $.state.npc_trial = null;
   $.state.npc_rest = null;
   $.state.npc_trace = [];
@@ -204,18 +248,37 @@ $.onStart(() => {
 $.onReceive((messageType, arg, sender) => {
   try {
     if (messageType === "npc_setup") {
-      $.state.npc_social = !!(arg && arg.social);
+      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       $.state.npc_phase = "idle";
       $.state.npc_t = 0;
-      placeInFront(false);
       $.log("[NPC] setup social=" + $.state.npc_social);
+    } else if (messageType === "npc_hide") {
+      $.state.npc_mode = "none";
+      $.state.npc_phase = "idle";
+      setVisible(false);
+    } else if (messageType === "npc_show") {
+      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
+      $.state.npc_phase = "idle";
+      $.state.npc_t = 0;
+      moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);
+      setVisible(true);
+      $.log("[NPC] shown social=" + $.state.npc_social);
+    } else if (messageType === "npc_greeting_begin") {
+      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
+      if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }
+      beginGreeting();
+    } else if (messageType === "npc_greeting_end") {
+      endGreeting();
     } else if (messageType === "npc_trial_start") {
       $.state.npc_trial = arg || {};
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
+      if ($.state.npc_mode === "greeting") endGreeting();
+      if (!$.state.npc_visible) setVisible(true);
       startTrial();
     } else if (messageType === "npc_abort") {
       $.state.npc_phase = "idle";
       $.state.npc_t = 0;
+      moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);
     }
   } catch (e) {
     $.log("[NPC] onReceive error: " + e);
@@ -242,11 +305,12 @@ function facePointWorld(head) {
   return vadd(head.pos, qrot(head.rot, v3(0, NPC_CFG.FACE_UP, NPC_CFG.FACE_FWD)));
 }
 
-// Stand in front of the participant so that the fingertip can reach the face point with a slightly bent arm.
-function placeInFront(glide) {
-  const p = participant(); if (!p) return;
-  const head = headOf(p); if (!head) return;
-  const rest = restGeom(); if (!rest) return;
+// Standing pose in front of the participant. extraDist = 0 -> reach spot (fingertip reaches the
+// face point with a slightly bent arm); extraDist > 0 -> that much farther (conversation distance).
+function standPose(extraDist) {
+  const p = participant(); if (!p) return null;
+  const head = headOf(p); if (!head) return null;
+  const rest = restGeom(); if (!rest) return null;
   const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5, head.pos.z);
   const reachTotal = (rest.L1 + rest.L2 + NPC_CFG.FINGER_LEN) * NPC_CFG.STAND_FACTOR;
   const shoulderY = rest.sR.y + root.y;
@@ -254,20 +318,79 @@ function placeInFront(glide) {
   const horizShoulderToFace = Math.sqrt(Math.max(0, reachTotal * reachTotal - dy * dy));
   const lateral = Math.abs(rest.sR.x);
   const fwdShoulderToFace = Math.sqrt(Math.max(0, horizShoulderToFace * horizShoulderToFace - lateral * lateral));
-  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, fwdShoulderToFace + NPC_CFG.FACE_FWD);
+  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, fwdShoulderToFace + NPC_CFG.FACE_FWD) + (extraDist || 0);
   const pfwd = vhoriz(head.fwd);
-  const targetPos = v3(head.pos.x + pfwd.x * horiz, root.y, head.pos.z + pfwd.z * horiz);
-  const faceDir = vhoriz(vsub(head.pos, targetPos));
-  const targetRot = qfromTo(rest.fwd, faceDir);
+  const pos = v3(head.pos.x + pfwd.x * horiz, root.y, head.pos.z + pfwd.z * horiz);
+  const faceDir = vhoriz(vsub(head.pos, pos));
+  const rot = qfromTo(rest.fwd, faceDir);
+  return { pos: pos, rot: rot, horiz: horiz, dy: dy };
+}
+function moveToStand(extraDist, glide) {
+  const sp = standPose(extraDist);
+  if (!sp) return false;
   if (glide) {
     const ip = itemPose();
-    $.state.npc_glide = { fromPos: ip.pos, fromRot: ip.rot, toPos: targetPos, toRot: targetRot, t: 0 };
+    $.state.npc_glide = { fromPos: ip.pos, fromRot: ip.rot, toPos: sp.pos, toRot: sp.rot, t: 0 };
   } else {
     $.state.npc_glide = null;
-    $.setPosition(targetPos);
-    $.setRotation(targetRot);
+    $.setPosition(sp.pos);
+    $.setRotation(sp.rot);
   }
-  $.log("[NPC] placed " + f3(horiz) + " m in front (dy=" + f3(dy) + ")");
+  $.log("[NPC] stand " + f3(sp.horiz) + " m in front (dy=" + f3(sp.dy) + ", glide=" + !!glide + ")");
+  return true;
+}
+
+// ---------------------------------------------------------------- greeting period
+function beginGreeting() {
+  $.state.npc_mode = "greeting";
+  $.state.npc_greetStartTs = Date.now();
+  $.state.npc_gGaze = 0; $.state.npc_gHand = 0; $.state.npc_gWaves = 0; $.state.npc_smiles = 0;
+  $.state.npc_gazeAligned = false;
+  $.state.npc_handUp = false;
+  $.state.npc_lastWave = 0;
+  $.state.npc_nextSmile = nowSec() + 1.0 + Math.random() * 2.0;
+  $.log("[NPC] greeting begin social=" + $.state.npc_social);
+}
+function endGreeting() {
+  if ($.state.npc_mode !== "greeting") return;
+  $.state.npc_mode = "none";
+  pushData({
+    greetSec: (Date.now() - ($.state.npc_greetStartTs || Date.now())) / 1000,
+    greetGazeEvents: $.state.npc_gGaze || 0,
+    greetHandRaises: $.state.npc_gHand || 0,
+    greetNpcWaves: $.state.npc_gWaves || 0,
+    greetNpcSmiles: $.state.npc_smiles || 0,
+  });
+  $.log("[NPC] greeting end: gaze=" + ($.state.npc_gGaze || 0) + " hands=" + ($.state.npc_gHand || 0) + " waves=" + ($.state.npc_gWaves || 0));
+}
+// Start a reactive wave (nod + left-hand wave) if not already waving and the cooldown has passed.
+function reactWave() {
+  const t = nowSec();
+  if ($.state.npc_greet) return false;
+  if (t - ($.state.npc_lastWave || 0) < NPC_CFG.WAVE_COOLDOWN_SEC) return false;
+  $.state.npc_lastWave = t;
+  $.state.npc_greet = { t: 0 };
+  $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;
+  smile();
+  return true;
+}
+// Detect the participant's social signals (gaze alignment, raised hand) with hysteresis / edges.
+function detectParticipantSignals(p, head, rest, ip) {
+  const npcHeadW = toWorld(rest.head, ip);
+  const toNpc = vnorm(vsub(npcHeadW, head.pos));
+  const ang = Math.acos(Math.max(-1, Math.min(1, vdot(vnorm(head.fwd), toNpc)))) * 180 / Math.PI;
+  let gazeEdge = false;
+  if (!$.state.npc_gazeAligned && ang < NPC_CFG.LOOK_AT_DEG) { $.state.npc_gazeAligned = true; gazeEdge = true; }
+  else if ($.state.npc_gazeAligned && ang > NPC_CFG.LOOK_AWAY_DEG) { $.state.npc_gazeAligned = false; }
+
+  const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);
+  const rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);
+  const th = head.pos.y - NPC_CFG.HAND_RAISE_OFFSET;
+  const up = !!((lh && lh.y > th) || (rh && rh.y > th));
+  let handEdge = false;
+  if (up && !$.state.npc_handUp) { $.state.npc_handUp = true; handEdge = true; }
+  else if (!up && $.state.npc_handUp) { $.state.npc_handUp = false; }
+  return { gazeEdge: gazeEdge, handEdge: handEdge, aligned: $.state.npc_gazeAligned, handUp: up };
 }
 
 // ---------------------------------------------------------------- trial control
@@ -275,7 +398,7 @@ function startTrial() {
   const rest = restGeom();
   if (!rest) { $.log("[NPC] rest geometry not ready; trial start deferred"); $.state.npc_pendingStart = true; return; }
   $.state.npc_pendingStart = false;
-  placeInFront(true);
+  moveToStand(0, true);                     // step closer to the reach spot during PREP
   $.state.npc_phase = "prep";
   $.state.npc_t = 0;
   $.state.npc_greet = null;
@@ -359,6 +482,7 @@ function finishTrial() {
   $.state.npc_trace = [];
   $.state.npc_phase = "idle";
   $.state.npc_t = 0;
+  moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);   // step back to conversation distance
   $.sendSignalCompat("this", "npc_done");
   $.log("[NPC] trial done: samples=" + traces.length + " contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist));
 }
@@ -379,7 +503,7 @@ function pushData(obj) {
 }
 
 // ---------------------------------------------------------------- pose building
-function idleArmDirs(rest, waving) {
+function idleArmDirs(rest) {
   const R = rest.right, F = rest.fwd, Lf = vscale(rest.right, -1);
   return {
     ru: vnorm(vadd(vadd(vscale(UP, -1.0), vscale(R, 0.22)), vscale(F, 0.05))),
@@ -444,11 +568,14 @@ $.onUpdate((deltaTime) => {
 function tick(dt) {
   if (boneNodes.length === 0) cacheBones();
   const rest = restGeom();
-  if (!rest) return;
+  if (!rest) return;                       // keep the model visible until the rest pose is measured
+
+  // Visibility: hidden until shown (also re-applied after a script reload).
+  if ($.state.npc_visibilityApplied !== !!$.state.npc_visible) applyVisibility();
 
   if ($.state.npc_pendingStart) { startTrial(); return; }
 
-  // Glide to the trial pose (position/rotation are networked, so keep it short).
+  // Glide to the target standing pose (position/rotation are networked, so keep it short).
   const g = $.state.npc_glide;
   if (g) {
     const t = clamp01((g.t || 0) + dt / NPC_CFG.GLIDE_SEC);
@@ -458,11 +585,14 @@ function tick(dt) {
     if (t >= 1) $.state.npc_glide = null; else { g.t = t; $.state.npc_glide = g; }
   }
 
+  if (!$.state.npc_visible) return;        // nothing to animate while hidden
+
   const p = participant();
   const head = p ? headOf(p) : null;
   const ip = itemPose();
   const social = !!$.state.npc_social;
   const phase = $.state.npc_phase || "idle";
+  const greeting = $.state.npc_mode === "greeting";
   let t = ($.state.npc_t || 0) + dt;
   $.state.npc_t = t;
 
@@ -477,13 +607,12 @@ function tick(dt) {
   }
 
   // --- gaze (social only) ---
-  let qGazeFull = IDENT;
   if (social && head) {
     const npcHeadL = rest.head;
     const dir = vnorm(vsub(toLocal(head.pos, ip), npcHeadL));
-    qGazeFull = qclamp(qfromTo(F, dir), NPC_CFG.GAZE_MAX_DEG);
+    const qGazeFull = qclamp(qfromTo(F, dir), NPC_CFG.GAZE_MAX_DEG);
     const qNeck = qslerp(IDENT, qGazeFull, 0.3);
-    let qHead = qslerp(IDENT, qGazeFull, 0.7);
+    const qHead = qslerp(IDENT, qGazeFull, 0.7);
     // eyes: look a bit further than the head, limited to 15 deg beyond it
     const extra = qmul(qinv(qHead), qGazeFull);
     const qEye = qmul(qHead, qclamp(extra, 15));
@@ -493,23 +622,28 @@ function tick(dt) {
     Q[HumanoidBone.RightEye] = qEye;
   }
 
-  // --- look-at detection by the participant (all conditions, for logging) ---
-  if (head && (phase === "prep" || phase === "approach")) {
-    const npcHeadW = toWorld(rest.head, ip);
-    const toNpc = vnorm(vsub(npcHeadW, head.pos));
-    const ang = Math.acos(Math.max(-1, Math.min(1, vdot(vnorm(head.fwd), toNpc)))) * 180 / Math.PI;
-    if (ang < NPC_CFG.LOOK_AT_DEG && !$.state.npc_lookedAt) {
+  // --- participant signals: greeting period (reactive), trial prep (logging + one greeting) ---
+  if (head && (greeting || phase === "prep" || phase === "approach")) {
+    const sig = detectParticipantSignals(p, head, rest, ip);
+    if (greeting) {
+      if (sig.gazeEdge) { $.state.npc_gGaze = ($.state.npc_gGaze || 0) + 1; if (social) reactWave(); }
+      if (sig.handEdge) { $.state.npc_gHand = ($.state.npc_gHand || 0) + 1; if (social) reactWave(); }
+      if (social && nowSec() >= ($.state.npc_nextSmile || 0)) {
+        smile();
+        $.state.npc_nextSmile = nowSec() + NPC_CFG.SMILE_MIN_SEC + Math.random() * (NPC_CFG.SMILE_MAX_SEC - NPC_CFG.SMILE_MIN_SEC);
+      }
+    } else if (sig.aligned && !$.state.npc_lookedAt) {
       $.state.npc_lookedAt = true;
       $.state.npc_lookTs = Date.now();
-      if (social && phase === "prep" && !$.state.npc_greet) { $.state.npc_greet = { t: 0 }; $.state.npc_greeted = true; }
+      if (social && phase === "prep" && !$.state.npc_greet) { $.state.npc_greet = { t: 0 }; $.state.npc_greeted = true; smile(); }
     }
   }
 
   // --- arms ---
-  const idle = idleArmDirs(rest, false);
+  const idle = idleArmDirs(rest);
   let ru = idle.ru, rl = idle.rl, lu = idle.lu, ll = idle.ll;
 
-  // greeting (nod + left-hand wave), social only
+  // greeting gesture (nod + left-hand wave), social only
   let nodDeg = 0;
   const greet = $.state.npc_greet;
   if (social && greet) {
@@ -524,6 +658,8 @@ function tick(dt) {
     ll = vnorm(vlerp(idle.ll, llRaised, lift));
     nodDeg = 15 * Math.sin(Math.PI * clamp01(gt / 0.6));
     if (gt >= NPC_CFG.GREET_SEC) $.state.npc_greet = null; else { greet.t = gt; $.state.npc_greet = greet; }
+  } else if (greet && !social) {
+    $.state.npc_greet = null;
   }
 
   // --- phase machine for the right arm ---
@@ -561,7 +697,6 @@ function tick(dt) {
       $.state.npc_Fc = Ft;
       $.state.npc_phase = "hold";
       $.state.npc_t = 0;
-      $.state.npc_nod = 0;
       $.log("[NPC] contact: d=" + f3(d) + " early=" + earlyContact);
     }
   } else if (phase === "hold") {
@@ -605,7 +740,7 @@ function tick(dt) {
   applyPose(Q);
 }
 
-// 10 Hz head/hand trace plus the in-world retreat estimate.
+// 10 Hz head trace plus the in-world retreat estimate.
 function sampleTrace(dt, t, head, Fw, d) {
   sampleTimer += dt;
   if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL) return;

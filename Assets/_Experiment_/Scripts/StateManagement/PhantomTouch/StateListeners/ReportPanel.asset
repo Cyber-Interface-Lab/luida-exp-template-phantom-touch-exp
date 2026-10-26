@@ -29,7 +29,7 @@ MonoBehaviour:
       _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
-  - stateID: 4
+  - stateID: 5
     onStateStartedActions:
     - predefinedActionTemplate:
         actionType: Customized Action

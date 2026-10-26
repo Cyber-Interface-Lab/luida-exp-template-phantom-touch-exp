@@ -87,7 +87,10 @@ MonoBehaviour:
         variables: []
         category: 
       customAction: '$.worldItemReference(''NPC'').send(''npc_setup'', { social:
-        CONDITION[''social''] === ''with'', block: CONDITION[''block''] });'
+        CONDITION[''social''] === ''with'' });
+
+        $.worldItemReference(''NPC'').send(''npc_hide'',
+        {});'
       isConditional: 1
       conditionVariable: rep
       conditionValue: 1
@@ -96,6 +99,36 @@ MonoBehaviour:
     duringStateActions: []
     onStateExitedActions: []
   - stateID: 3
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: "if (CONDITION['rep'] === '1') {\n  $.worldItemReference('NPC').send('npc_show',
+        { social: CONDITION['social'] === 'with' });\n  $.worldItemReference('NPC').send('npc_greeting_begin',
+        { social: CONDITION['social'] === 'with' });\n} else {\n  ToNextState();\n}"
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: $.worldItemReference('NPC').send('npc_greeting_end', {});
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+  - stateID: 4
     onStateStartedActions:
     - predefinedActionTemplate:
         actionType: Customized Action
@@ -130,23 +163,6 @@ MonoBehaviour:
       _variableKeys: []
       _variableValuesList: []
     onStateExitedActions: []
-  - stateID: 5
-    onStateStartedActions:
-    - predefinedActionTemplate:
-        actionType: Customized Action
-        displayLabel: 
-        codeSnippet: 
-        variables: []
-        category: 
-      customAction: if (!(CONDITION['block'] === '1' && CONDITION['rep'] === '2'))
-        ToNextState();
-      isConditional: 0
-      conditionVariable: 
-      conditionValue: 
-      _variableKeys: []
-      _variableValuesList: []
-    duringStateActions: []
-    onStateExitedActions: []
   - stateID: 6
     onStateStartedActions:
     - predefinedActionTemplate:
@@ -155,8 +171,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: if (!(CONDITION['block'] === '2' && CONDITION['rep'] === '2'))
-        ToNextState();
+      customAction: if (CONDITION['rep'] !== '2') ToNextState();
       isConditional: 0
       conditionVariable: 
       conditionValue: 

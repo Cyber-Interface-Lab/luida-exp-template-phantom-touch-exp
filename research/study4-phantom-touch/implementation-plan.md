@@ -156,6 +156,9 @@ const AVATAR = avatarForBlock(CONDITION['block']);   // 'daily' | 'assigned'
 
 ## 6. ステートマシンタブの設定
 
+> **2026-10-26 更新（実装時の変更）**: 実装では `Trial - Start` と `Trial - Touch` の間に `Trial - Greeting`（Has Exit Time 15 秒、`rep == 1` のときだけ実施）を追加し、NPC はここで初めて表示される。VEQ は `Trial - VEQ1/VEQ2` の 2 ステートではなく単一の `Trial - VEQ`（qID 2、`rep == 2` のときだけ回答）に統合したため、後続の qID は SocialPresence = 3、PersonalExperience = 4、Debrief = 5 になる。質問紙コンテナは初期状態で非アクティブ。鏡（CCK Mirror）を NPC の斜め後ろに置き、Greeting 開始〜Touch 終了の間だけ表示する。NPC は会話距離（手が届く位置 + 0.45 m）で待機し、試行開始時に手が届く位置まで前進する。社会的手がかり条件では挨拶期間中に注視・視線合致や挙手への手振り返し・笑顔（ブレンドシェイプを Animator 経由で再生）を行う。詳細は `IMPLEMENTATION_NOTES.md` §2。
+
+
 | # | StateName | 区分 | Exit | qID | 遷移のトリガ | 主なアクション |
 |---|---|---|---|---|---|---|
 | 0 | `Start` | Before | 手動 | 1（同意） | 質問紙完了 | Instruction: 研究説明 |
