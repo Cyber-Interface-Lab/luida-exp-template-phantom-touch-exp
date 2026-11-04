@@ -1,6 +1,9 @@
 const stateEnterActions = {
     0: [
         { type: "exec", action: (deltaTime) => {
+            $.setStateCompat('this', 'exp_showItem', true);
+        } },
+        { type: "exec", action: (deltaTime) => {
             dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');
         } }
     ],

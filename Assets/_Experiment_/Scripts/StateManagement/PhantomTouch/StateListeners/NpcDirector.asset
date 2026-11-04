@@ -13,6 +13,22 @@ MonoBehaviour:
   m_Name: NpcDirector
   m_EditorClassIdentifier: ClusterMetaverseLab.Luida::StateListeningItemData
   stateListeners:
+  - stateID: 0
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Show item
+        displayLabel: 
+        codeSnippet: $.setStateCompat('this', 'exp_showItem', true);
+        variables: []
+        category: Item
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions: []
+    onStateExitedActions: []
   - stateID: 2
     onStateStartedActions:
     - predefinedActionTemplate:

@@ -1,4 +1,9 @@
 const stateEnterActions = {
+    0: [
+        { type: "exec", action: (deltaTime) => {
+            $.setStateCompat('this', 'exp_showItem', true);
+        } }
+    ],
     2: [
         { type: "sleep", value: 0.5 },
         { type: "exec", action: (deltaTime) => {

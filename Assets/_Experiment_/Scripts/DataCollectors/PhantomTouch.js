@@ -20,7 +20,7 @@ return {
     avatar: CD['avatar'],
     avatarArmLen: CD['avatarArmLen'], avatarShoulder: CD['avatarShoulder'],
     avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsTransparent: CD['avatarIsTransparent'],
-    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'],
+    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
     // per-trial report

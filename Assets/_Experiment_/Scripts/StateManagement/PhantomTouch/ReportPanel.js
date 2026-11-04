@@ -1,6 +1,9 @@
 const stateEnterActions = {
     0: [
         { type: "exec", action: (deltaTime) => {
+            $.setStateCompat('this', 'exp_showItem', true);
+        } },
+        { type: "exec", action: (deltaTime) => {
             rp_hideAll(); HideChild('Text');
         } }
     ],

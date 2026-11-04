@@ -16,6 +16,18 @@ MonoBehaviour:
   - stateID: 0
     onStateStartedActions:
     - predefinedActionTemplate:
+        actionType: Show item
+        displayLabel: 
+        codeSnippet: $.setStateCompat('this', 'exp_showItem', true);
+        variables: []
+        category: Item
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    - predefinedActionTemplate:
         actionType: Customized Action
         displayLabel: 
         codeSnippet: 

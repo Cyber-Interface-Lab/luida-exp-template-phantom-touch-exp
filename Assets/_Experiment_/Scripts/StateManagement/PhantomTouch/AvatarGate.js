@@ -1,6 +1,9 @@
 const stateEnterActions = {
     0: [
         { type: "exec", action: (deltaTime) => {
+            $.setStateCompat('this', 'exp_showItem', true);
+        } },
+        { type: "exec", action: (deltaTime) => {
             ag_showButtons(false, false); HideChild('Text');
         } }
     ],
@@ -37,6 +40,10 @@ const AG_T_ARM = 0.485;      // upper arm + forearm (m)
 const AG_T_SHOULDER = 0.332; // distance between the two upper-arm joints (m)
 const AG_TOL = 0.015;
 const AG_STABLE_MS = 1000;
+// If the automatic check has not matched after this many seconds, show the button anyway and rely on
+// the participant's two-step self-report (recorded as avatarCheckFallback). 0 disables the fallback.
+const AG_FALLBACK_SEC = 30;
+const AG_LOG_SEC = 5;          // log the measured bone-length signature this often (calibration aid)
 
 function ag_send(id, cfg) {
   try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[AvatarGate] send ' + id + ': ' + e); }
@@ -88,6 +95,8 @@ function ag_begin() {
   $.state.ag_lastMatch = null;
   $.state.ag_matchSince = Date.now();
   $.state.ag_okShown = null;
+  $.state.ag_fallback = false;
+  $.state.ag_logAt = 0;
   ShowChild('Text');
   ag_showButtons(false, false);
   ag_renderText('');
@@ -115,7 +124,18 @@ function ag_update(dt) {
   const sig = ag_signature(p);
   const match = ag_targetMatches(sig);
   if (match !== $.state.ag_lastMatch) { $.state.ag_lastMatch = match; $.state.ag_matchSince = Date.now(); }
-  const ok = match && (Date.now() - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS;
+  const elapsed = (Date.now() - ($.state.ag_startTs || Date.now())) / 1000;
+  if (sig && elapsed >= ($.state.ag_logAt || 0)) {
+    $.state.ag_logAt = elapsed + AG_LOG_SEC;
+    $.log('[AvatarGate] signature armLen=' + sig.armLen.toFixed(3) + ' shoulder=' + sig.shoulder.toFixed(3) +
+          ' headH=' + sig.headH.toFixed(3) + ' transparent=' + ag_isTransparent(sig) + ' target=' + $.state.ag_avatar);
+  }
+  if (!$.state.ag_fallback && AG_FALLBACK_SEC > 0 && elapsed >= AG_FALLBACK_SEC && !match) {
+    $.state.ag_fallback = true;
+    $.log('[AvatarGate] automatic check did not match within ' + AG_FALLBACK_SEC + ' s; falling back to self-report');
+    $.state.ag_okShown = null;   // force a redraw below
+  }
+  const ok = $.state.ag_fallback || (match && (Date.now() - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS);
   if (ok !== $.state.ag_okShown) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
@@ -157,6 +177,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));
   SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now())) / 1000);
   SendDataToCollector('setupRetry', $.state.ag_retry || 0);
+  SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
   SetText('ありがとうございます。まもなく始まります。');

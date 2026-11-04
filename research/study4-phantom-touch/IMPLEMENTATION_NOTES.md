@@ -62,3 +62,12 @@
 | 手を伸ばす（右手） | 参加者の顔側（接近方向から 45° 上に傾く） | ほぼ真上（後ろには倒さない） |
 
 接触判定に使う点は指先ではなく手のひらの中心（手首から指方向 8.5 cm、手のひら側へ 1.5 cm）。手首の反りは 35〜40°、前腕の回内は 60〜80° に収まる（オフライン検証）。値は `NPC_CFG` の `READY_FRAC`, `HAND_UP`, `PALM_LEN`, `PALM_OFF` で調整できる。
+
+## 6. 修正履歴: テキストやボタンが表示されない不具合（2026-11-04）
+
+- **症状**: デバイスチェックの後に着替えボタンが出ないことがある。DeviceCheck・AvatarGate のテキストと、試行内報告（0〜10 評定）の問題文が表示されない。
+- **原因**: LUIDA のステート連動アイテムは、ルートの Set Game Object Active Gimmick（`exp_showItem`）によって、`Show item` を一度も呼ばない限り非アクティブのままになる。指示板（Instruction）以外のアイテムは `Show item` を呼んでいなかったため、子のテキスト、鏡（MirrorPanel）、退出ゲート（ExitPortal）が描画されなかった。ボタンは別アイテムなので表示されていた。着替えの指示文が見えないため、普段使い条件では「着替えないとボタンが出ない」状態に気づけなかった。
+- **修正**: すべてのステート連動アイテム（NpcDirector, AvatarGate, DeviceCheck, ReportPanel, MirrorPanel, ExitPortal）で、Start ステートの最初に `Show item` を実行する。
+- **保険**: AvatarGate は、骨格による自動判定が 30 秒以内に一致しない場合でも「着替えました」ボタンを出し、二段階の自己申告で進める（`AG_FALLBACK_SEC`、0 で無効）。このとき行データに `avatarCheckFallback = true` を記録する。計測した骨格値（腕長・肩幅・頭高）を 5 秒ごとに `[AvatarGate] signature …` としてログに出すので、Cluster 上での透明アバターの実測値を確認して `AG_T_ARM` / `AG_T_SHOULDER` を更新できる。
+- **反映方法**: メニュー `LUIDA > Study4 > Update item behaviours (keep scene)`。builder の定義からアイテムの動作（リスナー、イベント、Legacy コード）と Data Collector スクリプトを書き直して結合する。シーンのオブジェクトには触れない。ただし GUI でアイテムの動作を手で変えていた場合は上書きされる。
+

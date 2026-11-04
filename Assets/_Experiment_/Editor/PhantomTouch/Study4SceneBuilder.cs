@@ -105,6 +105,60 @@ public static class Study4SceneBuilder
         Debug.Log("[Study4] NPC face animator rebuilt on " + NpcPrefabPath);
     }
 
+    /// <summary>
+    /// Rewrites the actions of the Study 4 state-listening items (listeners, event handlers, legacy code)
+    /// from this builder's definitions, regenerates their JS and combines scripts. Scene objects are not
+    /// touched, so hand edits to the scene survive. Hand edits to the items' actions are overwritten.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Update item behaviours (keep scene)")]
+    public static void UpdateItemBehaviours()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        var l = ComputeLayout();
+        var tab = ScriptableObject.CreateInstance<ItemsManagerConfigTab>();
+        try
+        {
+            tab.OnEnable();
+            ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
+            var defs = new (string name, Func<List<StateListener>> listeners, Func<List<EventHandlerData>> handlers, string legacy)[]
+            {
+                ("Instruction", InstructionListeners, null, ""),
+                ("NpcDirector", () => NpcDirectorListeners(l), null, NpcDirectorLegacy),
+                ("AvatarGate", AvatarGateListeners, null, AvatarGateLegacy),
+                ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
+                ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
+                ("MirrorPanel", MirrorPanelListeners, null, ""),
+                ("ExitPortal", ExitPortalListeners, null, ""),
+            };
+            foreach (var d in defs)
+            {
+                var go = tab.stateListeningItems.FirstOrDefault(g => g != null && g.name == d.name);
+                if (go == null) { Debug.LogWarning("[Study4] state-listening item not found: " + d.name); continue; }
+                WriteItemData(go, d.listeners(), d.handlers != null ? d.handlers() : null, d.legacy);
+            }
+            ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
+            ItemsManagerAssetUtil.ApplyAssetsToScripts(tab);
+        }
+        finally
+        {
+            tab.OnDisable();
+            Object.DestroyImmediate(tab);
+        }
+        var config = DataCollectorCreateMenu.FindOrCreateBuilderConfig();
+        if (config != null)
+        {
+            config.useCustomCodeMode = true;
+            config.rawJs = DataCollectorJs;
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            DataCollectorJsSaver.WriteAndCombine(config);
+        }
+        LuidaScriptCombiner.CombineAll();
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[Study4] item behaviours updated (scene objects untouched; save the scene to keep the combined scripts)");
+    }
+
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
     public static void BuildNoPrompt()
     {
@@ -326,7 +380,7 @@ return {
     avatar: CD['avatar'],
     avatarArmLen: CD['avatarArmLen'], avatarShoulder: CD['avatarShoulder'],
     avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsTransparent: CD['avatarIsTransparent'],
-    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'],
+    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
     // per-trial report
@@ -973,6 +1027,7 @@ return {
         var yaw = Quaternion.LookRotation(l.fwd, Vector3.up).eulerAngles.y;
         return new List<StateListener>
         {
+            Listener(S_START, L(Act(T_ShowItem))),
             Listener(S_TSTART, L(
                 Sleep(0.5f),
                 If(Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z))), "rep", "1"),
@@ -1039,7 +1094,7 @@ function nd_donePulse() {
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Custom("ag_showButtons(false, false); HideChild('Text');"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("ag_showButtons(false, false); HideChild('Text');"))),
             Listener(S_TSTART,
                 L(Sleep(0.5f), Custom("ag_begin();")),
                 L(Custom("ag_update(deltaTime);")),
@@ -1053,6 +1108,10 @@ const AG_T_ARM = 0.485;      // upper arm + forearm (m)
 const AG_T_SHOULDER = 0.332; // distance between the two upper-arm joints (m)
 const AG_TOL = 0.015;
 const AG_STABLE_MS = 1000;
+// If the automatic check has not matched after this many seconds, show the button anyway and rely on
+// the participant's two-step self-report (recorded as avatarCheckFallback). 0 disables the fallback.
+const AG_FALLBACK_SEC = 30;
+const AG_LOG_SEC = 5;          // log the measured bone-length signature this often (calibration aid)
 
 function ag_send(id, cfg) {
   try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[AvatarGate] send ' + id + ': ' + e); }
@@ -1104,6 +1163,8 @@ function ag_begin() {
   $.state.ag_lastMatch = null;
   $.state.ag_matchSince = Date.now();
   $.state.ag_okShown = null;
+  $.state.ag_fallback = false;
+  $.state.ag_logAt = 0;
   ShowChild('Text');
   ag_showButtons(false, false);
   ag_renderText('');
@@ -1131,7 +1192,18 @@ function ag_update(dt) {
   const sig = ag_signature(p);
   const match = ag_targetMatches(sig);
   if (match !== $.state.ag_lastMatch) { $.state.ag_lastMatch = match; $.state.ag_matchSince = Date.now(); }
-  const ok = match && (Date.now() - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS;
+  const elapsed = (Date.now() - ($.state.ag_startTs || Date.now())) / 1000;
+  if (sig && elapsed >= ($.state.ag_logAt || 0)) {
+    $.state.ag_logAt = elapsed + AG_LOG_SEC;
+    $.log('[AvatarGate] signature armLen=' + sig.armLen.toFixed(3) + ' shoulder=' + sig.shoulder.toFixed(3) +
+          ' headH=' + sig.headH.toFixed(3) + ' transparent=' + ag_isTransparent(sig) + ' target=' + $.state.ag_avatar);
+  }
+  if (!$.state.ag_fallback && AG_FALLBACK_SEC > 0 && elapsed >= AG_FALLBACK_SEC && !match) {
+    $.state.ag_fallback = true;
+    $.log('[AvatarGate] automatic check did not match within ' + AG_FALLBACK_SEC + ' s; falling back to self-report');
+    $.state.ag_okShown = null;   // force a redraw below
+  }
+  const ok = $.state.ag_fallback || (match && (Date.now() - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS);
   if (ok !== $.state.ag_okShown) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
@@ -1173,6 +1245,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));
   SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now())) / 1000);
   SendDataToCollector('setupRetry', $.state.ag_retry || 0);
+  SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
   SetText('ありがとうございます。まもなく始まります。');
@@ -1190,7 +1263,7 @@ function ag_end() {
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Custom("dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');"))),
             Listener(S_DEVICE,
                 L(Custom("dc_begin();")),
                 L(Custom("dc_update(deltaTime);")),
@@ -1265,7 +1338,7 @@ function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_a
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Custom("rp_hideAll(); HideChild('Text');"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("rp_hideAll(); HideChild('Text');"))),
             Listener(S_REPORT,
                 L(Custom("rp_begin();")),
                 L(Custom("rp_update(deltaTime);")),
@@ -1382,6 +1455,7 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
     {
         return new List<StateListener>
         {
+            Listener(S_START, L(Act(T_ShowItem))),
             Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
             Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
         };
@@ -1392,6 +1466,7 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
     {
         return new List<StateListener>
         {
+            Listener(S_START, L(Act(T_ShowItem))),
             Listener(S_END, L(Act(T_ShowChild, ("childName", "WorldGateToLuidaBar")))),
         };
     }

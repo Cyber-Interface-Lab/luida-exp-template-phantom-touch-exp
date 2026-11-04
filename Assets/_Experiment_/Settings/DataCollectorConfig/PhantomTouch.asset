@@ -45,15 +45,15 @@ MonoBehaviour:
     avatar: CD['avatar'],\n    avatarArmLen: CD['avatarArmLen'], avatarShoulder:
     CD['avatarShoulder'],\n    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'],
     avatarIsTransparent: CD['avatarIsTransparent'],\n    setupSec: CD['setupSec'],
-    setupRetry: CD['setupRetry'],\n    // device check\n    deviceCheckSec: CD['deviceCheckSec'],
-    deviceCheckForced: CD['deviceCheckForced'],\n    // per-trial report\n    rating:
-    CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs:
-    CD['reportDoneTs'],\n    // NPC measurements\n    social: CD['social'], npcBlock:
-    CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs:
-    CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'],
-    retractEndTs: CD['retractEndTs'],\n    pathLen: CD['pathLen'], reachDur: CD['reachDur'],
-    contactDist: CD['contactDist'], reachable: CD['reachable'],\n    headPos0: CD['headPos0'],
-    headRot0: CD['headRot0'],\n    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist:
-    CD['retreatDist'], oscAmp: CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'],
-    lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n   
-    trace: CD['trace'],\n};\n"
+    setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],\n   
+    // device check\n    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced:
+    CD['deviceCheckForced'],\n    // per-trial report\n    rating: CD['rating'],
+    mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n   
+    // NPC measurements\n    social: CD['social'], npcBlock: CD['npcBlock'], npcRep:
+    CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs: CD['trialStartTs'],
+    reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],\n   
+    pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'],
+    reachable: CD['reachable'],\n    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n   
+    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:
+    CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted:
+    CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n"
