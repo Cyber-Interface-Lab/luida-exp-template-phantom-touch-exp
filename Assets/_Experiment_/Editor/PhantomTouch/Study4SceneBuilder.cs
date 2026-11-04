@@ -44,8 +44,16 @@ public static class Study4SceneBuilder
     const string PrefabsFolder = "Assets/_Experiment_/Prefabs/" + SceneName;
     const string MaterialsFolder = "Assets/_Experiment_/Materials/" + SceneName;
     const string NpcPrefabPath = PrefabsFolder + "/NPC.prefab";
-    const string NpcSmileClipPath = PrefabsFolder + "/NpcSmile.anim";
     const string NpcFaceControllerPath = PrefabsFolder + "/NpcFace.controller";
+    const string NpcFaceNeutralClipPath = PrefabsFolder + "/NpcFaceNeutral.anim";
+    const string NpcFaceJoyClipPath = PrefabsFolder + "/NpcFaceJoy.anim";
+    const string NpcFaceSurprisedClipPath = PrefabsFolder + "/NpcFaceSurprised.anim";
+    const string NpcSmileClipPathLegacy = PrefabsFolder + "/NpcSmile.anim";
+
+    // Face expressions (blend-shape weights 0-100) driven by NpcController.js through the Animator.
+    static readonly (string shape, float weight)[] JoyShapes = { ("Fcl_EYE_Joy", 100f), ("Fcl_MTH_Joy", 50f) };
+    static readonly (string shape, float weight)[] SurprisedShapes = { ("Fcl_EYE_Surprised", 50f), ("Fcl_MTH_Surprised", 50f) };
+    const float SurprisedSeconds = 1.0f;
     const string MirrorPrefabPath = "Packages/mu.cluster.cluster-creator-kit/PackageResources/Prefabs/Mirror.prefab";
 
     const string StateListTemplatePath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/ExpSettings/StateList/Template.asset";
@@ -79,6 +87,24 @@ public static class Study4SceneBuilder
     }
 
     /// <summary>Same as the menu above but without the confirmation dialog (for remote/automated execution).</summary>
+    /// <summary>Rebuilds only the NPC face expression Animator on the existing NPC prefab (no scene rebuild).</summary>
+    [MenuItem("LUIDA/Study4/Rebuild NPC face animator")]
+    public static void RebuildNpcFaceAnimator()
+    {
+        var contents = PrefabUtility.LoadPrefabContents(NpcPrefabPath);
+        try
+        {
+            AddFaceExpressionAnimator(contents);
+            PrefabUtility.SaveAsPrefabAsset(contents, NpcPrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(contents);
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("[Study4] NPC face animator rebuilt on " + NpcPrefabPath);
+    }
+
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
     public static void BuildNoPrompt()
     {
@@ -431,7 +457,7 @@ return {
             contents.name = "NPC";
             // The VRM model child is toggled by NpcController.js for visibility ("Model").
             if (contents.transform.childCount > 0) contents.transform.GetChild(0).name = "Model";
-            AddFaceSmileAnimator(contents);
+            AddFaceExpressionAnimator(contents);
             var combiner = contents.GetComponent<LuidaScriptCombiner>();
             combiner.ClearScripts();
             combiner.AppendScript(boneMapAsset, null);
@@ -459,53 +485,76 @@ return {
         return npc;
     }
 
-    // Smile: an Animator on the face mesh GameObject plays a blend-shape clip on the trigger "smile".
-    // (Cluster Script cannot set blend-shape weights directly, but it can set Animator triggers.)
-    static void AddFaceSmileAnimator(GameObject npcRoot)
+    // Facial expressions: an Animator on the face mesh GameObject ("Face") with
+    //   Bool "joy"         -> Joy state (Fcl_EYE_Joy = 100, Fcl_MTH_Joy = 50), held while true;
+    //   Trigger "surprised" -> Surprised state (Fcl_EYE_Surprised = 50, Fcl_MTH_Surprised = 50) for 1 s,
+    //                          then back to Joy or Neutral depending on "joy".
+    // (Cluster Script cannot write blend-shape weights directly, but it can set Animator parameters.)
+    static void AddFaceExpressionAnimator(GameObject npcRoot)
     {
+        var allShapes = JoyShapes.Concat(SurprisedShapes).Select(x => x.shape).ToArray();
         SkinnedMeshRenderer face = null;
-        string shape = null;
         foreach (var smr in npcRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true))
         {
             var mesh = smr.sharedMesh;
             if (mesh == null || mesh.blendShapeCount == 0) continue;
-            string[] prefer = { "Fcl_ALL_Fun", "Fcl_ALL_Joy", "Fun", "Joy", "joy", "fun", "happy", "smile" };
-            foreach (var pfx in prefer)
-            {
-                for (int i = 0; i < mesh.blendShapeCount && shape == null; i++)
-                {
-                    string n = mesh.GetBlendShapeName(i);
-                    if (n == pfx || n.EndsWith("." + pfx) || n.Contains(pfx)) shape = n;
-                }
-                if (shape != null) break;
-            }
-            if (shape != null) { face = smr; break; }
+            if (allShapes.All(n => mesh.GetBlendShapeIndex(n) >= 0)) { face = smr; break; }
         }
         if (face == null)
         {
-            Debug.LogWarning("[Study4] NPC model has no smile blend shape; the NPC will not smile.");
+            Debug.LogWarning("[Study4] NPC model has no face mesh with " + string.Join(", ", allShapes) + "; expressions disabled.");
             return;
         }
         face.gameObject.name = "Face";
 
-        var clip = new AnimationClip { name = "NpcSmile", legacy = false };
-        var curve = new AnimationCurve(
-            new Keyframe(0f, 0f), new Keyframe(0.35f, 85f), new Keyframe(1.3f, 85f), new Keyframe(1.9f, 0f));
-        clip.SetCurve("", typeof(SkinnedMeshRenderer), "blendShape." + shape, curve);
-        AssetDatabase.CreateAsset(clip, NpcSmileClipPath);
+        foreach (var path in new[] { NpcFaceNeutralClipPath, NpcFaceJoyClipPath, NpcFaceSurprisedClipPath, NpcFaceControllerPath, NpcSmileClipPathLegacy })
+            if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
+
+        AnimationClip MakeClip(string name, string path, float length, (string shape, float weight)[] on)
+        {
+            var clip = new AnimationClip { name = name, legacy = false };
+            foreach (var shape in allShapes)
+            {
+                float w = 0f;
+                foreach (var o in on) if (o.shape == shape) w = o.weight;
+                clip.SetCurve("", typeof(SkinnedMeshRenderer), "blendShape." + shape,
+                    AnimationCurve.Constant(0f, length, w));
+            }
+            AssetDatabase.CreateAsset(clip, path);
+            return clip;
+        }
+        var neutral = MakeClip("NpcFaceNeutral", NpcFaceNeutralClipPath, 0.5f, new (string, float)[0]);
+        var joy = MakeClip("NpcFaceJoy", NpcFaceJoyClipPath, 0.5f, JoyShapes);
+        var surprised = MakeClip("NpcFaceSurprised", NpcFaceSurprisedClipPath, SurprisedSeconds, SurprisedShapes);
+        foreach (var c in new[] { neutral, joy })
+        {
+            var settings = AnimationUtility.GetAnimationClipSettings(c);
+            settings.loopTime = true;
+            AnimationUtility.SetAnimationClipSettings(c, settings);
+        }
 
         var controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(NpcFaceControllerPath);
-        controller.AddParameter("smile", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("joy", AnimatorControllerParameterType.Bool);
+        controller.AddParameter("surprised", AnimatorControllerParameterType.Trigger);
         var sm = controller.layers[0].stateMachine;
-        var idle = sm.AddState("Idle");
-        sm.defaultState = idle;
-        var smile = sm.AddState("Smile");
-        smile.motion = clip;
-        var toSmile = idle.AddTransition(smile);
-        toSmile.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "smile");
-        toSmile.hasExitTime = false; toSmile.duration = 0f;
-        var toIdle = smile.AddTransition(idle);
-        toIdle.hasExitTime = true; toIdle.exitTime = 1f; toIdle.duration = 0.05f;
+        var sNeutral = sm.AddState("Neutral"); sNeutral.motion = neutral;
+        var sJoy = sm.AddState("Joy"); sJoy.motion = joy;
+        var sSurprised = sm.AddState("Surprised"); sSurprised.motion = surprised;
+        sm.defaultState = sNeutral;
+
+        UnityEditor.Animations.AnimatorStateTransition T(UnityEditor.Animations.AnimatorStateTransition tr, float dur, bool exit, float exitTime)
+        {
+            tr.hasFixedDuration = true; tr.duration = dur; tr.hasExitTime = exit; tr.exitTime = exitTime; tr.offset = 0f;
+            return tr;
+        }
+        T(sNeutral.AddTransition(sJoy), 0.2f, false, 0f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "joy");
+        T(sJoy.AddTransition(sNeutral), 0.25f, false, 0f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.IfNot, 0f, "joy");
+        var any = T(sm.AddAnyStateTransition(sSurprised), 0.08f, false, 0f);
+        any.canTransitionToSelf = false;
+        any.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "surprised");
+        T(sSurprised.AddTransition(sJoy), 0.2f, true, 1f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "joy");
+        T(sSurprised.AddTransition(sNeutral), 0.2f, true, 1f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.IfNot, 0f, "joy");
+        EditorUtility.SetDirty(controller);
 
         // Unity returns a "fake null" for missing components, so do not use ?? here.
         var animator = face.gameObject.GetComponent<Animator>();
@@ -513,7 +562,8 @@ return {
         animator.runtimeAnimatorController = controller;
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-        Debug.Log("[Study4] NPC smile animator uses blend shape '" + shape + "'");
+        Debug.Log("[Study4] NPC face animator: joy = " + string.Join(", ", JoyShapes.Select(x => x.shape + "=" + x.weight)) +
+                  "; surprised = " + string.Join(", ", SurprisedShapes.Select(x => x.shape + "=" + x.weight)));
     }
 
     // Append LeftEye/RightEye to the generated BONE_MAP / BONE_PARENT so the NPC can move its eyes.

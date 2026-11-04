@@ -164,9 +164,11 @@ MonoBehaviour:
     (NPC stays hidden)\n//   \"npc_hide\"            {}                    -> hide
     the body (avatar-switch phase)\n//   \"npc_show\"            { social? }          
     -> stand at conversation distance in front of the participant and show the body\n//  
-    \"npc_greeting_begin\"  { social? }           -> greeting period: gaze + reactions
-    (social condition only)\n//   \"npc_greeting_end\"    {}                    ->
-    stop the greeting reactions, write greeting counters\n//   \"npc_trial_start\"    
+    \"npc_greeting_begin\"  { social? }           -> greeting period (social condition
+    only): head gaze with body\n//                                                 
+    turn, random reactions (nod / wave / both, sometimes smiling),\n//                                                 
+    surprised face when touched\n//   \"npc_greeting_end\"    {}                   
+    -> stop the greeting reactions, write greeting counters\n//   \"npc_trial_start\"    
     { block, rep, avatar, social } -> step closer -> prep -> raise hand -> approach
     (2 cm/s) -> hold -> retract -> step back\n//   \"npc_abort\"           {}                   
     -> back to idle\n// Output:\n//   item signal \"npc_done\" (a GlobalLogic on
@@ -193,18 +195,28 @@ MonoBehaviour:
     0.40,    // minimum horizontal root-to-head distance at the reach spot (m)\n 
     IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach distance + this (m)\n 
     MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,         
-    // step closer / step back duration\n  GAZE_MAX_DEG: 60,\n  LOOK_AT_DEG: 30,        
-    // participant \"looks at\" the NPC when head forward is within this angle\n 
-    LOOK_AWAY_DEG: 45,       // ... and stops when it exceeds this angle (hysteresis)\n 
-    GREET_SEC: 1.5,          // nod + wave duration\n  WAVE_COOLDOWN_SEC: 2.5,  //
-    minimum interval between reactive waves\n  HAND_RAISE_OFFSET: 0.10, // a hand
-    counts as raised when above (head height - this)\n  SMILE_MIN_SEC: 4.0,     
-    // spontaneous smiles during the greeting period, random interval\n  SMILE_MAX_SEC:
-    7.0,\n  SMILE_COOLDOWN_SEC: 1.5,\n  RETREAT_THRESHOLD: 0.02, // m, for the in-world
-    retreat-onset estimate\n  MODEL_NODE: \"Model\",     // sub-node holding the
-    VRM model (toggled for visibility)\n  FACE_NODE: \"Face\",       // sub-node
-    with the face SkinnedMeshRenderer + smile Animator\n};\n\nconst IDENT = new Quaternion(0,
-    0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n\n// ----------------------------------------------------------------
+    // step closer / step back duration\n  HEAD_MAX_DEG: 50,        // gaze: the
+    head alone turns up to this angle ...\n  EYE_EXTRA_DEG: 12,       // ... and
+    the eyes a bit further\n  BODY_TURN_START_DEG: 35, // greeting: if the participant
+    is farther than this from the NPC's facing,\n  BODY_TURN_STOP_DEG: 4,   //  
+    the whole body turns toward them (lerp) until within this angle;\n  BODY_TURN_RATE:
+    2.5,     //   exponential rate (1/s). The head's local rotation unwinds as the
+    body turns.\n  LOOK_AT_DEG: 30,         // participant \"looks at\" the NPC when
+    head forward is within this angle\n  LOOK_AWAY_DEG: 45,       // ... and stops
+    when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET: 0.10, // a hand
+    counts as raised when above (head height - this)\n  REACT_COOLDOWN_SEC: 2.5,
+    // minimum interval between reactions\n  NOD_SEC: 0.8,            // nod-only
+    reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC: 1.6,           // reaction duration
+    when it includes a wave\n  JOY_PROB: 0.5,           // probability of smiling
+    during a reaction (the first reaction always smiles)\n  TOUCH_COOLDOWN_SEC: 1.5,
+    // surprised face when touched: minimum interval\n  TOUCH_HAND_MARGIN: 0.06,
+    // participant hand bone (wrist) -> fingers allowance (m)\n  RETREAT_THRESHOLD:
+    0.02, // m, for the in-world retreat-onset estimate\n  MODEL_NODE: \"Model\",    
+    // sub-node holding the VRM model (toggled for visibility)\n  FACE_NODE: \"Face\",      
+    // sub-node with the face SkinnedMeshRenderer + expression Animator\n                          
+    // (Bool \"joy\": Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;\n                          
+    //  Trigger \"surprised\": Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50 for 1 s)\n};\n\nconst
+    IDENT = new Quaternion(0, 0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n\n// ----------------------------------------------------------------
     math helpers\nfunction v3(x, y, z) { return new Vector3(x, y, z); }\nfunction
     vadd(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a,
     b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s) { return
@@ -257,8 +269,9 @@ MonoBehaviour:
     qmul(qaxis(a, sign * ang), q1);\n}\nfunction slerpArm(a, b, t) { return { u:
     qslerp(a.u, b.u, t), l: qslerp(a.l, b.l, t), h: qslerp(a.h, b.h, t) }; }\nfunction
     easeInOut(x) { x = clamp01(x); return x * x * (3 - 2 * x); }\nfunction f3(x)
-    { return (Math.round(x * 1000) / 1000).toString(); }\nfunction nowSec() { return
-    Date.now() / 1000; }\n\n// ----------------------------------------------------------------
+    { return (Math.round(x * 1000) / 1000).toString(); }\n// Script clock (seconds),
+    advanced in tick(); used for cooldowns. Data timestamps use Date.now().\nfunction
+    nowSec() { return $.state.npc_clock || 0; }\n\n// ----------------------------------------------------------------
     bone cache\nlet boneNodes = [];\nlet nodeByBone = {};\n\nfunction cacheBones()
     {\n  boneNodes = [];\n  nodeByBone = {};\n  if (typeof BONE_MAP === \"undefined\")
     return;\n  for (let i = 0; i < BONE_MAP.length; i++) {\n    const entry = BONE_MAP[i];\n   
@@ -297,24 +310,33 @@ MonoBehaviour:
     if (!node) return;\n  try { node.setEnabled(!!$.state.npc_visible); } catch (e)
     { $.log(\"[NPC] setEnabled failed: \" + e); }\n  $.state.npc_visibilityApplied
     = !!$.state.npc_visible;\n}\nfunction setVisible(v) {\n  $.state.npc_visible
-    = !!v;\n  applyVisibility();\n}\n// Trigger the smile animation (Animator on
-    the Face sub-node, trigger \"smile\"). Silently ignored\n// when the model has
-    no face animator.\nfunction smile() {\n  const t = nowSec();\n  if (t - ($.state.npc_lastSmile
-    || 0) < NPC_CFG.SMILE_COOLDOWN_SEC) return;\n  $.state.npc_lastSmile = t;\n 
-    $.state.npc_smiles = ($.state.npc_smiles || 0) + 1;\n  try {\n    const face
-    = $.subNode(NPC_CFG.FACE_NODE);\n    if (!face) return;\n    const anim = face.getUnityComponent(\"Animator\");\n   
-    if (anim) anim.setTrigger(\"smile\");\n  } catch (e) {\n    if (!$.state.npc_smileWarned)
-    { $.state.npc_smileWarned = true; $.log(\"[NPC] smile unavailable: \" + e); }\n 
-    }\n}\n\n// ---------------------------------------------------------------- lifecycle\n$.onStart(()
-    => {\n  $.state.npc_phase = \"idle\";\n  $.state.npc_mode = \"none\";\n  $.state.npc_t
-    = 0;\n  $.state.npc_social = false;\n  $.state.npc_visible = false;\n  $.state.npc_trial
-    = null;\n  $.state.npc_rest = null;\n  $.state.npc_trace = [];\n  $.state.npc_glide
-    = null;\n  cacheBones();\n  $.log(\"[NPC] started, bones=\" + boneNodes.length);\n});\n\n$.onReceive((messageType,
-    arg, sender) => {\n  try {\n    if (messageType === \"npc_setup\") {\n      if
-    (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n      $.state.npc_phase
-    = \"idle\";\n      $.state.npc_t = 0;\n      $.log(\"[NPC] setup social=\" +
-    $.state.npc_social);\n    } else if (messageType === \"npc_hide\") {\n      $.state.npc_mode
-    = \"none\";\n      $.state.npc_phase = \"idle\";\n      setVisible(false);\n   
+    = !!v;\n  applyVisibility();\n}\n// Facial expressions through the Animator on
+    the Face sub-node (Cluster Script cannot write\n// blend-shape weights directly).
+    Silently ignored when the model has no face animator.\nfunction faceAnimator()
+    {\n  try {\n    const face = $.subNode(NPC_CFG.FACE_NODE);\n    return face ?
+    face.getUnityComponent(\"Animator\") : null;\n  } catch (e) {\n    if (!$.state.npc_faceWarned)
+    { $.state.npc_faceWarned = true; $.log(\"[NPC] face animator unavailable: \"
+    + e); }\n    return null;\n  }\n}\n// Joy face on/off (held for the duration
+    of a reaction).\nfunction setJoy(on) {\n  on = !!on;\n  if (!!$.state.npc_joy
+    === on) return;\n  $.state.npc_joy = on;\n  if (on) $.state.npc_smiles = ($.state.npc_smiles
+    || 0) + 1;\n  try { const a = faceAnimator(); if (a) a.setBool(\"joy\", on);
+    } catch (e) { $.log(\"[NPC] setJoy: \" + e); }\n}\n// Surprised face for 1 s
+    (the clip length), then back to the previous face.\nfunction surprise() {\n 
+    const t = nowSec();\n  if (t - ($.state.npc_lastSurprise || 0) < NPC_CFG.TOUCH_COOLDOWN_SEC)
+    return;\n  $.state.npc_lastSurprise = t;\n  $.state.npc_gTouch = ($.state.npc_gTouch
+    || 0) + 1;\n  try { const a = faceAnimator(); if (a) a.setTrigger(\"surprised\");
+    } catch (e) { $.log(\"[NPC] surprise: \" + e); }\n}\nfunction clearReaction()
+    {\n  $.state.npc_react = null;\n  setJoy(false);\n}\n\n// ----------------------------------------------------------------
+    lifecycle\n$.onStart(() => {\n  $.state.npc_phase = \"idle\";\n  $.state.npc_mode
+    = \"none\";\n  $.state.npc_t = 0;\n  $.state.npc_social = false;\n  $.state.npc_visible
+    = false;\n  $.state.npc_trial = null;\n  $.state.npc_rest = null;\n  $.state.npc_trace
+    = [];\n  $.state.npc_glide = null;\n  cacheBones();\n  $.log(\"[NPC] started,
+    bones=\" + boneNodes.length);\n});\n\n$.onReceive((messageType, arg, sender)
+    => {\n  try {\n    if (messageType === \"npc_setup\") {\n      if (arg && arg.social
+    !== undefined) $.state.npc_social = !!arg.social;\n      $.state.npc_phase =
+    \"idle\";\n      $.state.npc_t = 0;\n      $.log(\"[NPC] setup social=\" + $.state.npc_social);\n   
+    } else if (messageType === \"npc_hide\") {\n      $.state.npc_mode = \"none\";\n     
+    $.state.npc_phase = \"idle\";\n      clearReaction();\n      setVisible(false);\n   
     } else if (messageType === \"npc_show\") {\n      if (arg && arg.social !== undefined)
     $.state.npc_social = !!arg.social;\n      $.state.npc_phase = \"idle\";\n     
     $.state.npc_t = 0;\n      moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n     
@@ -367,27 +389,66 @@ MonoBehaviour:
     + \", glide=\" + !!glide + \")\");\n  return true;\n}\n\n// ----------------------------------------------------------------
     greeting period\nfunction beginGreeting() {\n  $.state.npc_mode = \"greeting\";\n 
     $.state.npc_greetStartTs = Date.now();\n  $.state.npc_gGaze = 0; $.state.npc_gHand
-    = 0; $.state.npc_gWaves = 0; $.state.npc_smiles = 0;\n  $.state.npc_gazeAligned
-    = false;\n  $.state.npc_handUp = false;\n  $.state.npc_lastWave = 0;\n  $.state.npc_nextSmile
-    = nowSec() + 1.0 + Math.random() * 2.0;\n  $.log(\"[NPC] greeting begin social=\"
-    + $.state.npc_social);\n}\nfunction endGreeting() {\n  if ($.state.npc_mode !==
-    \"greeting\") return;\n  $.state.npc_mode = \"none\";\n  pushData({\n    greetSec:
+    = 0; $.state.npc_gWaves = 0; $.state.npc_gNods = 0;\n  $.state.npc_gReact = 0;
+    $.state.npc_smiles = 0; $.state.npc_gTouch = 0;\n  $.state.npc_gazeAligned =
+    false;\n  $.state.npc_handUp = false;\n  $.state.npc_touching = false;\n  $.state.npc_reacted
+    = false;          // the first reaction of the greeting period is nod + wave
+    + smile\n  $.state.npc_lastReact = 0;\n  $.state.npc_bodyTurning = false;\n 
+    clearReaction();\n  $.log(\"[NPC] greeting begin social=\" + $.state.npc_social);\n}\nfunction
+    endGreeting() {\n  if ($.state.npc_mode !== \"greeting\") return;\n  $.state.npc_mode
+    = \"none\";\n  $.state.npc_bodyTurning = false;\n  pushData({\n    greetSec:
     (Date.now() - ($.state.npc_greetStartTs || Date.now())) / 1000,\n    greetGazeEvents:
-    $.state.npc_gGaze || 0,\n    greetHandRaises: $.state.npc_gHand || 0,\n    greetNpcWaves:
-    $.state.npc_gWaves || 0,\n    greetNpcSmiles: $.state.npc_smiles || 0,\n  });\n 
-    $.log(\"[NPC] greeting end: gaze=\" + ($.state.npc_gGaze || 0) + \" hands=\"
-    + ($.state.npc_gHand || 0) + \" waves=\" + ($.state.npc_gWaves || 0));\n}\n//
-    Start a reactive wave (nod + left-hand wave) if not already waving and the cooldown
-    has passed.\nfunction reactWave() {\n  const t = nowSec();\n  if ($.state.npc_greet)
-    return false;\n  if (t - ($.state.npc_lastWave || 0) < NPC_CFG.WAVE_COOLDOWN_SEC)
-    return false;\n  $.state.npc_lastWave = t;\n  $.state.npc_greet = { t: 0 };\n 
-    $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;\n  smile();\n  return true;\n}\n//
-    Detect the participant's social signals (gaze alignment, raised hand) with hysteresis
-    / edges.\nfunction detectParticipantSignals(p, head, rest, ip) {\n  const npcHeadW
-    = toWorld(rest.head, ip);\n  const toNpc = vnorm(vsub(npcHeadW, head.pos));\n 
-    const ang = Math.acos(Math.max(-1, Math.min(1, vdot(vnorm(head.fwd), toNpc))))
-    * 180 / Math.PI;\n  let gazeEdge = false;\n  if (!$.state.npc_gazeAligned &&
-    ang < NPC_CFG.LOOK_AT_DEG) { $.state.npc_gazeAligned = true; gazeEdge = true;
+    $.state.npc_gGaze || 0,\n    greetHandRaises: $.state.npc_gHand || 0,\n    greetNpcReactions:
+    $.state.npc_gReact || 0,\n    greetNpcNods: $.state.npc_gNods || 0,\n    greetNpcWaves:
+    $.state.npc_gWaves || 0,\n    greetNpcSmiles: $.state.npc_smiles || 0,\n    greetTouches:
+    $.state.npc_gTouch || 0,\n  });\n  $.log(\"[NPC] greeting end: gaze=\" + ($.state.npc_gGaze
+    || 0) + \" hands=\" + ($.state.npc_gHand || 0) +\n        \" reactions=\" + ($.state.npc_gReact
+    || 0) + \" touches=\" + ($.state.npc_gTouch || 0));\n}\n// Start a reaction to
+    the participant. source: \"gaze\" | \"hand\" | \"prep\".\n//   first reaction
+    of the greeting period (and \"prep\"): nod + wave, smiling;\n//   gaze: nod only
+    / wave only / both at random; hand raise: wave, with or without a nod;\n//  
+    smiling with probability JOY_PROB. The face returns to neutral when the reaction
+    ends.\nfunction startReaction(source, force) {\n  const now = nowSec();\n  if
+    ($.state.npc_react) return false;\n  if (!force && now - ($.state.npc_lastReact
+    || 0) < NPC_CFG.REACT_COOLDOWN_SEC) return false;\n  const first = force || !$.state.npc_reacted;\n 
+    let nod, wave;\n  if (first) { nod = true; wave = true; }\n  else if (source
+    === \"hand\") { wave = true; nod = Math.random() < 0.5; }\n  else { const r =
+    Math.floor(Math.random() * 3); nod = r !== 1; wave = r !== 0; }   // 0 nod, 1
+    wave, 2 both\n  const joy = first || Math.random() < NPC_CFG.JOY_PROB;\n  $.state.npc_react
+    = { t: 0, nod: nod, wave: wave, joy: joy, dur: wave ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC
+    };\n  $.state.npc_reacted = true;\n  $.state.npc_lastReact = now;\n  $.state.npc_gReact
+    = ($.state.npc_gReact || 0) + 1;\n  if (nod) $.state.npc_gNods = ($.state.npc_gNods
+    || 0) + 1;\n  if (wave) $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;\n 
+    setJoy(joy);\n  return true;\n}\n// Rotate the whole body toward the participant
+    when they are too far to the side (greeting only).\nfunction turnBodyToward(head,
+    rest, ip, dt) {\n  const faceDir = vhoriz(vsub(head.pos, ip.pos));\n  const curFwd
+    = vhoriz(qrot(ip.rot, rest.fwd));\n  const cosA = Math.max(-1, Math.min(1, vdot(curFwd,
+    faceDir)));\n  const ang = Math.acos(cosA) * 180 / Math.PI;\n  if (!$.state.npc_bodyTurning
+    && ang > NPC_CFG.BODY_TURN_START_DEG) $.state.npc_bodyTurning = true;\n  if (!$.state.npc_bodyTurning)
+    return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG) { $.state.npc_bodyTurning
+    = false; return ip; }\n  const yaw = cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd,
+    faceDir);\n  const target = qmul(yaw, ip.rot);\n  const rot = qslerp(ip.rot,
+    target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE * dt));\n  $.setRotation(rot);\n 
+    return { pos: ip.pos, rot: rot };\n}\n// Participant hand(s) touching the NPC's
+    head / torso / arms (edge-triggered).\nfunction detectTouch(p, rest, ip) {\n 
+    const hands = [p.getHumanoidBonePosition(HumanoidBone.LeftHand), p.getHumanoidBonePosition(HumanoidBone.RightHand)];\n 
+    const parts = [\n    { bone: HumanoidBone.Head, up: 0.07, r: 0.13 },\n    { bone:
+    HumanoidBone.Chest, up: 0.0, r: 0.17 },\n    { bone: HumanoidBone.Hips, up: 0.0,
+    r: 0.16 },\n    { bone: HumanoidBone.LeftUpperArm, up: 0.0, r: 0.07 },\n    {
+    bone: HumanoidBone.RightUpperArm, up: 0.0, r: 0.07 },\n    { bone: HumanoidBone.LeftLowerArm,
+    up: 0.0, r: 0.06 },\n    { bone: HumanoidBone.RightLowerArm, up: 0.0, r: 0.06
+    },\n  ];\n  let touching = false;\n  for (const part of parts) {\n    const info
+    = nodeByBone[part.bone];\n    if (!info) continue;\n    const gp = info.node.getGlobalPosition();\n   
+    if (!gp) continue;\n    const c = vadd(gp, vscale(UP, part.up));\n    for (const
+    h of hands) {\n      if (h && vlen(vsub(h, c)) < part.r + NPC_CFG.TOUCH_HAND_MARGIN)
+    { touching = true; break; }\n    }\n    if (touching) break;\n  }\n  const edge
+    = touching && !$.state.npc_touching;\n  $.state.npc_touching = touching;\n  return
+    edge;\n}\n// Detect the participant's social signals (gaze alignment, raised
+    hand) with hysteresis / edges.\nfunction detectParticipantSignals(p, head, rest,
+    ip) {\n  const npcHeadW = toWorld(rest.head, ip);\n  const toNpc = vnorm(vsub(npcHeadW,
+    head.pos));\n  const ang = Math.acos(Math.max(-1, Math.min(1, vdot(vnorm(head.fwd),
+    toNpc)))) * 180 / Math.PI;\n  let gazeEdge = false;\n  if (!$.state.npc_gazeAligned
+    && ang < NPC_CFG.LOOK_AT_DEG) { $.state.npc_gazeAligned = true; gazeEdge = true;
     }\n  else if ($.state.npc_gazeAligned && ang > NPC_CFG.LOOK_AWAY_DEG) { $.state.npc_gazeAligned
     = false; }\n\n  const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n 
     const rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  const th = head.pos.y
@@ -400,59 +461,60 @@ MonoBehaviour:
     { $.log(\"[NPC] rest geometry not ready; trial start deferred\"); $.state.npc_pendingStart
     = true; return; }\n  $.state.npc_pendingStart = false;\n  moveToStand(0, true);                    
     // step closer to the reach spot during PREP\n  $.state.npc_phase = \"prep\";\n 
-    $.state.npc_t = 0;\n  $.state.npc_greet = null;\n  $.state.npc_lookedAt = false;\n 
-    $.state.npc_lookTs = 0;\n  $.state.npc_greeted = false;\n  $.state.npc_trace
-    = [];\n  traceBuf = [];\n  $.state.npc_trialStartTs = Date.now();\n  $.log(\"[NPC]
-    trial start \" + JSON.stringify($.state.npc_trial || {}) + \" social=\" + $.state.npc_social);\n}\n\nlet
-    traceBuf = [];\nlet sampleTimer = 0;\nlet baseSamples = [];\n\n// Ready palm
-    point on the shoulder->face line (local). T = face target (local).\nfunction
-    readyContact(rest, T) {\n  return vadd(rest.sR, vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));\n}\n\nfunction
-    beginApproach(head, rest, ip) {\n  const T = toLocal(facePointWorld(head), ip);\n 
-    const H0 = readyContact(rest, T);  // local palm point; the hand is already here
-    after the READY phase\n  const full = vlen(vsub(T, H0));\n  const L = Math.max(0.02,
-    full - NPC_CFG.STOP_MARGIN);\n  $.state.npc_H0 = H0;\n  $.state.npc_T = T;\n 
-    $.state.npc_L = L;\n  $.state.npc_dir = vnorm(vsub(T, H0));\n  const frame =
-    reachHandFrame($.state.npc_dir);\n  $.state.npc_frame = frame;    // hand orientation
-    is kept fixed during the approach\n  const Wend = vsub(vsub(T, vscale($.state.npc_dir,
-    NPC_CFG.STOP_MARGIN)), palmOffset(frame));\n  $.state.npc_reachable = vlen(vsub(Wend,
-    rest.sR)) <= (rest.L1 + rest.L2);\n  $.state.npc_phase = \"approach\";\n  $.state.npc_t
-    = 0;\n  $.state.npc_reachStartTs = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n 
-    $.state.npc_headRot0 = head.rot.x + \",\" + head.rot.y + \",\" + head.rot.z +
-    \",\" + head.rot.w;\n  $.state.npc_contactTs = 0;\n  $.state.npc_contactDist
-    = -1;\n  $.state.npc_base = null;\n  $.state.npc_away = 0; $.state.npc_latMin
-    = 0; $.state.npc_latMax = 0;\n  $.state.npc_onsetDist = -1;\n  $.state.npc_axisW
-    = vhoriz(qrot(ip.rot, $.state.npc_dir));\n  const H0w = toWorld(H0, ip), Tw =
-    toWorld(T, ip);\n  $.state.npc_H0w = f3(H0w.x) + \",\" + f3(H0w.y) + \",\" +
-    f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\" + f3(Tw.y) + \",\" + f3(Tw.z);\n 
-    baseSamples = [];\n  sampleTimer = 0;\n  $.log(\"[NPC] approach: path=\" + f3(L)
-    + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED) + \" s, reachable=\" + $.state.npc_reachable);\n}\n\nfunction
-    finishTrial() {\n  const traces = ($.state.npc_trace || []).concat(traceBuf);\n 
-    traceBuf = [];\n  const tr = $.state.npc_trial || {};\n  const data = {\n   
-    social: $.state.npc_social ? \"with\" : \"without\",\n    npcBlock: tr.block
-    !== undefined ? String(tr.block) : \"\",\n    npcRep: tr.rep !== undefined ?
-    String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !== undefined ? String(tr.avatar)
-    : \"\",\n    trialStartTs: $.state.npc_trialStartTs || 0,\n    reachStartTs:
-    $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs || 0,\n   
-    retractEndTs: Date.now(),\n    pathLen: $.state.npc_L || 0,\n    reachDur: ($.state.npc_contactTs
-    && $.state.npc_reachStartTs) ? ($.state.npc_contactTs - $.state.npc_reachStartTs)
-    / 1000 : 0,\n    contactDist: $.state.npc_contactDist,\n    reachable: !!$.state.npc_reachable,\n   
-    headPos0: $.state.npc_headPos0 ? (f3($.state.npc_headPos0.x) + \",\" + f3($.state.npc_headPos0.y)
-    + \",\" + f3($.state.npc_headPos0.z)) : \"\",\n    headRot0: $.state.npc_headRot0
-    || \"\",\n    handStart: $.state.npc_H0w || \"\",   // fingertip world position
-    at approach start\n    faceTarget: $.state.npc_Tw || \"\",   // face target world
-    position (fixed at approach start)\n    traceFormat: \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d\",\n   
-    retreatOnsetDist: $.state.npc_onsetDist,\n    retreatDist: $.state.npc_away ||
-    0,\n    oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin || 0),\n    lookedAtNpc:
-    !!$.state.npc_lookedAt,\n    lookTs: $.state.npc_lookTs || 0,\n    greeted: !!$.state.npc_greeted,\n   
-    trace: traces.join(\";\"),\n  };\n  pushData(data);\n  $.state.npc_trace = [];\n 
-    $.state.npc_phase = \"idle\";\n  $.state.npc_t = 0;\n  moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
-    true);   // step back to conversation distance\n  $.sendSignalCompat(\"this\",
-    \"npc_done\");\n  $.log(\"[NPC] trial done: samples=\" + traces.length + \" contactDist=\"
-    + f3(data.contactDist) + \" retreat=\" + f3(data.retreatDist));\n}\n\nfunction
-    pushData(obj) {\n  try {\n    if ($.groupState) {\n      const cd = $.groupState.collectedData
-    || {};\n      for (const k in obj) cd[k] = obj[k];\n      $.groupState.collectedData
-    = cd;\n      return;\n    }\n  } catch (e) { $.log(\"[NPC] groupState write failed:
-    \" + e); }\n  try {\n    const h = $.worldItemReference(\"luida-data-collector\");\n   
+    $.state.npc_t = 0;\n  clearReaction();\n  $.state.npc_bodyTurning = false;\n 
+    $.state.npc_lookedAt = false;\n  $.state.npc_lookTs = 0;\n  $.state.npc_greeted
+    = false;\n  $.state.npc_trace = [];\n  traceBuf = [];\n  $.state.npc_trialStartTs
+    = Date.now();\n  $.log(\"[NPC] trial start \" + JSON.stringify($.state.npc_trial
+    || {}) + \" social=\" + $.state.npc_social);\n}\n\nlet traceBuf = [];\nlet sampleTimer
+    = 0;\nlet baseSamples = [];\n\n// Ready palm point on the shoulder->face line
+    (local). T = face target (local).\nfunction readyContact(rest, T) {\n  return
+    vadd(rest.sR, vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));\n}\n\nfunction beginApproach(head,
+    rest, ip) {\n  const T = toLocal(facePointWorld(head), ip);\n  const H0 = readyContact(rest,
+    T);  // local palm point; the hand is already here after the READY phase\n  const
+    full = vlen(vsub(T, H0));\n  const L = Math.max(0.02, full - NPC_CFG.STOP_MARGIN);\n 
+    $.state.npc_H0 = H0;\n  $.state.npc_T = T;\n  $.state.npc_L = L;\n  $.state.npc_dir
+    = vnorm(vsub(T, H0));\n  const frame = reachHandFrame($.state.npc_dir);\n  $.state.npc_frame
+    = frame;    // hand orientation is kept fixed during the approach\n  const Wend
+    = vsub(vsub(T, vscale($.state.npc_dir, NPC_CFG.STOP_MARGIN)), palmOffset(frame));\n 
+    $.state.npc_reachable = vlen(vsub(Wend, rest.sR)) <= (rest.L1 + rest.L2);\n 
+    $.state.npc_phase = \"approach\";\n  $.state.npc_t = 0;\n  $.state.npc_reachStartTs
+    = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n  $.state.npc_headRot0
+    = head.rot.x + \",\" + head.rot.y + \",\" + head.rot.z + \",\" + head.rot.w;\n 
+    $.state.npc_contactTs = 0;\n  $.state.npc_contactDist = -1;\n  $.state.npc_base
+    = null;\n  $.state.npc_away = 0; $.state.npc_latMin = 0; $.state.npc_latMax =
+    0;\n  $.state.npc_onsetDist = -1;\n  $.state.npc_axisW = vhoriz(qrot(ip.rot,
+    $.state.npc_dir));\n  const H0w = toWorld(H0, ip), Tw = toWorld(T, ip);\n  $.state.npc_H0w
+    = f3(H0w.x) + \",\" + f3(H0w.y) + \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x)
+    + \",\" + f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer =
+    0;\n  $.log(\"[NPC] approach: path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED)
+    + \" s, reachable=\" + $.state.npc_reachable);\n}\n\nfunction finishTrial() {\n 
+    const traces = ($.state.npc_trace || []).concat(traceBuf);\n  traceBuf = [];\n 
+    const tr = $.state.npc_trial || {};\n  const data = {\n    social: $.state.npc_social
+    ? \"with\" : \"without\",\n    npcBlock: tr.block !== undefined ? String(tr.block)
+    : \"\",\n    npcRep: tr.rep !== undefined ? String(tr.rep) : \"\",\n    npcAvatar:
+    tr.avatar !== undefined ? String(tr.avatar) : \"\",\n    trialStartTs: $.state.npc_trialStartTs
+    || 0,\n    reachStartTs: $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs
+    || 0,\n    retractEndTs: Date.now(),\n    pathLen: $.state.npc_L || 0,\n    reachDur:
+    ($.state.npc_contactTs && $.state.npc_reachStartTs) ? ($.state.npc_contactTs
+    - $.state.npc_reachStartTs) / 1000 : 0,\n    contactDist: $.state.npc_contactDist,\n   
+    reachable: !!$.state.npc_reachable,\n    headPos0: $.state.npc_headPos0 ? (f3($.state.npc_headPos0.x)
+    + \",\" + f3($.state.npc_headPos0.y) + \",\" + f3($.state.npc_headPos0.z)) :
+    \"\",\n    headRot0: $.state.npc_headRot0 || \"\",\n    handStart: $.state.npc_H0w
+    || \"\",   // fingertip world position at approach start\n    faceTarget: $.state.npc_Tw
+    || \"\",   // face target world position (fixed at approach start)\n    traceFormat:
+    \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d\",\n    retreatOnsetDist: $.state.npc_onsetDist,\n   
+    retreatDist: $.state.npc_away || 0,\n    oscAmp: ($.state.npc_latMax || 0) -
+    ($.state.npc_latMin || 0),\n    lookedAtNpc: !!$.state.npc_lookedAt,\n    lookTs:
+    $.state.npc_lookTs || 0,\n    greeted: !!$.state.npc_greeted,\n    trace: traces.join(\";\"),\n 
+    };\n  pushData(data);\n  $.state.npc_trace = [];\n  $.state.npc_phase = \"idle\";\n 
+    $.state.npc_t = 0;\n  moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);   // step back
+    to conversation distance\n  $.sendSignalCompat(\"this\", \"npc_done\");\n  $.log(\"[NPC]
+    trial done: samples=\" + traces.length + \" contactDist=\" + f3(data.contactDist)
+    + \" retreat=\" + f3(data.retreatDist));\n}\n\nfunction pushData(obj) {\n  try
+    {\n    if ($.groupState) {\n      const cd = $.groupState.collectedData || {};\n     
+    for (const k in obj) cd[k] = obj[k];\n      $.groupState.collectedData = cd;\n     
+    return;\n    }\n  } catch (e) { $.log(\"[NPC] groupState write failed: \" + e);
+    }\n  try {\n    const h = $.worldItemReference(\"luida-data-collector\");\n   
     if (h) h.send(\"luida_collect\", obj);\n  } catch (e) { $.log(\"[NPC] luida_collect
     send failed: \" + e); }\n}\n\n// ----------------------------------------------------------------
     pose building\n// Arm description (item-local directions): upper = shoulder->elbow,
@@ -508,10 +570,11 @@ MonoBehaviour:
     const desired = qmul(q, e.rest);\n    const parent = qmul(parentQ, e.restParent);\n   
     e.node.setRotation(qmul(qinv(parent), desired));\n  }\n}\n\n// ----------------------------------------------------------------
     per-frame\n$.onUpdate((deltaTime) => {\n  try { tick(deltaTime); } catch (e)
-    { $.log(\"[NPC] tick error: \" + e); }\n});\n\nfunction tick(dt) {\n  if (boneNodes.length
-    === 0) cacheBones();\n  const rest = restGeom();\n  if (!rest) return;                      
-    // keep the model visible until the rest pose is measured\n\n  // Visibility:
-    hidden until shown (also re-applied after a script reload).\n  if ($.state.npc_visibilityApplied
+    { $.log(\"[NPC] tick error: \" + e); }\n});\n\nfunction tick(dt) {\n  $.state.npc_clock
+    = ($.state.npc_clock || 0) + dt;\n  if (boneNodes.length === 0) cacheBones();\n 
+    const rest = restGeom();\n  if (!rest) return;                       // keep
+    the model visible until the rest pose is measured\n\n  // Visibility: hidden
+    until shown (also re-applied after a script reload).\n  if ($.state.npc_visibilityApplied
     !== !!$.state.npc_visible) applyVisibility();\n\n  if ($.state.npc_pendingStart)
     { startTrial(); return; }\n\n  // Glide to the target standing pose (position/rotation
     are networked, so keep it short).\n  const g = $.state.npc_glide;\n  if (g) {\n   
@@ -520,70 +583,69 @@ MonoBehaviour:
     g.toRot, e));\n    if (t >= 1) $.state.npc_glide = null; else { g.t = t; $.state.npc_glide
     = g; }\n  }\n\n  if (!$.state.npc_visible) return;        // nothing to animate
     while hidden\n\n  const p = participant();\n  const head = p ? headOf(p) : null;\n 
-    const ip = itemPose();\n  const social = !!$.state.npc_social;\n  const phase
-    = $.state.npc_phase || \"idle\";\n  const greeting = $.state.npc_mode === \"greeting\";\n 
-    let t = ($.state.npc_t || 0) + dt;\n  $.state.npc_t = t;\n\n  const Q = {};\n 
-    const R = rest.right, F = rest.fwd;\n\n  // --- torso / idle motion (social only)
-    ---\n  if (social) {\n    const breathe = Math.sin(2 * Math.PI * 0.25 * (Date.now()
-    / 1000)) * 1.0;\n    Q[HumanoidBone.Chest] = qaxis(R, breathe);\n    if (phase
-    === \"approach\" || phase === \"hold\") Q[HumanoidBone.Spine] = qaxis(R, 5);\n 
-    }\n\n  // --- gaze (social only) ---\n  if (social && head) {\n    const npcHeadL
-    = rest.head;\n    const dir = vnorm(vsub(toLocal(head.pos, ip), npcHeadL));\n   
-    const qGazeFull = qclamp(qfromTo(F, dir), NPC_CFG.GAZE_MAX_DEG);\n    const qNeck
-    = qslerp(IDENT, qGazeFull, 0.3);\n    const qHead = qslerp(IDENT, qGazeFull,
-    0.7);\n    // eyes: look a bit further than the head, limited to 15 deg beyond
-    it\n    const extra = qmul(qinv(qHead), qGazeFull);\n    const qEye = qmul(qHead,
-    qclamp(extra, 15));\n    Q[HumanoidBone.Neck] = qNeck;\n    Q[HumanoidBone.Head]
-    = qHead;\n    Q[HumanoidBone.LeftEye] = qEye;\n    Q[HumanoidBone.RightEye] =
-    qEye;\n  }\n\n  // --- participant signals: greeting period (reactive), trial
+    let ip = itemPose();\n  const social = !!$.state.npc_social;\n  const phase =
+    $.state.npc_phase || \"idle\";\n  const greeting = $.state.npc_mode === \"greeting\";\n 
+    if (greeting && social && head && !$.state.npc_glide) ip = turnBodyToward(head,
+    restGeom(), ip, dt);\n  let t = ($.state.npc_t || 0) + dt;\n  $.state.npc_t =
+    t;\n\n  const Q = {};\n  const R = rest.right, F = rest.fwd;\n\n  // --- torso
+    / idle motion (social only) ---\n  if (social) {\n    const breathe = Math.sin(2
+    * Math.PI * 0.25 * (Date.now() / 1000)) * 1.0;\n    Q[HumanoidBone.Chest] = qaxis(R,
+    breathe);\n    if (phase === \"approach\" || phase === \"hold\") Q[HumanoidBone.Spine]
+    = qaxis(R, 5);\n  }\n\n  // --- gaze (social only): head (and eyes) only; large
+    angles are taken up by the body turn above,\n  //     which also unwinds the
+    head's local rotation as the body comes around ---\n  if (social && head) {\n   
+    const dir = vnorm(vsub(toLocal(head.pos, ip), rest.head));\n    const qFull =
+    qfromTo(F, dir);\n    const qHead = qclamp(qFull, NPC_CFG.HEAD_MAX_DEG);\n   
+    const qEye = qmul(qHead, qclamp(qmul(qinv(qHead), qFull), NPC_CFG.EYE_EXTRA_DEG));\n   
+    Q[HumanoidBone.Head] = qHead;\n    Q[HumanoidBone.LeftEye] = qEye;\n    Q[HumanoidBone.RightEye]
+    = qEye;\n  }\n\n  // --- participant signals: greeting period (reactive), trial
     prep (logging + one greeting) ---\n  if (head && (greeting || phase === \"prep\"
     || phase === \"approach\")) {\n    const sig = detectParticipantSignals(p, head,
     rest, ip);\n    if (greeting) {\n      if (sig.gazeEdge) { $.state.npc_gGaze
-    = ($.state.npc_gGaze || 0) + 1; if (social) reactWave(); }\n      if (sig.handEdge)
-    { $.state.npc_gHand = ($.state.npc_gHand || 0) + 1; if (social) reactWave();
-    }\n      if (social && nowSec() >= ($.state.npc_nextSmile || 0)) {\n        smile();\n       
-    $.state.npc_nextSmile = nowSec() + NPC_CFG.SMILE_MIN_SEC + Math.random() * (NPC_CFG.SMILE_MAX_SEC
-    - NPC_CFG.SMILE_MIN_SEC);\n      }\n    } else if (sig.aligned && !$.state.npc_lookedAt)
-    {\n      $.state.npc_lookedAt = true;\n      $.state.npc_lookTs = Date.now();\n     
-    if (social && phase === \"prep\" && !$.state.npc_greet) { $.state.npc_greet =
-    { t: 0 }; $.state.npc_greeted = true; smile(); }\n    }\n  }\n\n  // --- arms
-    (bone rotations incl. twist, so the palms face the right way) ---\n  const idleR
-    = armRots(rest, \"R\", idleArm(rest, \"R\"));\n  const idleL = armRots(rest,
-    \"L\", idleArm(rest, \"L\"));\n  let armR = idleR, armL = idleL;\n\n  // greeting
-    gesture (nod + left-hand wave, palm toward the participant), social only\n  let
-    nodDeg = 0;\n  const greet = $.state.npc_greet;\n  if (social && greet) {\n   
-    const gt = (greet.t || 0) + dt;\n    const u = clamp01(gt / NPC_CFG.GREET_SEC);\n   
-    const lift = Math.sin(Math.PI * u);                 // 0 -> 1 -> 0\n    armL
-    = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest, gt)), lift);\n    nodDeg
-    = 15 * Math.sin(Math.PI * clamp01(gt / 0.6));\n    if (gt >= NPC_CFG.GREET_SEC)
-    $.state.npc_greet = null; else { greet.t = gt; $.state.npc_greet = greet; }\n 
-    } else if (greet && !social) {\n    $.state.npc_greet = null;\n  }\n\n  // ---
-    phase machine for the right arm ---\n  if (phase === \"prep\") {\n    const greetBusy
-    = social && $.state.npc_greet;\n    if (t >= NPC_CFG.PREP_SEC && !greetBusy &&
-    head && !$.state.npc_glide) {\n      // social: if the participant never looked,
-    nod once before raising the hand\n      if (social && !$.state.npc_greeted) {
-    $.state.npc_greeted = true; $.state.npc_greet = { t: 0 }; }\n      else { $.state.npc_phase
-    = \"ready\"; $.state.npc_t = 0; }\n    }\n  } else if (phase === \"ready\") {\n   
-    // raise the hand from the idle pose to the ready position, palm already turned
-    toward the\n    // participant's face (fast; the stimulus starts afterwards)\n   
-    const T = head ? toLocal(facePointWorld(head), ip) : vadd(rest.sR, vadd(vscale(rest.fwd,
-    0.4), vscale(UP, 0.2)));\n    const H0 = readyContact(rest, T);\n    const readyArm
-    = armRots(rest, \"R\", reachArm(rest, H0, reachHandFrame(vsub(T, H0))));\n   
-    armR = slerpArm(idleR, readyArm, easeInOut(t / NPC_CFG.READY_SEC));\n    if (t
-    >= NPC_CFG.READY_SEC && head) beginApproach(head, rest, ip);\n  } else if (phase
-    === \"approach\") {\n    const L = $.state.npc_L, dir = $.state.npc_dir, H0 =
-    $.state.npc_H0;\n    const frame = $.state.npc_frame || reachHandFrame(dir);\n   
-    const s = Math.min(NPC_CFG.REACH_SPEED * t, L);\n    const Ft = vadd(H0, vscale(dir,
-    s));\n    const arm = reachArm(rest, Ft, frame);\n    armR = armRots(rest, \"R\",
-    arm);\n    const Fw = toWorld(contactOf(rest, arm), ip);\n    let d = -1;\n   
-    if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n      sampleTrace(dt,
-    t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n    const earlyContact
-    = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd || earlyContact) {\n     
-    $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist = d;\n     
-    $.state.npc_Fc = Ft;\n      $.state.npc_phase = \"hold\";\n      $.state.npc_t
-    = 0;\n      $.log(\"[NPC] contact: d=\" + f3(d) + \" early=\" + earlyContact);\n   
-    }\n  } else if (phase === \"hold\") {\n    const Fc = $.state.npc_Fc || $.state.npc_T;\n   
-    const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));\n   
+    = ($.state.npc_gGaze || 0) + 1; if (social) startReaction(\"gaze\"); }\n     
+    if (sig.handEdge) { $.state.npc_gHand = ($.state.npc_gHand || 0) + 1; if (social)
+    startReaction(\"hand\"); }\n      if (social && p && detectTouch(p, rest, ip))
+    surprise();\n    } else if (sig.aligned && !$.state.npc_lookedAt) {\n      $.state.npc_lookedAt
+    = true;\n      $.state.npc_lookTs = Date.now();\n      if (social && phase ===
+    \"prep\" && !$.state.npc_react) { startReaction(\"prep\", true); $.state.npc_greeted
+    = true; }\n    }\n  }\n\n  // --- arms (bone rotations incl. twist, so the palms
+    face the right way) ---\n  const idleR = armRots(rest, \"R\", idleArm(rest, \"R\"));\n 
+    const idleL = armRots(rest, \"L\", idleArm(rest, \"L\"));\n  let armR = idleR,
+    armL = idleL;\n\n  // reaction gesture (nod and/or left-hand wave with the palm
+    toward the participant), social only\n  let nodDeg = 0;\n  const react = $.state.npc_react;\n 
+    if (social && react) {\n    const rt = (react.t || 0) + dt;\n    if (react.wave)
+    {\n      const lift = Math.sin(Math.PI * clamp01(rt / react.dur));     // 0 ->
+    1 -> 0\n      armL = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest, rt)),
+    lift);\n    }\n    if (react.nod) {\n      const nodSec = react.wave ? 0.6 :
+    NPC_CFG.NOD_SEC;\n      nodDeg = NPC_CFG.NOD_DEG * Math.sin(Math.PI * clamp01(rt
+    / nodSec));\n    }\n    if (rt >= react.dur) clearReaction(); else { react.t
+    = rt; $.state.npc_react = react; }\n  } else if (react && !social) {\n    clearReaction();\n 
+    }\n\n  // --- phase machine for the right arm ---\n  if (phase === \"prep\")
+    {\n    const greetBusy = social && $.state.npc_react;\n    if (t >= NPC_CFG.PREP_SEC
+    && !greetBusy && head && !$.state.npc_glide) {\n      // social: if the participant
+    never looked, greet once before raising the hand\n      if (social && !$.state.npc_greeted)
+    { $.state.npc_greeted = true; startReaction(\"prep\", true); }\n      else {
+    $.state.npc_phase = \"ready\"; $.state.npc_t = 0; }\n    }\n  } else if (phase
+    === \"ready\") {\n    // raise the hand from the idle pose to the ready position,
+    palm already turned toward the\n    // participant's face (fast; the stimulus
+    starts afterwards)\n    const T = head ? toLocal(facePointWorld(head), ip) :
+    vadd(rest.sR, vadd(vscale(rest.fwd, 0.4), vscale(UP, 0.2)));\n    const H0 =
+    readyContact(rest, T);\n    const readyArm = armRots(rest, \"R\", reachArm(rest,
+    H0, reachHandFrame(vsub(T, H0))));\n    armR = slerpArm(idleR, readyArm, easeInOut(t
+    / NPC_CFG.READY_SEC));\n    if (t >= NPC_CFG.READY_SEC && head) beginApproach(head,
+    rest, ip);\n  } else if (phase === \"approach\") {\n    const L = $.state.npc_L,
+    dir = $.state.npc_dir, H0 = $.state.npc_H0;\n    const frame = $.state.npc_frame
+    || reachHandFrame(dir);\n    const s = Math.min(NPC_CFG.REACH_SPEED * t, L);\n   
+    const Ft = vadd(H0, vscale(dir, s));\n    const arm = reachArm(rest, Ft, frame);\n   
+    armR = armRots(rest, \"R\", arm);\n    const Fw = toWorld(contactOf(rest, arm),
+    ip);\n    let d = -1;\n    if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n     
+    sampleTrace(dt, t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n   
+    const earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd
+    || earlyContact) {\n      $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist
+    = d;\n      $.state.npc_Fc = Ft;\n      $.state.npc_phase = \"hold\";\n     
+    $.state.npc_t = 0;\n      $.log(\"[NPC] contact: d=\" + f3(d) + \" early=\" +
+    earlyContact);\n    }\n  } else if (phase === \"hold\") {\n    const Fc = $.state.npc_Fc
+    || $.state.npc_T;\n    const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));\n   
     armR = armRots(rest, \"R\", arm);\n    if (head) {\n      const Fw = toWorld(contactOf(rest,
     arm), ip);\n      sampleTrace(dt, (NPC_CFG.REACH_SPEED > 0 ? ($.state.npc_L /
     NPC_CFG.REACH_SPEED) : 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));\n   

@@ -28,9 +28,13 @@
 2. `DeviceCheck`: 頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒。60 秒経過で救済ボタンが出る。合格で行を保存して遷移。
 3. `Trial - Start`（rep=1 のみ）: 参加者をマーカーへテレポート、NPC を非表示（`npc_hide`）にして AvatarGate が着替え指示 → 骨格シグネチャで一致判定（1 秒安定）→「着替えました」→「はい/いいえ」→ 行保存 → 遷移。rep=2 では AvatarGate が即 `ToNextState()`。
 4. `Trial - Greeting`（15 秒、rep=1 のみ。rep=2 は即遷移）: NpcDirector が `npc_show` → NPC が参加者の正面、会話距離（手が届く位置 + 0.45 m ≈ 0.9 m）に現れる。鏡が表示される。指示板は「15 秒間、そのアバターを見て、手を振って挨拶してください」。
-   - social = with: NPC は参加者を注視し、参加者の視線が NPC に向いた瞬間（30° 以内、45° で解除のヒステリシス）と、参加者がどちらかの手を頭の高さ付近まで上げた瞬間に、左手を上げて振り返す（会釈つき、2.5 秒のクールダウン）。4〜7 秒おきと手を振るたびに笑顔（`Fcl_ALL_Fun`）。
+   - social = with:
+     - 視線: 頭（と目）だけで参加者を追う（頭は最大 50°、目はさらに 12°）。参加者が NPC の正面から 35° 以上ずれると体全体が補間（指数的、2.5/s）で向き直り、4° 以内で止まる。体が回るにつれ頭のローカル回転は自然に戻る。
+     - 反応: 参加者の視線が NPC に向いた瞬間（30° 以内、45° で解除）と、参加者が手を頭の高さ付近まで上げた瞬間に反応する（2.5 秒のクールダウン）。最初の反応は必ず「頷き＋手振り＋笑顔」。以降、視線への反応は頷きのみ／手振りのみ／両方をランダム、挙手への反応は手振り（頷きは 50%）。笑顔（`Fcl_EYE_Joy`=100, `Fcl_MTH_Joy`=50）は 50% の確率で付き、反応の終了とともに戻る。
+     - 触られたとき: 参加者の手が NPC の頭・胴・腕に触れた瞬間に驚き顔（`Fcl_EYE_Surprised`=50, `Fcl_MTH_Surprised`=50）を 1 秒（1.5 秒のクールダウン）。
+     - 表情は顔メッシュ `Model/Face` の Animator（`NpcFace.controller`: Bool `joy`、Trigger `surprised`）で切り替える。再構築はメニュー `LUIDA > Study4 > Rebuild NPC face animator`（シーンは再生成しない）。
    - social = without: NPC は立っているだけ（注視も反応もなし）。
-   - 期間終了時に `greetSec / greetGazeEvents / greetHandRaises / greetNpcWaves / greetNpcSmiles` を収集データへ書き込む（同じブロックの 2 試行目の行にも残る）。
+   - 期間終了時に `greetSec / greetGazeEvents / greetHandRaises / greetNpcReactions / greetNpcNods / greetNpcWaves / greetNpcSmiles / greetTouches` を収集データへ書き込む（同じブロックの 2 試行目の行にも残る）。
 5. `Trial - Touch`: NpcDirector が `npc_trial_start` を送信。NPC は 1 秒で手の届く位置（頭から約 0.5 m）へ前進しながら prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と顔を結ぶ線上の 35% 地点へ。手のひらは参加者の顔側、指は上向き) → approach(その線に沿って 2 cm/s で、手のひらが顔の 3 cm 手前に来るまで。約 15 秒) → hold(2 s) → retract → 会話距離へ後退。完了で `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移。120 秒の安全タイムアウトあり。鏡はこのステートの終了で非表示。
 6. `Trial - Report`: 0–10 → 操作チェック 1–7 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 行保存 → 遷移。
 7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙（VEQ, qID 2）の完了で遷移。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
