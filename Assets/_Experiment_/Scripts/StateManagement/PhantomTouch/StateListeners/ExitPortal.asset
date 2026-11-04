@@ -27,14 +27,10 @@ MonoBehaviour:
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
-    duringStateActions: []
-    onStateExitedActions: []
-  - stateID: 11
-    onStateStartedActions:
     - predefinedActionTemplate:
-        actionType: Show child
+        actionType: Hide child
         displayLabel: 
-        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
         variables:
         - childName
         category: Item child
@@ -48,5 +44,42 @@ MonoBehaviour:
       - WorldGateToLuidaBar
     duringStateActions: []
     onStateExitedActions: []
+  - stateID: 11
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ep_begin();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ep_update();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    onStateExitedActions: []
   eventHandlers: []
-  otherImplementation: 
+  otherImplementation: "// ---- Study 4: ExitPortal (gate back to the recruitment
+    world, at the participant's feet) ----\nconst EP_DELAY_SEC = 10;\nfunction ep_begin()
+    { $.state.ep_startTs = Date.now(); $.state.ep_shown = false; }\nfunction ep_update()
+    {\n  if ($.state.ep_shown) return;\n  if (Date.now() - ($.state.ep_startTs ||
+    Date.now()) < EP_DELAY_SEC * 1000) return;\n  const gate = $.subNode('WorldGateToLuidaBar');\n 
+    if (!gate) return;\n  const p = PARTICIPANTS[1];\n  const feet = (p && p.exists())
+    ? p.getPosition() : null;\n  if (feet) {\n    const r = $.getRotation();\n   
+    const inv = new Quaternion(-r.x, -r.y, -r.z, r.w);\n    gate.setPosition(feet.clone().sub($.getPosition()).applyQuaternion(inv));\n 
+    }\n  gate.setEnabled(true);\n  $.state.ep_shown = true;\n  $.log('[ExitPortal]
+    gate shown' + (feet ? ' at the participant' : ' (participant not found)'));\n}\n"

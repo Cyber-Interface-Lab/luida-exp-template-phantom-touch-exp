@@ -66,9 +66,6 @@ const stateEnterActions = {
     11: [
         { type: "exec", action: (deltaTime) => {
             $.sendSignalCompat('this', 'exp_uploadCustomData');
-        } },
-        { type: "exec", action: (deltaTime) => {
-            nd_setMove(1);
         } }
     ]
 };

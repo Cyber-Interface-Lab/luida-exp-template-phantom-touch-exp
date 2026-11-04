@@ -311,18 +311,6 @@ MonoBehaviour:
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
-    - predefinedActionTemplate:
-        actionType: Customized Action
-        displayLabel: 
-        codeSnippet: 
-        variables: []
-        category: 
-      customAction: nd_setMove(1);
-      isConditional: 0
-      conditionVariable: 
-      conditionValue: 
-      _variableKeys: []
-      _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
   eventHandlers:

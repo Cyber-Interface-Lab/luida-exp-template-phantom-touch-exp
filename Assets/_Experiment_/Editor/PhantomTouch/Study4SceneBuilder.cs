@@ -129,7 +129,7 @@ public static class Study4SceneBuilder
                 ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
                 ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
                 ("MirrorPanel", MirrorPanelListeners, null, ""),
-                ("ExitPortal", ExitPortalListeners, null, ""),
+                ("ExitPortal", ExitPortalListeners, null, ExitPortalLegacy()),
             };
             foreach (var d in defs)
             {
@@ -289,7 +289,7 @@ public static class Study4SceneBuilder
             S("Trial - Rest", hasExit: true, exit: 1f),
             S("SocialPresence", qID: 3),
             S("PersonalExperience", qID: 4),
-            S("Debrief", qID: 5),
+            S("Debrief"),                       // explanation + "OK" button on the instruction board (no questionnaire)
             S("End"),
         };
         for (int i = 0; i < states.Length - 1; i++) states[i].DestStateName = states[i + 1].StateName;
@@ -350,8 +350,8 @@ public static class Study4SceneBuilder
         if (states == null || states.transform.childCount != 12)
             throw new Exception("States container not generated as expected");
         var qRoot = GameObject.Find("LUIDA-QuestionnaireByState");
-        if (qRoot == null || qRoot.transform.childCount != 5)
-            Debug.LogWarning("[Study4] expected 5 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
+        if (qRoot == null || qRoot.transform.childCount != 4)
+            Debug.LogWarning("[Study4] expected 4 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
         // Questionnaire containers start inactive; the state's Set Game Object Active gimmick
         // (copied onto each container) activates them when their state begins.
         if (qRoot != null)
@@ -533,7 +533,12 @@ return {
     const int RpCols = 4;   // report options: 4 x 3 grid (0-10 fill it row by row)
     const float RpBtnW = 0.16f, RpBtnH = 0.10f, RpPitchX = 0.175f, RpPitchY = 0.115f;
 
+    // Debrief / End: nothing else is shown, so the text sits straight ahead with the Debrief "OK" button below
+    const float InsCenterHeight = EyeHeight + 0.15f, DebriefOkHeight = EyeHeight - 0.33f;
+    const int EndGateDelaySec = 10;   // End: countdown, then the exit gate appears at the participant's feet
+
     static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
+    static Vector3 InsCenterPos(Layout l) => l.Around(0f, InsDist, InsCenterHeight);
     static Vector3 InsSidePos(Layout l) => l.Around(InsSideYawDeg, InsDist, InsSideHeight);
 
     /// <summary>
@@ -561,6 +566,20 @@ return {
             }
         }
 
+        // Debrief "OK" button (a separate item; clicks write the Integer state "ins_btn" on the Instruction item)
+        if (ins != null)
+        {
+            var dbGroup = FindRoot("DebriefUI", false);
+            if (dbGroup == null) dbGroup = new GameObject("DebriefUI").transform;
+            var okPos = l.Around(0f, InsDist, DebriefOkHeight);
+            dbGroup.SetPositionAndRotation(okPos, l.FaceEye(okPos));
+            var okSize = new Vector3(0.24f, 0.09f, 0.04f);
+            if (dbGroup.Find("DB_Ok") == null)
+                CreateButton(dbGroup, "DB_Ok", "OK", Vector3.zero, okSize, ins.GetComponent<Item>(), "ins_btn", 1, m, 0.03f);
+            AddWorldItemReference(ins.gameObject, "DB_Ok", dbGroup.Find("DB_Ok").GetComponent<Item>());
+            SetButton(dbGroup, "DB_Ok", Vector3.zero, okSize, 0.03f, "OK");
+        }
+
         // AvatarGate (left): text grows upwards from just above the buttons; "Changed" and Yes/No are on
         // separate rows so a double click on "Changed" cannot answer the confirmation.
         var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", LeftPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.29f, -0.16f, 0.58f, 0.60f));
@@ -582,6 +601,19 @@ return {
         }
         SetButton(rp, "RP_Done", new Vector3(0f, -0.02f, 0f), new Vector3(0.26f, 0.08f, 0.04f), 0.02f);
 
+        // ExitPortal at the standing spot; ep_update() moves the gate to the participant's feet at End.
+        var ep = FindRoot("ExitPortal");
+        if (ep != null)
+        {
+            ep.SetPositionAndRotation(l.origin, l.Frame);
+            var gateNode = ep.Find("WorldGateToLuidaBar");
+            if (gateNode != null)
+            {
+                gateNode.localPosition = Vector3.zero;
+                gateNode.localRotation = Quaternion.identity;
+            }
+        }
+
         // Mirror (front-left, facing the participant): close enough to see one's own avatar and the NPC's
         // hand at one's face; clear of the NPC and of the front instruction slot.
         var mp = FindRoot("MirrorPanel");
@@ -600,10 +632,10 @@ return {
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
     }
 
-    static Transform FindRoot(string name)
+    static Transform FindRoot(string name, bool warn = true)
     {
         var go = SceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == name);
-        if (go == null) Debug.LogWarning("[Study4] scene object not found: " + name);
+        if (go == null && warn) Debug.LogWarning("[Study4] scene object not found: " + name);
         return go != null ? go.transform : null;
     }
 
@@ -1064,7 +1096,7 @@ return {
                 gate.SetActive(false);
             }
             else Debug.LogWarning("[Study4] WorldGateToLuidaBar instance not found in the template scene");
-            WriteItemData(exitPortal, ExitPortalListeners(), null, "");
+            WriteItemData(exitPortal, ExitPortalListeners(), null, ExitPortalLegacy());
 
             // -- final placement, sizes and backings of all UI (also used by "Update layout ...") --
             ApplyLayout(l, m);
@@ -1238,7 +1270,7 @@ return {
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), Ins("side", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("ins_okButton(false);"), Ins("side", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
             Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '15秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
@@ -1248,8 +1280,15 @@ return {
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
             Listener(S_SOCIAL, L(Ins("side", "さきほどの相手（NPC）\\nについての質問紙に\\n答えてください。"))),
             Listener(S_PERSONAL, L(Ins("side", "最後に、あなた自身の\\nメタバース利用についての\\n質問紙に答えてください。"))),
-            Listener(S_DEBRIEF, L(Ins("side", "ご協力ありがとうございました。\\nこの実験は、他者のアバターの\\n手が近づいたときに生じる\\n感覚（ファントムタッチ）を\\n調べるものでした。\\n質問紙で、確認とギフト券\\n送付先の入力をお願いします。"))),
-            Listener(S_END, L(Ins("front", "ご参加ありがとうございました。\\n右側のゲートから\\n募集ワールドへ戻れます。"))),
+            // Debrief: explanation + "OK" button -> End
+            Listener(S_DEBRIEF,
+                L(Custom("ins_okBegin();"), Ins("center", "ご協力ありがとうございました。\\nこの実験は、他者のアバターの\\n手が近づいたときに生じる感覚\\n（ファントムタッチ）を\\n調べるものでした。\\n読み終わったら、下の\\n「OK」を押してください。")),
+                L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
+                L(Custom("ins_okButton(false);"))),
+            // End: countdown; the ExitPortal puts the gate at the participant's feet when it reaches 0
+            Listener(S_END,
+                L(Custom("ins_endBegin();")),
+                L(Custom("ins_endTick();"))),
         };
     }
     static StateListenerAction Ins(string slot, string text) => Custom("ins_show('" + slot + "', '" + text + "');");
@@ -1267,8 +1306,9 @@ return {
             return "{ p: new Vector3(" + F4(lp.x) + ", " + F4(lp.y) + ", " + F4(lp.z) + "), r: new Quaternion(" +
                    F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + ") }";
         }
-        return "// ---- Study 4: Instruction board (two placements; coloured backing sized to the line count) ----\n" +
-               "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l)) + ",\n  side: " + Slot(InsSidePos(l)) + ",\n};\n" +
+        return "// ---- Study 4: Instruction board (placements; coloured backing sized to the line count) ----\n" +
+               "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l)) + ",\n  side: " + Slot(InsSidePos(l)) +
+               ",\n  center: " + Slot(InsCenterPos(l)) + ",\n};\n" +
                "const INS_BG_MAX = " + InsMaxLines + ";\n" +
                "function ins_show(slot, text) {\n" +
                "  const s = INS_SLOTS[slot] || INS_SLOTS.front;\n" +
@@ -1277,6 +1317,29 @@ return {
                "  SetText(text);\n" +
                "  const n = Math.min(INS_BG_MAX, text ? String(text).split('\\n').length : 0);\n" +
                "  for (let i = 1; i <= INS_BG_MAX; i++) { const bg = $.subNode('Bg_' + i); if (bg) bg.setEnabled(i === n); }\n" +
+               "}\n" +
+               "// Debrief 'OK' button (item DB_Ok; its Interact Item Trigger writes the Integer state 'ins_btn' here)\n" +
+               "function ins_okButton(visible) {\n" +
+               "  try { const h = $.worldItemReference('DB_Ok'); if (h) h.send('btn_cfg', { visible: visible, label: 'OK' }); }\n" +
+               "  catch (e) { $.log('[Instruction] send DB_Ok: ' + e); }\n" +
+               "}\n" +
+               "function ins_okBegin() { $.setStateCompat('this', 'ins_btn', 0); ins_okButton(true); }\n" +
+               "function ins_okPressed() {\n" +
+               "  const b = $.getStateCompat('this', 'ins_btn', 'integer');\n" +
+               "  if (!(b > 0)) return false;\n" +
+               "  $.setStateCompat('this', 'ins_btn', 0);\n" +
+               "  return true;\n" +
+               "}\n" +
+               "// End: countdown to the exit gate (ExitPortal uses the same delay)\n" +
+               "const INS_END_SEC = " + EndGateDelaySec + ";\n" +
+               "function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endLeft = -1; ins_endTick(); }\n" +
+               "function ins_endTick() {\n" +
+               "  const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs || Date.now())) / 1000));\n" +
+               "  if (left === $.state.ins_endLeft) return;\n" +
+               "  $.state.ins_endLeft = left;\n" +
+               "  ins_show('center', left > 0\n" +
+               "    ? 'ご参加ありがとうございました。\\nあと ' + left + ' 秒で募集ワールドへ\\n移動します。'\n" +
+               "    : 'ご参加ありがとうございました。\\n募集ワールドへ移動します。');\n" +
                "}\n";
     }
 
@@ -1290,7 +1353,7 @@ return {
         StateListenerAction ResetRot() => Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0"));
         return new List<StateListener>
         {
-            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period and at End.
+            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period.
             Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);"))),
             Listener(S_TSTART, L(
                 Sleep(0.5f),
@@ -1341,8 +1404,8 @@ return {
             // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
             // (The NPC has already hidden itself at the end of the touch phase.)
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
-            // End: walking is allowed again so the participant can reach the exit gate.
-            Listener(S_END, L(Act(T_Upload), Custom("nd_setMove(1);"))),
+            // End: the exit gate comes to the participant (ExitPortal), so locomotion stays frozen.
+            Listener(S_END, L(Act(T_Upload))),
         };
     }
 
@@ -1774,9 +1837,34 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem))),
-            Listener(S_END, L(Act(T_ShowChild, ("childName", "WorldGateToLuidaBar")))),
+            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "WorldGateToLuidaBar")))),
+            Listener(S_END, L(Custom("ep_begin();")), L(Custom("ep_update();"))),
         };
+    }
+
+    // The gate (CCK World Gate) moves the participant as soon as they touch it, so it is shown only after the
+    // End countdown, directly at the participant's feet. The item sits at the standing spot (ApplyLayout).
+    static string ExitPortalLegacy()
+    {
+        return "// ---- Study 4: ExitPortal (gate back to the recruitment world, at the participant's feet) ----\n" +
+               "const EP_DELAY_SEC = " + EndGateDelaySec + ";\n" +
+               "function ep_begin() { $.state.ep_startTs = Date.now(); $.state.ep_shown = false; }\n" +
+               "function ep_update() {\n" +
+               "  if ($.state.ep_shown) return;\n" +
+               "  if (Date.now() - ($.state.ep_startTs || Date.now()) < EP_DELAY_SEC * 1000) return;\n" +
+               "  const gate = $.subNode('WorldGateToLuidaBar');\n" +
+               "  if (!gate) return;\n" +
+               "  const p = PARTICIPANTS[1];\n" +
+               "  const feet = (p && p.exists()) ? p.getPosition() : null;\n" +
+               "  if (feet) {\n" +
+               "    const r = $.getRotation();\n" +
+               "    const inv = new Quaternion(-r.x, -r.y, -r.z, r.w);\n" +
+               "    gate.setPosition(feet.clone().sub($.getPosition()).applyQuaternion(inv));\n" +
+               "  }\n" +
+               "  gate.setEnabled(true);\n" +
+               "  $.state.ep_shown = true;\n" +
+               "  $.log('[ExitPortal] gate shown' + (feet ? ' at the participant' : ' (participant not found)'));\n" +
+               "}\n";
     }
 }
 #endif

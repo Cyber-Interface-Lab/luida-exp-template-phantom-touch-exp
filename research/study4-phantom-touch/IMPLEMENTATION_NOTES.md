@@ -10,15 +10,15 @@
 | 種別 | パス | 内容 |
 |---|---|---|
 | シーン | `Assets/_Experiment_/Scenes/PhantomTouch.unity` | テンプレート由来の環境 + 下記すべて |
-| ステート | `Assets/_Experiment_/Settings/StateList/PhantomTouch.asset` | Start(qID1) → DeviceCheck → Trial - Start → Trial - Greeting(15 s) → Trial - Touch → Trial - Report → Trial - VEQ(qID2) → Trial - Rest(1 s) → SocialPresence(qID3) → PersonalExperience(qID4) → Debrief(qID5) → End |
+| ステート | `Assets/_Experiment_/Settings/StateList/PhantomTouch.asset` | Start(qID1) → DeviceCheck → Trial - Start → Trial - Greeting(15 s) → Trial - Touch → Trial - Report → Trial - VEQ(qID2) → Trial - Rest(1 s) → SocialPresence(qID3) → PersonalExperience(qID4) → Debrief（質問紙なし、OK ボタン）→ End |
 | 実験変数 | `Assets/_Experiment_/Settings/ExperimentVariables/PhantomTouch.js` | within: `block`=1,2 / `rep`=1,2（非ランダム）、between: `social`=with,without / `order`=daily_first,assigned_first、Trials Count 1 → 4 試行 |
-| 質問紙フォーム | シーン内 `LUIDA-QuestionnaireByState/<State>/Questionnaire_p1` ×5 | qID 1–5（Web Console 側の登録順と一致させること）。各コンテナは初期状態で非アクティブ（ステート開始時にギミックが有効化） |
+| 質問紙フォーム | シーン内 `LUIDA-QuestionnaireByState/<State>/Questionnaire_p1` | qID 1–4（Start, VEQ, SocialPresence, PersonalExperience。Web Console 側の登録順と一致させること。Debrief の質問紙は 2026-11-04 に外した）。各コンテナは初期状態で非アクティブ（ステート開始時にギミックが有効化） |
 | Data Collector | `Assets/_Experiment_/Scripts/DataCollectors/PhantomTouch.js`（Code モード、設定は `Settings/DataCollectorConfig/PhantomTouch.asset`） | 1 行のフィールド一覧は設計書 §12 |
 | State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal` |
 | NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（目ボーン追加済み）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`、トリガー `smile` でブレンドシェイプ `Fcl_ALL_Fun` を再生する `NpcSmile.anim`） |
-| ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
+| ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force`, `DebriefUI/DB_Ok` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
 | 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab`（1.2 × 1.8 m、初期非アクティブ） | 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。配置は §7 |
-| その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal` 配下に移した `WorldGateToLuidaBar`（End で表示） | |
+| その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal`（立ち位置に配置）配下に移した `WorldGateToLuidaBar`（End の 10 秒後に参加者の足元に表示） | |
 
 レイアウトはスポーン地点 (0,0,-2) を原点、+Z を正面として配置している。NPC は実行時に参加者の頭位置から立ち位置を再計算するので、初期位置は仮。
 
@@ -26,7 +26,7 @@
 
 自己アバター条件（参加者内）は **Default Avatar（assigned）vs 普段使い（daily）**。Web Console の参加者アバターモードは DEFAULT（`luida_default_avatar`）で、このワールドではアバター変更メニューに「Default Avatar」が表示される。行データの `avatar` は従来どおり `assigned` / `daily`、実験変数 `order` も `daily_first` / `assigned_first` のまま。
 
-参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間と `End`（退出ゲートまで歩くため）だけ。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
+参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間だけ（退出ゲートは End で足元に出るので、歩く必要はない）。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
 
 1. `Start`: 同意質問紙（qID 1）。完了で遷移。NPC は非表示。
 2. `DeviceCheck`: 頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒。60 秒経過で救済ボタンが出る。合格で行を保存して遷移。
@@ -42,11 +42,12 @@
 5. `Trial - Touch`: 開始の瞬間に参加者の位置と向きをマーカー（初期位置）へ戻し、1 秒待ってから NpcDirector が `npc_trial_start` を送信（テレポートの反映待ち）。NPC は戻った参加者の方へ向き直りながら、1 秒でマーカーの正面方向の手の届く位置（頭から約 0.5 m）へ前進し（頭の向きではなくマーカーの向きを使うので、参加者が鏡を見ていても正面に立つ）、 prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と顔を結ぶ線上の 35% 地点へ。手のひらは参加者の顔側、指は上向き) → approach(その線に沿って 2 cm/s で、手のひらが顔の 3 cm 手前に来るまで。約 15 秒) → stroke(顔を縦に撫でる: 手のひらを真下へ 4 cm、また上へ戻す、を 2 往復。速さは接近と同じ 2 cm/s、計 8 秒。手の向きは接近時のまま) → hold(1 s) → retract → 元の位置（会話距離）へ後退してから消える。撫でる量・回数は `NPC_CFG.STROKE_AMP` / `STROKE_CYCLES`（0 で撫でない）。行データに `strokeEndTs`, `strokeAmp`, `strokeCycles` を追加（撫で始め = `contactTs`）。消えた後に `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移するので、報告パネルや質問紙の間 NPC はいない。各ブロックの 2 試行目は、消えていた NPC が会話距離に現れて 0.5 秒後に前進する。120 秒の安全タイムアウトあり（このときも NPC は後退して消える）。鏡はこのステートの終了で非表示。
 6. `Trial - Report`: 0–10 → 操作チェック 1–7 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 行保存 → 遷移。
 7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
-8. `SocialPresence`(qID 3) → `PersonalExperience`(qID 4) → `Debrief`(qID 5) → `End`: データを 1 回アップロードし、ゲートを表示。移動を再び許可する。
+8. `SocialPresence`(qID 3) → `PersonalExperience`(qID 4) → `Debrief`: 正面の指示板にデブリーフ文、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
+9. `End`: データを 1 回アップロード。指示板に「あと N 秒で募集ワールドへ移動します」（10 秒のカウントダウン）を出し、0 になった時点で ExitPortal が退出ゲート（CCK World Gate）を参加者の足元に表示する。World Gate は触れた瞬間に移動させるので、文と同時に出すと即座に退出してしまう。そのためカウントダウンの後に出している（秒数は builder の `EndGateDelaySec`）。
 
 ## 3. 残作業・確認事項（優先順）
 
-1. Web Console（手動）: 実験作成（定員 1、Allowed platforms = VR、Participant Avatar = DEFAULT）、質問紙 qID 1–6 を設計書 §11 の順に登録、実験 ID を `LUIDA > Configure experiment identifiers` に設定、ワールド ID 登録。
+1. Web Console（手動）: 実験作成（定員 1、Allowed platforms = VR、Participant Avatar = DEFAULT）、質問紙 qID 1–4（Start の同意、VEQ、SocialPresence、PersonalExperience）をこの順に登録、実験 ID を `LUIDA > Configure experiment identifiers` に設定、ワールド ID 登録。
 2. テスト（設計書 §16）: T2（Default Avatar の骨格値 `AG_D_ARM`/`AG_D_SHOULDER` を実測して設定。未設定の間は自己申告のみ）、T3、T4（2 cm/s・停止位置・身長差）、T5、T6、T7（Custom Log 7 行・100 kB 未満）、T8、T10。
 3. 文言・レイアウト調整: 文言は `Study4SceneBuilder.cs` の `InstructionListeners` と各 Legacy code（`AvatarGateLegacy`, `DeviceCheckLegacy`, `ReportPanelLegacy`）、配置・文字サイズ・背景色は §3b の定数と `ApplyLayout`（§7）。変更後はメニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`。NPC の距離・反応の閾値は `NpcController.js` 冒頭の `NPC_CFG`（`IDLE_EXTRA_DIST`, `LOOK_AT_DEG`, `HAND_RAISE_OFFSET`, `SMILE_*` など）。
 4. 既知の軽微な点: ボタンは Study4Button.js の `btn_cfg` を受け取るまで非表示。`$.worldItemReference` の送信は 10 回/秒の制限があるため ReportPanel は 1 フレーム 4 件ずつ送っている。
@@ -81,8 +82,9 @@
 
 | 表示されるステート | 物 | 方位角 / 仰角 / 距離 |
 |---|---|---|
-| Start, VEQ, SocialPresence, PersonalExperience, Debrief | 質問紙（LUIDA） | ±34° / −25〜+23° / 2 m |
+| Start, VEQ, SocialPresence, PersonalExperience | 質問紙（LUIDA） | ±34° / −25〜+23° / 2 m |
 | 同上 | 指示板「side」位置 | −36〜−64° / 目の高さ付近 / 1.5 m |
+| Debrief, End | 指示板「center」位置（正面、目の高さ）と OK ボタン（Debrief、その下） | ±15° / −4〜+15°（7 行時）、ボタン −13° / 1.5 m |
 | 上記以外 | 指示板「front」位置（NPC の頭の上） | ±14° / +17〜+28°（4 行時） / 1.5 m |
 | Trial - Start | AvatarGate（紫） | −27〜−53° / −22〜+3° / 1.25 m |
 | DeviceCheck | DeviceCheck（緑） | +27〜+53° / −16〜−2° / 1.25 m |
