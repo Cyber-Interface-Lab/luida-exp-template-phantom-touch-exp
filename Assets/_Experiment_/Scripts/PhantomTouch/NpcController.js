@@ -11,7 +11,8 @@
 //                                                  turn, random reactions (nod / wave / both, sometimes smiling),
 //                                                  surprised face when touched
 //   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
-//   "npc_trial_start"     { block, rep, avatar, social } -> step closer -> prep -> raise hand -> approach (2 cm/s) -> hold -> retract -> step back
+//   "npc_trial_start"     { block, rep, avatar, social } -> step closer -> prep -> raise hand -> approach (2 cm/s)
+//                                                  -> stroke the face vertically (2 cm/s) -> hold -> retract -> step back
 //   "npc_abort"           {}                    -> back to idle
 // Output:
 //   item signal "npc_done" (a GlobalLogic on this item relays it to the global signal "npc_done")
@@ -27,7 +28,9 @@ const NPC_CFG = {
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
   READY_FRAC: 0.35,        // ready palm point: this fraction of the way from the right shoulder to the face
                            // (the approach then extends the arm along the shoulder->face line)
-  HOLD_SEC: 2.0,           // hold at the face
+  STROKE_AMP: 0.04,        // after contact the palm strokes the face vertically: down by this much and back up (m),
+  STROKE_CYCLES: 2,        //   this many times, at REACH_SPEED (0 disables the stroke)
+  HOLD_SEC: 1.0,           // rest at the face after the stroke
   RETRACT_SPEED: 0.10,     // m/s
   STOP_MARGIN: 0.03,       // stop this far before the face surface
   FACE_UP: 0.05,           // face point: head bone + up*FACE_UP + forward*FACE_FWD (head frame)
@@ -559,6 +562,8 @@ function beginApproach(head, rest, ip) {
   $.state.npc_headRot0 = head.rot.x + "," + head.rot.y + "," + head.rot.z + "," + head.rot.w;
   $.state.npc_contactTs = 0;
   $.state.npc_contactDist = -1;
+  $.state.npc_contactT = 0;
+  $.state.npc_strokeEndTs = 0;
   $.state.npc_base = null;
   $.state.npc_away = 0; $.state.npc_latMin = 0; $.state.npc_latMax = 0;
   $.state.npc_onsetDist = -1;
@@ -583,6 +588,9 @@ function finishTrial() {
     trialStartTs: $.state.npc_trialStartTs || 0,
     reachStartTs: $.state.npc_reachStartTs || 0,
     contactTs: $.state.npc_contactTs || 0,
+    strokeEndTs: $.state.npc_strokeEndTs || 0,
+    strokeAmp: NPC_CFG.STROKE_AMP,
+    strokeCycles: NPC_CFG.STROKE_CYCLES,
     retractEndTs: Date.now(),
     pathLen: $.state.npc_L || 0,
     reachDur: ($.state.npc_contactTs && $.state.npc_reachStartTs) ? ($.state.npc_contactTs - $.state.npc_reachStartTs) / 1000 : 0,
@@ -681,6 +689,19 @@ function reachArm(rest, F, frame) {
   const sol = solveArm(rest.sR, W, rest.L1, rest.L2, hint);
   return { upper: sol.upperDir, lower: sol.lowerDir, hand: frame.h, palm: frame.n, frame: frame };
 }
+// Stroke after contact: the palm slides down the face by STROKE_AMP and back up, STROKE_CYCLES
+// times, at REACH_SPEED (a triangle wave, so the speed matches the approach).
+function strokeDuration() {
+  const amp = NPC_CFG.STROKE_AMP, n = NPC_CFG.STROKE_CYCLES;
+  return (amp > 0 && n > 0 && NPC_CFG.REACH_SPEED > 0) ? 2 * amp * n / NPC_CFG.REACH_SPEED : 0;
+}
+// Downward offset (m) of the palm t seconds into the stroke.
+function strokeOffset(t) {
+  const half = NPC_CFG.STROKE_AMP / NPC_CFG.REACH_SPEED;   // seconds per half stroke
+  if (!(half > 0) || t <= 0) return 0;
+  const u = (t % (2 * half)) / half;                        // 0..2
+  return NPC_CFG.STROKE_AMP * (u <= 1 ? u : 2 - u);
+}
 // Actual palm contact point of a solved right arm (accounts for IK clamping when out of reach).
 function contactOf(rest, arm) {
   const W = vadd(vadd(rest.sR, vscale(arm.upper, rest.L1)), vscale(arm.lower, rest.L2));
@@ -761,7 +782,7 @@ function tick(dt) {
   if (social) {
     const breathe = Math.sin(2 * Math.PI * 0.25 * (Date.now() / 1000)) * 1.0;
     Q[HumanoidBone.Chest] = qaxis(R, breathe);
-    if (phase === "approach" || phase === "hold") Q[HumanoidBone.Spine] = qaxis(R, 5);
+    if (phase === "approach" || phase === "stroke" || phase === "hold") Q[HumanoidBone.Spine] = qaxis(R, 5);
   }
 
   // --- gaze (social only): head (and eyes) only; large angles are taken up by the body turn above,
@@ -847,20 +868,44 @@ function tick(dt) {
     if (reachedEnd || earlyContact) {
       $.state.npc_contactTs = Date.now();
       $.state.npc_contactDist = d;
+      $.state.npc_contactT = t;
       $.state.npc_Fc = Ft;
+      $.state.npc_strokeSec = strokeDuration();
+      // straight down (parallel to the upright face, not perpendicular to the upward approach, which
+      // would push the palm into the face on the way down)
+      $.state.npc_strokeDown = vscale(UP, -1);
+      $.state.npc_phase = "stroke";
+      $.state.npc_t = 0;
+      $.log("[NPC] contact: d=" + f3(d) + " early=" + earlyContact + ", stroking for " + f3($.state.npc_strokeSec) + " s");
+    }
+  } else if (phase === "stroke") {
+    // gently stroke the face: the palm slides down and back up along the face at the approach speed
+    // (same hand orientation, same fixed frame as the approach)
+    const Fc = $.state.npc_Fc || $.state.npc_T;
+    const dur = $.state.npc_strokeSec || 0;
+    const Fs = vadd(Fc, vscale($.state.npc_strokeDown || vscale(UP, -1), strokeOffset(Math.min(t, dur))));
+    const arm = reachArm(rest, Fs, $.state.npc_frame || reachHandFrame($.state.npc_dir));
+    armR = armRots(rest, "R", arm);
+    if (head) {
+      const Fw = toWorld(contactOf(rest, arm), ip);
+      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+    }
+    if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
+    if (t >= dur) {
+      $.state.npc_strokeEndTs = Date.now();
       $.state.npc_phase = "hold";
       $.state.npc_t = 0;
-      $.log("[NPC] contact: d=" + f3(d) + " early=" + earlyContact);
     }
   } else if (phase === "hold") {
     const Fc = $.state.npc_Fc || $.state.npc_T;
     const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));
     armR = armRots(rest, "R", arm);
+    const sinceContact = ($.state.npc_strokeSec || 0) + t;
     if (head) {
       const Fw = toWorld(contactOf(rest, arm), ip);
-      sampleTrace(dt, (NPC_CFG.REACH_SPEED > 0 ? ($.state.npc_L / NPC_CFG.REACH_SPEED) : 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+      sampleTrace(dt, ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
     }
-    if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
+    if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(sinceContact / 1.0)));
     if (t >= NPC_CFG.HOLD_SEC) {
       $.state.npc_phase = "retract";
       $.state.npc_t = 0;

@@ -4,7 +4,7 @@ const stateEnterActions = {
             $.setStateCompat('this', 'exp_showItem', true);
         } },
         { type: "exec", action: (deltaTime) => {
-            dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');
+            dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild('Text');
         } }
     ],
     1: [
@@ -35,6 +35,7 @@ const stateExitActions = {
 
 // ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
+const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
   $.state.dc_active = true;
@@ -42,7 +43,7 @@ function dc_begin() {
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
   $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText = '';
   ShowChild('Text');
-  dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' });
+  dc_send({ visible: false, label: DC_FORCE_LABEL });
   dc_render();
 }
 function dc_yaw(p) {
@@ -55,7 +56,7 @@ function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d 
 function dc_render() {
   const t = 'トラッキングの確認\n' +
     (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
-    (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より高く上げる（1秒）';
+    (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より上に（1秒）';
   if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }
 }
 function dc_update(dt) {
@@ -89,7 +90,7 @@ function dc_finish(elapsed, forced) {
   SendDataToCollector('deviceCheckForced', !!forced);
   ProcessAndSaveCollectedData();
   dc_send({ visible: false });
-  SetText('確認できました。ありがとうございます。');
+  SetText('確認できました。\nありがとうございます。');
   ToNextState();
 }
 function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_active = false; }

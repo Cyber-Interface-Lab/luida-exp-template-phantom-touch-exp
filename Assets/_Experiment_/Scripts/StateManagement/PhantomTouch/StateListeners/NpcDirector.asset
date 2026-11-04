@@ -187,7 +187,10 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: if (CONDITION['rep'] !== '2') ToNextState();
+      customAction: 'if (CONDITION[''rep''] !== ''2'') ToNextState();
+
+        else
+        $.worldItemReference(''NPC'').send(''npc_hide'', {});'
       isConditional: 0
       conditionVariable: 
       conditionValue: 

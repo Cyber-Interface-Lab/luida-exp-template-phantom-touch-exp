@@ -33,8 +33,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "dc_send({ visible: false, label: '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u304C\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\u3053\u3061\u3089'
-        }); HideChild('Text');"
+      customAction: 'dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild(''Text'');'
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -85,20 +84,21 @@ MonoBehaviour:
   eventHandlers: []
   otherImplementation: "// ---- Study 4: DeviceCheck (head yaw left/right + both
     hands above the head) ----\nconst DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC
-    = 60;\nfunction dc_send(cfg) { try { const h = $.worldItemReference('DC_Force');
-    if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e);
-    } }\nfunction dc_begin() {\n  $.state.dc_active = true;\n  $.state.dc_start =
-    Date.now();\n  $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands
-    = 0;\n  $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText
-    = '';\n  ShowChild('Text');\n  dc_send({ visible: false, label: '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u304C\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\u3053\u3061\u3089'
-    });\n  dc_render();\n}\nfunction dc_yaw(p) {\n  const r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
-    if (!r) return null;\n  const f = new Vector3(0, 0, 1).applyQuaternion(r);\n 
-    return Math.atan2(f.x, f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b)
-    { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return
-    d; }\nfunction dc_render() {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
+    = 60;\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
+    dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg',
+    cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }\nfunction dc_begin()
+    {\n  $.state.dc_active = true;\n  $.state.dc_start = Date.now();\n  $.state.dc_left
+    = false; $.state.dc_right = false; $.state.dc_hands = 0;\n  $.state.dc_yaw0 =
+    null; $.state.dc_rescue = false; $.state.dc_lastText = '';\n  ShowChild('Text');\n 
+    dc_send({ visible: false, label: DC_FORCE_LABEL });\n  dc_render();\n}\nfunction
+    dc_yaw(p) {\n  const r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  if
+    (!r) return null;\n  const f = new Vector3(0, 0, 1).applyQuaternion(r);\n  return
+    Math.atan2(f.x, f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b) { let d
+    = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }\nfunction
+    dc_render() {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
     +\n    (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') +
     '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n' +\n    (($.state.dc_hands
-    || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u982D\u3088\u308A\u9AD8\u304F\u4E0A\u3052\u308B\uFF081\u79D2\uFF09';\n 
+    || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u982D\u3088\u308A\u4E0A\u306B\uFF081\u79D2\uFF09';\n 
     if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\nfunction
     dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n 
     if (!p || !p.exists()) return;\n  const yaw = dc_yaw(p);\n  if (yaw !== null)
@@ -118,6 +118,6 @@ MonoBehaviour:
     forced) { dc_finish(elapsed, forced); return; }\n  dc_render();\n}\nfunction
     dc_finish(elapsed, forced) {\n  $.state.dc_active = false;\n  SendDataToCollector('deviceCheckSec',
     elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  ProcessAndSaveCollectedData();\n 
-    dc_send({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
+    dc_send({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); HideChild('Text');
     $.state.dc_active = false; }\n"

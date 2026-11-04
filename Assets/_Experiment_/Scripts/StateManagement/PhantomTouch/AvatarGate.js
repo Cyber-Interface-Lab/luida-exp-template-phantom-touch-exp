@@ -107,12 +107,12 @@ function ag_renderText(note) {
   let t;
   if ($.state.ag_step === 1) {
     t = daily
-      ? 'メニューを開き、普段いちばんよく使うアバターに着替えてください。\n着替え終わったら「着替えました」を押してください。'
-      : 'メニューを開き、この実験で最初に着ていた透明アバターに着替えてください。\n着替え終わったら「着替えました」を押してください。';
+      ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
+      : 'メニューから、この実験で\n最初に着ていた透明アバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。';
   } else {
     t = daily
-      ? 'いま着ているアバターは、あなたが普段最もよく使うアバターですか？'
-      : 'いま着ているのは透明アバター（自分の体が見えない状態）ですか？';
+      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
+      : 'いま着ているのは\n透明アバター（自分の体が\n見えない状態）ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -140,7 +140,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターになっていません）' : '（まだ透明アバターのままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターに\nなっていません）' : '（まだ透明アバターのままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -155,7 +155,7 @@ function ag_update(dt) {
       $.state.ag_step = 1;
       $.state.ag_okShown = null;
       ag_showButtons(false, false);
-      ag_renderText('（アバターが目標と一致していません。もう一度着替えてください）');
+      ag_renderText('（アバターが一致していません。\nもう一度着替えてください）');
       return;
     }
     ag_confirm(sig);
@@ -180,7 +180,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。まもなく始まります。');
+  SetText('ありがとうございます。\nまもなく始まります。');
   ToNextState();
 }
 function ag_end() {

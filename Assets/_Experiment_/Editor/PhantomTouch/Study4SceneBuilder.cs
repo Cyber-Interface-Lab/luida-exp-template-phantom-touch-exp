@@ -123,7 +123,7 @@ public static class Study4SceneBuilder
             ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
             var defs = new (string name, Func<List<StateListener>> listeners, Func<List<EventHandlerData>> handlers, string legacy)[]
             {
-                ("Instruction", InstructionListeners, null, ""),
+                ("Instruction", InstructionListeners, null, InstructionLegacy(l)),
                 ("NpcDirector", () => NpcDirectorListeners(l), null, NpcDirectorLegacy),
                 ("AvatarGate", AvatarGateListeners, null, AvatarGateLegacy),
                 ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
@@ -157,6 +157,20 @@ public static class Study4SceneBuilder
         LuidaScriptCombiner.CombineAll();
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Debug.Log("[Study4] item behaviours updated (scene objects untouched; save the scene to keep the combined scripts)");
+    }
+
+    /// <summary>
+    /// Re-applies the UI layout (instruction board, side panels, buttons, coloured backings, mirror) to the
+    /// existing scene objects, then rewrites the item behaviours (the instruction placements and the panel
+    /// texts depend on the layout). Nothing else in the scene or the settings (e.g. the state list) changes.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Update layout and behaviours (keep scene)")]
+    public static void UpdateLayoutAndBehaviours()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        ApplyLayout(ComputeLayout(), CreateMaterials());
+        UpdateItemBehaviours();
     }
 
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
@@ -388,6 +402,7 @@ return {
     // NPC measurements
     social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
+    strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
@@ -410,6 +425,16 @@ return {
             var d = pos - viewer; d.y = 0;
             return Quaternion.LookRotation(d.sqrMagnitude > 1e-6f ? d.normalized : fwd, Vector3.up);
         }
+        public Vector3 Eye => origin + Vector3.up * EyeHeight;
+        public Quaternion Frame => Quaternion.LookRotation(fwd, Vector3.up);
+        // yaw from the facing direction (deg, + = right), horizontal distance from the standing spot, height
+        public Vector3 Around(float yawDeg, float dist, float height)
+        {
+            float r = yawDeg * Mathf.Deg2Rad;
+            return origin + (right * Mathf.Sin(r) + fwd * Mathf.Cos(r)) * dist + Vector3.up * height;
+        }
+        // +Z from the eye to pos (pitch included), so a TextView or quad at pos is seen face-on
+        public Quaternion FaceEye(Vector3 pos) => Quaternion.LookRotation((pos - Eye).normalized, Vector3.up);
     }
 
     static Layout ComputeLayout()
@@ -427,7 +452,7 @@ return {
         return l;
     }
 
-    class Materials { public Material btn, btnOn, marker, panel; }
+    class Materials { public Material btn, btnOn, marker, panel, insBg, gateBg, dcBg, rpBg; }
 
     static Materials CreateMaterials()
     {
@@ -438,6 +463,11 @@ return {
             btnOn = MakeMaterial("BtnOn", new Color(0.95f, 0.55f, 0.15f)),
             marker = MakeMaterial("FloorMarker", new Color(0.35f, 0.60f, 0.90f)),
             panel = MakeMaterial("Panel", new Color(0.10f, 0.10f, 0.12f)),
+            // semi-transparent backings, one hue per text group so texts shown together are easy to tell apart
+            insBg = MakeTransparentMaterial("BgInstruction", new Color(0.06f, 0.12f, 0.30f, 0.70f)),
+            gateBg = MakeTransparentMaterial("BgAvatarGate", new Color(0.26f, 0.08f, 0.30f, 0.70f)),
+            dcBg = MakeTransparentMaterial("BgDeviceCheck", new Color(0.04f, 0.24f, 0.20f, 0.70f)),
+            rpBg = MakeTransparentMaterial("BgReport", new Color(0.32f, 0.17f, 0.03f, 0.70f)),
         };
         AssetDatabase.SaveAssets();
         return m;
@@ -452,6 +482,203 @@ return {
         var mat = new Material(shader) { color = color };
         AssetDatabase.CreateAsset(mat, path);
         return mat;
+    }
+
+    // Standard shader in Fade mode, drawn just before the text (ZTestText, queue 3000) so the text stays on top.
+    static Material MakeTransparentMaterial(string name, Color color)
+    {
+        string path = MaterialsFolder + "/" + name + ".mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        bool create = mat == null;
+        if (create) mat = new Material(Shader.Find("Standard"));
+        mat.color = color;
+        mat.SetFloat("_Mode", 2f);
+        mat.SetOverrideTag("RenderType", "Transparent");
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.EnableKeyword("_ALPHABLEND_ON");
+        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        mat.SetFloat("_Glossiness", 0f);
+        mat.SetFloat("_Metallic", 0f);
+        mat.SetFloat("_SpecularHighlights", 0f);
+        mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+        mat.SetFloat("_GlossyReflections", 0f);
+        mat.EnableKeyword("_GLOSSYREFLECTIONS_OFF");
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", new Color(color.r, color.g, color.b) * 0.6f);
+        mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        mat.renderQueue = 2990;
+        if (create) AssetDatabase.CreateAsset(mat, path);
+        else EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    // ------------------------------------------------------------------ 3b. UI layout
+    // Placement is relative to the participant's standing spot: yaw from the facing direction (deg,
+    // + = right), horizontal distance and height. CCK TextView glyph metrics (Noto Sans CJK): a full-width
+    // glyph is about 1.85 x size wide and a line 2.74 x size tall (size 0.024 at 1.5 m = ~1.7 deg per glyph).
+    // Lines are kept to about 15 glyphs. What is shown together, and where:
+    //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "side" slot (yaw -50 deg)
+    //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
+    //   + one side panel: avatar gate (left, trial start) / device check, report (right)
+    const float EyeHeight = 1.55f;
+    const float GlyphW = 1.85f, LineH = 2.74f;
+    const float InsSize = 0.024f, InsDist = 1.5f, InsFrontElevDeg = 23f, InsSideYawDeg = -50f, InsSideHeight = 1.65f;
+    const int InsMaxLines = 7;
+    const float InsBoardW = 0.74f, InsBoardPad = 0.05f;
+    const float PanelTextSize = 0.018f, PanelDist = 1.25f, LeftPanelYawDeg = -40f, RightPanelYawDeg = 40f;
+    const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
+    const int RpCols = 4;   // report options: 4 x 3 grid (0-10 fill it row by row)
+    const float RpBtnW = 0.16f, RpBtnH = 0.10f, RpPitchX = 0.175f, RpPitchY = 0.115f;
+
+    static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
+    static Vector3 InsSidePos(Layout l) => l.Around(InsSideYawDeg, InsDist, InsSideHeight);
+
+    /// <summary>
+    /// Places the Study 4 UI on the existing scene objects: instruction board, side panels and their
+    /// buttons, the coloured backings (children of each Text, so they show and hide with it) and the
+    /// mirror. Shared by the full build and "Update layout and behaviours (keep scene)".
+    /// </summary>
+    static void ApplyLayout(Layout l, Materials m)
+    {
+        // Instruction: the item sits at the standing spot; ins_show() (InstructionLegacy) moves its Text
+        // between the front and side slots and enables the backing Bg_<line count>.
+        var ins = FindRoot("Instruction");
+        if (ins != null)
+        {
+            ins.SetPositionAndRotation(l.origin, l.Frame);
+            var text = ins.Find("Text");
+            if (text != null)
+            {
+                var front = InsFrontPos(l);
+                text.SetPositionAndRotation(front, l.FaceEye(front));
+                SetTextStyle(text, InsSize, TextAnchor.MiddleCenter);
+                for (int n = 1; n <= InsMaxLines; n++)
+                    Backing(text, "Bg_" + n, m.insBg, Vector2.zero, new Vector2(InsBoardW, n * LineH * InsSize + InsBoardPad), 0.01f)
+                        .gameObject.SetActive(false);
+            }
+        }
+
+        // AvatarGate (left): text grows upwards from just above the buttons; "Changed" and Yes/No are on
+        // separate rows so a double click on "Changed" cannot answer the confirmation.
+        var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", LeftPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.29f, -0.16f, 0.58f, 0.60f));
+        SetButton(gate, "AG_Changed", new Vector3(0f, 0f, 0f), new Vector3(0.30f, 0.08f, 0.04f), 0.02f);
+        SetButton(gate, "AG_Yes", new Vector3(-0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
+        SetButton(gate, "AG_No", new Vector3(0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
+
+        // DeviceCheck (right)
+        var dc = PlacePanel(l, "DeviceCheckUI", "DeviceCheck", RightPanelYawDeg, 1.25f, 0.075f, m.dcBg, new Rect(-0.29f, -0.07f, 0.58f, 0.33f));
+        SetButton(dc, "DC_Force", Vector3.zero, new Vector3(0.36f, 0.10f, 0.04f), 0.016f, DcForceLabel);
+
+        // ReportPanel (right, same place as DeviceCheck; never shown together)
+        var rp = PlacePanel(l, "ReportPanelUI", "ReportPanel", RightPanelYawDeg, 1.0f, 0.40f, m.rpBg, new Rect(-0.38f, -0.08f, 0.76f, 0.70f));
+        for (int i = 0; i <= 10; i++)
+        {
+            int r = i / RpCols, c = i % RpCols;
+            SetButton(rp, "RP_" + i, new Vector3((c - (RpCols - 1) * 0.5f) * RpPitchX, 0.10f + (2 - r) * RpPitchY, 0f),
+                new Vector3(RpBtnW, RpBtnH, 0.04f), 0.024f);
+        }
+        SetButton(rp, "RP_Done", new Vector3(0f, -0.02f, 0f), new Vector3(0.26f, 0.08f, 0.04f), 0.02f);
+
+        // Mirror (front-left, facing the participant): close enough to see one's own avatar and the NPC's
+        // hand at one's face; clear of the NPC and of the front instruction slot.
+        var mp = FindRoot("MirrorPanel");
+        if (mp != null)
+        {
+            var pos = l.Around(MirrorYawDeg, MirrorDist, MirrorCenterHeight);
+            mp.SetPositionAndRotation(pos, l.FaceAwayFromViewer(pos));
+            var mir = mp.Find("Mirror");
+            if (mir != null)
+            {
+                mir.localPosition = Vector3.zero;
+                mir.localRotation = Quaternion.identity;
+                mir.localScale = new Vector3(MirrorW, MirrorH, 1f);
+            }
+        }
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+    }
+
+    static Transform FindRoot(string name)
+    {
+        var go = SceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == name);
+        if (go == null) Debug.LogWarning("[Study4] scene object not found: " + name);
+        return go != null ? go.transform : null;
+    }
+
+    // Panel group (buttons) facing the eye; the state-listening item's Text sits textY above the button row
+    // with its backing covering `board` (group coordinates; x, y = lower-left corner).
+    static Transform PlacePanel(Layout l, string groupName, string itemName, float yawDeg, float height, float textY, Material bgMat, Rect board)
+    {
+        var g = FindRoot(groupName);
+        if (g == null) return null;
+        var pos = l.Around(yawDeg, PanelDist, height);
+        g.SetPositionAndRotation(pos, l.FaceEye(pos));
+        var item = g.Find(itemName);
+        var text = item != null ? item.Find("Text") : null;
+        if (text == null) { Debug.LogWarning("[Study4] " + groupName + "/" + itemName + "/Text not found"); return g; }
+        item.localPosition = Vector3.zero;
+        item.localRotation = Quaternion.identity;
+        text.localPosition = new Vector3(0f, textY, 0f);
+        text.localRotation = Quaternion.identity;
+        SetTextStyle(text, PanelTextSize, TextAnchor.LowerCenter);
+        Backing(text, "Bg", bgMat, new Vector2(board.center.x, board.center.y - textY), board.size, 0.035f);
+        return g;
+    }
+
+    static void SetTextStyle(Transform t, float size, TextAnchor anchor)
+    {
+        var tv = t.GetComponent<TextView>();
+        if (tv == null) return;
+        var so = new SerializedObject(tv);
+        so.FindProperty("size").floatValue = size;
+        so.FindProperty("textAnchor").enumValueIndex = (int)anchor;
+        so.FindProperty("textAlignment").enumValueIndex = (int)TextAlignment.Center;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    // Semi-transparent quad behind a text (local +Z is away from the reader). No collider, so it never
+    // blocks button clicks.
+    static Transform Backing(Transform parent, string name, Material mat, Vector2 center, Vector2 size, float behind)
+    {
+        var t = parent.Find(name);
+        if (t == null)
+        {
+            var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            q.name = name;
+            Object.DestroyImmediate(q.GetComponent<Collider>());
+            t = q.transform;
+            t.SetParent(parent, false);
+        }
+        t.localPosition = new Vector3(center.x, center.y, behind);
+        t.localRotation = Quaternion.identity;
+        t.localScale = new Vector3(size.x, size.y, 1f);
+        var r = t.GetComponent<MeshRenderer>();
+        r.sharedMaterial = mat;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        return t;
+    }
+
+    static void SetButton(Transform group, string id, Vector3 pos, Vector3 size, float labelSize, string label = null)
+    {
+        var b = group != null ? group.Find(id) : null;
+        if (b == null) { Debug.LogWarning("[Study4] button not found: " + id); return; }
+        b.localPosition = pos;
+        b.localRotation = Quaternion.identity;
+        var v = b.Find("Visual");
+        if (v != null) v.localScale = size;
+        var vo = b.Find("VisualOn");
+        if (vo != null) vo.localScale = size * 1.06f;
+        var lab = b.Find("Label");
+        var tv = lab != null ? lab.GetComponent<TextView>() : null;
+        if (tv == null) return;
+        lab.localPosition = new Vector3(0f, 0f, -size.z * 0.5f - 0.005f);
+        var so = new SerializedObject(tv);
+        so.FindProperty("size").floatValue = labelSize;
+        if (label != null) so.FindProperty("text").stringValue = label;
+        so.ApplyModifiedPropertiesWithoutUndo();
     }
 
     static void BuildFloorMarker(Layout l, Materials m)
@@ -745,7 +972,7 @@ return {
             instruction.transform.position = l.P(0f, 1.95f, 2.3f);
             instruction.transform.rotation = l.FaceAwayFromViewer(instruction.transform.position);
             AddText(instruction, "Text", Vector3.zero, 0.07f, 1.0f);
-            WriteItemData(instruction, InstructionListeners(), null, "");
+            WriteItemData(instruction, InstructionListeners(), null, InstructionLegacy(l));
 
             // -- NpcDirector --------------------------------------------------------
             var director = CreateSli(tab, "NpcDirector");
@@ -780,7 +1007,7 @@ return {
             var deviceCheck = CreateSli(tab, "DeviceCheck");
             deviceCheck.transform.SetParent(dcGroup.transform, false);
             AddText(deviceCheck, "Text", new Vector3(0f, 0.25f, 0f), 0.04f, 1.0f);
-            var dcBtn = CreateButton(dcGroup.transform, "DC_Force", "トラッキングが確認できない場合はこちら", new Vector3(0f, -0.05f, 0f), new Vector3(0.55f, 0.09f, 0.05f),
+            var dcBtn = CreateButton(dcGroup.transform, "DC_Force", DcForceLabel, new Vector3(0f, -0.05f, 0f), new Vector3(0.55f, 0.09f, 0.05f),
                 deviceCheck.GetComponent<Item>(), "dc_btn", 1, m, 0.028f);
             AddWorldItemReference(deviceCheck, "DC_Force", dcBtn.GetComponent<Item>());
             WriteItemData(deviceCheck, DeviceCheckListeners(), null, DeviceCheckLegacy);
@@ -838,6 +1065,9 @@ return {
             }
             else Debug.LogWarning("[Study4] WorldGateToLuidaBar instance not found in the template scene");
             WriteItemData(exitPortal, ExitPortalListeners(), null, "");
+
+            // -- final placement, sizes and backings of all UI (also used by "Update layout ...") --
+            ApplyLayout(l, m);
 
             // -- generate JS for all items -------------------------------------------
             ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
@@ -1002,23 +1232,52 @@ return {
     static List<StateListenerAction> L(params StateListenerAction[] a) => a.ToList();
 
     // ------------------------------------------------------------------ Instruction
+    // ins_show(slot, text): 'front' = above the NPC's head, 'side' = left of the questionnaire (used in the
+    // questionnaire states). Lines are kept to about 15 glyphs.
     static List<StateListener> InstructionListeners()
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), SetText("ようこそ。\\n目の前の質問紙で研究の説明を読み、各項目にチェックを入れて進んでください。"))),
-            Listener(S_DEVICE, L(SetText("トラッキングの確認をします。\\n1) 頭をゆっくり左右に向けてください\\n2) 両手を頭より高く上げてください"))),
-            Listener(S_TSTART, L(Custom("SetText('ブロック ' + CONDITION['block'] + ' / 2');"))),
-            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') SetText('目の前にアバターが現れます。\\n15秒間、そのアバターを見て、手を振って挨拶してください。');"))),
-            Listener(S_TOUCH, L(SetText("正面の相手の手がゆっくり近づきます。\\n顔の正面を向いたまま、楽な姿勢で立って見ていてください。"))),
-            Listener(S_REPORT, L(SetText("右側のパネルで質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') SetText('質問紙に答えてください。');"))),
-            Listener(S_TREST, L(SetText("少し休憩します…"))),
-            Listener(S_SOCIAL, L(SetText("正面の相手（NPC）についての質問紙に答えてください。"))),
-            Listener(S_PERSONAL, L(SetText("最後に、あなた自身のメタバース利用についての質問紙に答えてください。"))),
-            Listener(S_DEBRIEF, L(SetText("ご協力ありがとうございました。\\nこの実験は、他者のアバターの手が近づいたときに生じる感覚（ファントムタッチ）を調べるものでした。\\n質問紙で確認とギフト券送付先の入力をお願いします。"))),
-            Listener(S_END, L(SetText("ご参加ありがとうございました。\\n右側のゲートから募集ワールドへ戻れます。"))),
+            Listener(S_START, L(Act(T_ShowItem), Ins("side", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
+            Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
+            Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
+            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '15秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
+            Listener(S_TOUCH, L(Ins("front", "正面の相手の手が\\nゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
+            Listener(S_REPORT, L(Ins("front", "右側のパネルで\\n質問に答えてください。"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('side', '質問紙に\\n答えてください。');"))),
+            Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
+            Listener(S_SOCIAL, L(Ins("side", "さきほどの相手（NPC）\\nについての質問紙に\\n答えてください。"))),
+            Listener(S_PERSONAL, L(Ins("side", "最後に、あなた自身の\\nメタバース利用についての\\n質問紙に答えてください。"))),
+            Listener(S_DEBRIEF, L(Ins("side", "ご協力ありがとうございました。\\nこの実験は、他者のアバターの\\n手が近づいたときに生じる\\n感覚（ファントムタッチ）を\\n調べるものでした。\\n質問紙で、確認とギフト券\\n送付先の入力をお願いします。"))),
+            Listener(S_END, L(Ins("front", "ご参加ありがとうございました。\\n右側のゲートから\\n募集ワールドへ戻れます。"))),
         };
+    }
+    static StateListenerAction Ins(string slot, string text) => Custom("ins_show('" + slot + "', '" + text + "');");
+
+    static string F4(float v) => v.ToString("0.####", CultureInfo.InvariantCulture);
+
+    // The Instruction item sits at the standing spot (ApplyLayout); slot poses are in its local frame.
+    static string InstructionLegacy(Layout l)
+    {
+        var inv = Quaternion.Inverse(l.Frame);
+        string Slot(Vector3 wp)
+        {
+            var lp = inv * (wp - l.origin);
+            var lr = inv * l.FaceEye(wp);
+            return "{ p: new Vector3(" + F4(lp.x) + ", " + F4(lp.y) + ", " + F4(lp.z) + "), r: new Quaternion(" +
+                   F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + ") }";
+        }
+        return "// ---- Study 4: Instruction board (two placements; coloured backing sized to the line count) ----\n" +
+               "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l)) + ",\n  side: " + Slot(InsSidePos(l)) + ",\n};\n" +
+               "const INS_BG_MAX = " + InsMaxLines + ";\n" +
+               "function ins_show(slot, text) {\n" +
+               "  const s = INS_SLOTS[slot] || INS_SLOTS.front;\n" +
+               "  const t = $.subNode('Text');\n" +
+               "  if (t) { t.setPosition(s.p); t.setRotation(s.r); }\n" +
+               "  SetText(text);\n" +
+               "  const n = Math.min(INS_BG_MAX, text ? String(text).split('\\n').length : 0);\n" +
+               "  for (let i = 1; i <= INS_BG_MAX; i++) { const bg = $.subNode('Bg_' + i); if (bg) bg.setEnabled(i === n); }\n" +
+               "}\n";
     }
 
     // ------------------------------------------------------------------ NpcDirector
@@ -1065,7 +1324,9 @@ return {
                     "  ToNextState();\n" +
                     "}"))),
             // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
+            // From the VEQ on the NPC is hidden so it does not stand in front of the questionnaires (it is
+            // shown again at the next block's greeting).
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();\nelse $.worldItemReference('NPC').send('npc_hide', {});"))),
             Listener(S_END, L(Act(T_Upload))),
         };
     }
@@ -1175,12 +1436,12 @@ function ag_renderText(note) {
   let t;
   if ($.state.ag_step === 1) {
     t = daily
-      ? 'メニューを開き、普段いちばんよく使うアバターに着替えてください。\n着替え終わったら「着替えました」を押してください。'
-      : 'メニューを開き、この実験で最初に着ていた透明アバターに着替えてください。\n着替え終わったら「着替えました」を押してください。';
+      ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
+      : 'メニューから、この実験で\n最初に着ていた透明アバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。';
   } else {
     t = daily
-      ? 'いま着ているアバターは、あなたが普段最もよく使うアバターですか？'
-      : 'いま着ているのは透明アバター（自分の体が見えない状態）ですか？';
+      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
+      : 'いま着ているのは\n透明アバター（自分の体が\n見えない状態）ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -1208,7 +1469,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターになっていません）' : '（まだ透明アバターのままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターに\nなっていません）' : '（まだ透明アバターのままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -1223,7 +1484,7 @@ function ag_update(dt) {
       $.state.ag_step = 1;
       $.state.ag_okShown = null;
       ag_showButtons(false, false);
-      ag_renderText('（アバターが目標と一致していません。もう一度着替えてください）');
+      ag_renderText('（アバターが一致していません。\nもう一度着替えてください）');
       return;
     }
     ag_confirm(sig);
@@ -1248,7 +1509,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。まもなく始まります。');
+  SetText('ありがとうございます。\nまもなく始まります。');
   ToNextState();
 }
 function ag_end() {
@@ -1259,11 +1520,13 @@ function ag_end() {
 ";
 
     // ------------------------------------------------------------------ DeviceCheck
+    const string DcForceLabel = "確認できない場合は\nこちらを押してください";   // = DC_FORCE_LABEL below
+
     static List<StateListener> DeviceCheckListeners()
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), Custom("dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' }); HideChild('Text');"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild('Text');"))),
             Listener(S_DEVICE,
                 L(Custom("dc_begin();")),
                 L(Custom("dc_update(deltaTime);")),
@@ -1273,6 +1536,7 @@ function ag_end() {
 
     const string DeviceCheckLegacy = @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
+const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
   $.state.dc_active = true;
@@ -1280,7 +1544,7 @@ function dc_begin() {
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
   $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText = '';
   ShowChild('Text');
-  dc_send({ visible: false, label: 'トラッキングが確認できない場合はこちら' });
+  dc_send({ visible: false, label: DC_FORCE_LABEL });
   dc_render();
 }
 function dc_yaw(p) {
@@ -1293,7 +1557,7 @@ function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d 
 function dc_render() {
   const t = 'トラッキングの確認\n' +
     (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
-    (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より高く上げる（1秒）';
+    (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より上に（1秒）';
   if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }
 }
 function dc_update(dt) {
@@ -1327,7 +1591,7 @@ function dc_finish(elapsed, forced) {
   SendDataToCollector('deviceCheckForced', !!forced);
   ProcessAndSaveCollectedData();
   dc_send({ visible: false });
-  SetText('確認できました。ありがとうございます。');
+  SetText('確認できました。\nありがとうございます。');
   ToNextState();
 }
 function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_active = false; }
@@ -1356,8 +1620,12 @@ function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_a
     const string ReportPanelLegacy = @"// ---- Study 4: ReportPanel (0-10 rating -> manipulation check -> type -> location) ----
 const RP_BTN = ['RP_0', 'RP_1', 'RP_2', 'RP_3', 'RP_4', 'RP_5', 'RP_6', 'RP_7', 'RP_8', 'RP_9', 'RP_10'];
 const RP_DONE = 'RP_Done';
-const RP_TYPES = ['圧迫感', 'ぞわぞわ・むずむず', '温かさ', '冷たさ', '風・空気の動き', 'しびれ', 'その他'];
-const RP_LOCS = ['額', '目のまわり', '頬', '鼻・口のまわり', 'あご', '頭の側面・耳', '首', 'その他'];
+const RP_TYPES = ['圧迫感', 'ぞわぞわ・\nむずむず', '温かさ', '冷たさ', '風・空気の\n動き', 'しびれ', 'その他'];
+const RP_LOCS = ['額', '目のまわり', '頬', '鼻・口の\nまわり', 'あご', '頭の側面・\n耳', '首', 'その他'];
+// label fit inside the option buttons: [max width, max height, max size] (m); see Study4Button.js
+const RP_FIT = [0.144, 0.085, 0.024];
+const RP_FIT_MULTI = [0.144, 0.085, 0.0155];   // word options: one size for all (the 2-line labels set it)
+const RP_DONE_FIT = [0.23, 0.07, 0.022];
 let rp_queue = [];
 function rp_enqueue(id, cfg) { rp_queue.push({ id: id, cfg: cfg }); }
 // Messages to other items are rate-limited (10/s per item); spread them over frames.
@@ -1371,9 +1639,9 @@ function rp_flush() {
 }
 function rp_showOptions(labels, multi) {
   for (let i = 0; i < RP_BTN.length; i++) {
-    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label: labels[i], on: false } : { visible: false, on: false });
+    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label: labels[i], on: false, fit: multi ? RP_FIT_MULTI : RP_FIT } : { visible: false, on: false });
   }
-  rp_enqueue(RP_DONE, { visible: !!multi, label: '決定', on: false });
+  rp_enqueue(RP_DONE, { visible: !!multi, label: '決定', on: false, fit: RP_DONE_FIT });
   $.state.rp_sel = [];
 }
 function rp_hideAll() {
@@ -1390,16 +1658,16 @@ function rp_begin() {
 function rp_render() {
   const s = $.state.rp_step;
   if (s === 1) {
-    SetText('相手の手が近づいたとき、顔に何か感じましたか？\n0 = まったく感じなかった　…　10 = 非常に強く感じた');
+    SetText('相手の手が近づいたとき、\n顔に何か感じましたか？\n0：まったく感じなかった\n10：非常に強く感じた');
     rp_showOptions(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], false);
   } else if (s === 2) {
-    SetText('相手はあなたに注意を向けていると感じましたか？\n1 = まったく感じなかった　…　7 = 強く感じた');
+    SetText('相手はあなたに注意を\n向けていると感じましたか？\n1：まったく感じなかった\n7：強く感じた');
     rp_showOptions(['1', '2', '3', '4', '5', '6', '7'], false);
   } else if (s === 3) {
-    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_TYPES, true);
   } else if (s === 4) {
-    SetText('どこに感じましたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    SetText('どこに感じましたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_LOCS, true);
   }
 }

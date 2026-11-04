@@ -47,6 +47,7 @@ const stateEnterActions = {
     6: [
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] !== '2') ToNextState();
+            else $.worldItemReference('NPC').send('npc_hide', {});
         } }
     ],
     11: [

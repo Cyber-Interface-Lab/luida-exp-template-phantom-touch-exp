@@ -52,6 +52,7 @@ MonoBehaviour:
     // NPC measurements\n    social: CD['social'], npcBlock: CD['npcBlock'], npcRep:
     CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs: CD['trialStartTs'],
     reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],\n   
+    strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n   
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'],
     reachable: CD['reachable'],\n    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n   
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:

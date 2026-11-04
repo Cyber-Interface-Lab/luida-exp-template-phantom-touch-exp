@@ -40,8 +40,12 @@ function Update(deltaTime) {
 // ---- Study 4: ReportPanel (0-10 rating -> manipulation check -> type -> location) ----
 const RP_BTN = ['RP_0', 'RP_1', 'RP_2', 'RP_3', 'RP_4', 'RP_5', 'RP_6', 'RP_7', 'RP_8', 'RP_9', 'RP_10'];
 const RP_DONE = 'RP_Done';
-const RP_TYPES = ['圧迫感', 'ぞわぞわ・むずむず', '温かさ', '冷たさ', '風・空気の動き', 'しびれ', 'その他'];
-const RP_LOCS = ['額', '目のまわり', '頬', '鼻・口のまわり', 'あご', '頭の側面・耳', '首', 'その他'];
+const RP_TYPES = ['圧迫感', 'ぞわぞわ・\nむずむず', '温かさ', '冷たさ', '風・空気の\n動き', 'しびれ', 'その他'];
+const RP_LOCS = ['額', '目のまわり', '頬', '鼻・口の\nまわり', 'あご', '頭の側面・\n耳', '首', 'その他'];
+// label fit inside the option buttons: [max width, max height, max size] (m); see Study4Button.js
+const RP_FIT = [0.144, 0.085, 0.024];
+const RP_FIT_MULTI = [0.144, 0.085, 0.0155];   // word options: one size for all (the 2-line labels set it)
+const RP_DONE_FIT = [0.23, 0.07, 0.022];
 let rp_queue = [];
 function rp_enqueue(id, cfg) { rp_queue.push({ id: id, cfg: cfg }); }
 // Messages to other items are rate-limited (10/s per item); spread them over frames.
@@ -55,9 +59,9 @@ function rp_flush() {
 }
 function rp_showOptions(labels, multi) {
   for (let i = 0; i < RP_BTN.length; i++) {
-    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label: labels[i], on: false } : { visible: false, on: false });
+    rp_enqueue(RP_BTN[i], i < labels.length ? { visible: true, label: labels[i], on: false, fit: multi ? RP_FIT_MULTI : RP_FIT } : { visible: false, on: false });
   }
-  rp_enqueue(RP_DONE, { visible: !!multi, label: '決定', on: false });
+  rp_enqueue(RP_DONE, { visible: !!multi, label: '決定', on: false, fit: RP_DONE_FIT });
   $.state.rp_sel = [];
 }
 function rp_hideAll() {
@@ -74,16 +78,16 @@ function rp_begin() {
 function rp_render() {
   const s = $.state.rp_step;
   if (s === 1) {
-    SetText('相手の手が近づいたとき、顔に何か感じましたか？\n0 = まったく感じなかった　…　10 = 非常に強く感じた');
+    SetText('相手の手が近づいたとき、\n顔に何か感じましたか？\n0：まったく感じなかった\n10：非常に強く感じた');
     rp_showOptions(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], false);
   } else if (s === 2) {
-    SetText('相手はあなたに注意を向けていると感じましたか？\n1 = まったく感じなかった　…　7 = 強く感じた');
+    SetText('相手はあなたに注意を\n向けていると感じましたか？\n1：まったく感じなかった\n7：強く感じた');
     rp_showOptions(['1', '2', '3', '4', '5', '6', '7'], false);
   } else if (s === 3) {
-    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_TYPES, true);
   } else if (s === 4) {
-    SetText('どこに感じましたか？\n当てはまるものをすべて選び、「決定」を押してください。');
+    SetText('どこに感じましたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_LOCS, true);
   }
 }
