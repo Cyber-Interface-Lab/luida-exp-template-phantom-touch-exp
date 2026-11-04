@@ -2,6 +2,9 @@ const stateEnterActions = {
     0: [
         { type: "exec", action: (deltaTime) => {
             $.setStateCompat('this', 'exp_showItem', true);
+        } },
+        { type: "exec", action: (deltaTime) => {
+            nd_setMove(0);
         } }
     ],
     2: [
@@ -18,7 +21,7 @@ const stateEnterActions = {
         } },
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
-              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with' });
+              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1) });
               $.worldItemReference('NPC').send('npc_hide', {});
             }
         } }
@@ -26,6 +29,7 @@ const stateEnterActions = {
     3: [
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
+              nd_setMove(1);
               $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });
               $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });
             } else {
@@ -35,24 +39,36 @@ const stateEnterActions = {
     ],
     4: [
         { type: "exec", action: (deltaTime) => {
+            nd_setMove(0);
             nd_arm();
             $.state.nd_touchStartTs = Date.now();
             SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);
             SendDataToCollector('npcTimeout', false);
+        } },
+        { type: "exec", action: (deltaTime) => {
+            PARTICIPANTS[1].setPosition(new Vector3(0, 0, -2));
+        } },
+        { type: "exec", action: (deltaTime) => {
+            PARTICIPANTS[1].setRotation(new Quaternion().setFromEulerAngles(new Vector3(0, 0, 0)));
+        } },
+        { type: "sleep", value: 1 },
+        { type: "exec", action: (deltaTime) => {
             $.worldItemReference('NPC').send('npc_trial_start', {
-              block: CONDITION['block'], rep: CONDITION['rep'],
+              block: CONDITION['block'], rep: CONDITION['rep'], fwd: new Vector3(0, 0, 1),
               avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });
         } }
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] !== '2') ToNextState();
-            else $.worldItemReference('NPC').send('npc_hide', {});
         } }
     ],
     11: [
         { type: "exec", action: (deltaTime) => {
             $.sendSignalCompat('this', 'exp_uploadCustomData');
+        } },
+        { type: "exec", action: (deltaTime) => {
+            nd_setMove(1);
         } }
     ]
 };
@@ -75,11 +91,16 @@ const duringStateActions = {
 const stateExitActions = {
     3: [
         { type: "exec", action: (deltaTime) => {
+            nd_setMove(0);
             $.worldItemReference('NPC').send('npc_greeting_end', {});
         } }
     ]
 };
 
+
+function Update(deltaTime) {
+    nd_tick(deltaTime);
+}
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
@@ -99,4 +120,18 @@ function nd_donePulse() {
   const t = nd_signalTime('npc_done');
   if (t !== ($.state.nd_lastDone || 0)) { $.state.nd_lastDone = t; return t !== 0; }
   return false;
+}
+// Participant locomotion (stick / keyboard move speed): 0 unless set otherwise; walking in the room is
+// not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
+// to 1 when the participant is (re)initialized.
+const ND_MOVE_REAPPLY_SEC = 1.0;
+function nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn = 0; }
+function nd_tick(dt) {
+  $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn || 0) - dt;
+  if ($.state.nd_moveApplyIn > 0) return;
+  $.state.nd_moveApplyIn = ND_MOVE_REAPPLY_SEC;
+  const p = PARTICIPANTS[1];
+  if (!p || !p.exists()) return;
+  const rate = (typeof $.state.nd_moveRate === 'number') ? $.state.nd_moveRate : 0;
+  try { p.setMoveSpeedRate(rate); } catch (e) { $.log('[NpcDirector] setMoveSpeedRate failed: ' + e); }
 }

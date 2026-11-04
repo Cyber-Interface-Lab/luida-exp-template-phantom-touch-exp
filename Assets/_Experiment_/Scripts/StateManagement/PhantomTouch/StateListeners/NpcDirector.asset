@@ -27,6 +27,18 @@ MonoBehaviour:
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: nd_setMove(0);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
   - stateID: 2
@@ -103,7 +115,7 @@ MonoBehaviour:
         variables: []
         category: 
       customAction: '$.worldItemReference(''NPC'').send(''npc_setup'', { social:
-        CONDITION[''social''] === ''with'' });
+        CONDITION[''social''] === ''with'', fwd: new Vector3(0, 0, 1) });
 
         $.worldItemReference(''NPC'').send(''npc_hide'',
         {});'
@@ -122,7 +134,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "if (CONDITION['rep'] === '1') {\n  $.worldItemReference('NPC').send('npc_show',
+      customAction: "if (CONDITION['rep'] === '1') {\n  nd_setMove(1);\n  $.worldItemReference('NPC').send('npc_show',
         { social: CONDITION['social'] === 'with' });\n  $.worldItemReference('NPC').send('npc_greeting_begin',
         { social: CONDITION['social'] === 'with' });\n} else {\n  ToNextState();\n}"
       isConditional: 0
@@ -138,7 +150,10 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: $.worldItemReference('NPC').send('npc_greeting_end', {});
+      customAction: 'nd_setMove(0);
+
+        $.worldItemReference(''NPC'').send(''npc_greeting_end'',
+        {});'
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -152,10 +167,97 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "nd_arm();\n$.state.nd_touchStartTs = Date.now();\nSendDataToCollector('trialStartTs',
-        $.state.nd_touchStartTs);\nSendDataToCollector('npcTimeout', false);\n$.worldItemReference('NPC').send('npc_trial_start',
-        {\n  block: CONDITION['block'], rep: CONDITION['rep'],\n  avatar: nd_avatarForBlock(CONDITION['block']),
-        social: CONDITION['social'] === 'with' });"
+      customAction: 'nd_setMove(0);
+
+        nd_arm();
+
+        $.state.nd_touchStartTs
+        = Date.now();
+
+        SendDataToCollector(''trialStartTs'', $.state.nd_touchStartTs);
+
+        SendDataToCollector(''npcTimeout'',
+        false);'
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    - predefinedActionTemplate:
+        actionType: Set participant position
+        displayLabel: 
+        codeSnippet: PARTICIPANTS[{_participantIndex_}].setPosition(new Vector3({_x_},
+          {_y_}, {_z_}));
+        variables:
+        - participantIndex
+        - x
+        - y
+        - z
+        category: Participant transform
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - participantIndex
+      - x
+      - y
+      - z
+      _variableValuesList:
+      - 1
+      - 0
+      - 0
+      - -2
+    - predefinedActionTemplate:
+        actionType: Set participant rotation
+        displayLabel: 
+        codeSnippet: PARTICIPANTS[{_participantIndex_}].setRotation(new Quaternion().setFromEulerAngles(new
+          Vector3({_x_}, {_y_}, {_z_})));
+        variables:
+        - participantIndex
+        - x
+        - y
+        - z
+        category: Participant transform
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - participantIndex
+      - x
+      - y
+      - z
+      _variableValuesList:
+      - 1
+      - 0
+      - 0
+      - 0
+    - predefinedActionTemplate:
+        actionType: Sleep
+        displayLabel: 
+        codeSnippet: '{_seconds_}'
+        variables:
+        - seconds
+        category: State machine
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - seconds
+      _variableValuesList:
+      - 1
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: "$.worldItemReference('NPC').send('npc_trial_start', {\n  block:
+        CONDITION['block'], rep: CONDITION['rep'], fwd: new Vector3(0, 0, 1),\n 
+        avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social']
+        === 'with' });"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -187,10 +289,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: 'if (CONDITION[''rep''] !== ''2'') ToNextState();
-
-        else
-        $.worldItemReference(''NPC'').send(''npc_hide'', {});'
+      customAction: if (CONDITION['rep'] !== '2') ToNextState();
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -212,9 +311,35 @@ MonoBehaviour:
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: nd_setMove(1);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
-  eventHandlers: []
+  eventHandlers:
+  - eventType: Update
+    actions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: nd_tick(deltaTime);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
   otherImplementation: "// ---- Study 4: NpcDirector helpers (shared by the actions
     above) ----\nfunction nd_avatarForBlock(block) {\n  const dailyFirst = CONDITION
     && CONDITION['order'] === 'daily_first';\n  return (dailyFirst === (String(block)
@@ -224,4 +349,14 @@ MonoBehaviour:
     the current timestamp of the global signal so only a NEW pulse counts.\nfunction
     nd_arm() { $.state.nd_lastDone = nd_signalTime('npc_done'); }\nfunction nd_donePulse()
     {\n  const t = nd_signalTime('npc_done');\n  if (t !== ($.state.nd_lastDone ||
-    0)) { $.state.nd_lastDone = t; return t !== 0; }\n  return false;\n}\n"
+    0)) { $.state.nd_lastDone = t; return t !== 0; }\n  return false;\n}\n// Participant
+    locomotion (stick / keyboard move speed): 0 unless set otherwise; walking in
+    the room is\n// not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's
+    player script sets the rate back\n// to 1 when the participant is (re)initialized.\nconst
+    ND_MOVE_REAPPLY_SEC = 1.0;\nfunction nd_setMove(rate) { $.state.nd_moveRate =
+    rate; $.state.nd_moveApplyIn = 0; }\nfunction nd_tick(dt) {\n  $.state.nd_moveApplyIn
+    = ($.state.nd_moveApplyIn || 0) - dt;\n  if ($.state.nd_moveApplyIn > 0) return;\n 
+    $.state.nd_moveApplyIn = ND_MOVE_REAPPLY_SEC;\n  const p = PARTICIPANTS[1];\n 
+    if (!p || !p.exists()) return;\n  const rate = (typeof $.state.nd_moveRate ===
+    'number') ? $.state.nd_moveRate : 0;\n  try { p.setMoveSpeedRate(rate); } catch
+    (e) { $.log('[NpcDirector] setMoveSpeedRate failed: ' + e); }\n}\n"

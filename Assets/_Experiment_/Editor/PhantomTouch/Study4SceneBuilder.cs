@@ -124,7 +124,7 @@ public static class Study4SceneBuilder
             var defs = new (string name, Func<List<StateListener>> listeners, Func<List<EventHandlerData>> handlers, string legacy)[]
             {
                 ("Instruction", InstructionListeners, null, InstructionLegacy(l)),
-                ("NpcDirector", () => NpcDirectorListeners(l), null, NpcDirectorLegacy),
+                ("NpcDirector", () => NpcDirectorListeners(l), NpcDirectorHandlers, NpcDirectorLegacy),
                 ("AvatarGate", AvatarGateListeners, null, AvatarGateLegacy),
                 ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
                 ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
@@ -393,7 +393,7 @@ return {
     // block setup (Trial - Start, rep == 1)
     avatar: CD['avatar'],
     avatarArmLen: CD['avatarArmLen'], avatarShoulder: CD['avatarShoulder'],
-    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsTransparent: CD['avatarIsTransparent'],
+    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsDefault: CD['avatarIsDefault'],
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
@@ -978,7 +978,7 @@ return {
             var director = CreateSli(tab, "NpcDirector");
             director.transform.position = l.P(0f, 0f, 1.0f);
             AddWorldItemReference(director, "NPC", npc.GetComponent<Item>());
-            WriteItemData(director, NpcDirectorListeners(l), null, NpcDirectorLegacy);
+            WriteItemData(director, NpcDirectorListeners(l), NpcDirectorHandlers(), NpcDirectorLegacy);
 
             // -- AvatarGate (left side) ---------------------------------------------
             var gateGroup = new GameObject("AvatarGateUI");
@@ -1284,35 +1284,50 @@ return {
     static List<StateListener> NpcDirectorListeners(Layout l)
     {
         var yaw = Quaternion.LookRotation(l.fwd, Vector3.up).eulerAngles.y;
+        // the NPC stands along the marker's facing direction (not wherever the participant happens to look)
+        string fwd = "new Vector3(" + F(l.fwd.x) + ", 0, " + F(l.fwd.z) + ")";
+        StateListenerAction ResetPos() => Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z)));
+        StateListenerAction ResetRot() => Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0"));
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem))),
+            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period and at End.
+            Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);"))),
             Listener(S_TSTART, L(
                 Sleep(0.5f),
-                If(Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z))), "rep", "1"),
-                If(Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0")), "rep", "1"),
-                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with' });\n$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
+                If(ResetPos(), "rep", "1"),
+                If(ResetRot(), "rep", "1"),
+                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + " });\n$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
             )),
             // Greeting period: the NPC appears after the avatar switch (rep == 1) and, in the social-cue
-            // condition, reacts to the participant for GreetingSeconds. Skipped for the 2nd trial of a block.
+            // condition, reacts to the participant for GreetingSeconds. The participant may walk around here
+            // (and only here). Skipped for the 2nd trial of a block.
             Listener(S_GREET,
                 L(Custom(
                     "if (CONDITION['rep'] === '1') {\n" +
+                    "  nd_setMove(1);\n" +
                     "  $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });\n" +
                     "  $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });\n" +
                     "} else {\n" +
                     "  ToNextState();\n" +
                     "}")),
                 null,
-                L(Custom("$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
+                L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
+            // Touch and stroke: freeze, put the participant back on the marker (position and facing), give the
+            // teleport a moment to land, then the NPC turns to the participant there, steps in and touches.
+            // At the end the NPC steps back to the conversation spot and disappears before npc_done.
             Listener(S_TOUCH,
                 L(Custom(
+                    "nd_setMove(0);\n" +
                     "nd_arm();\n" +
                     "$.state.nd_touchStartTs = Date.now();\n" +
                     "SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\n" +
-                    "SendDataToCollector('npcTimeout', false);\n" +
+                    "SendDataToCollector('npcTimeout', false);"),
+                  ResetPos(),
+                  ResetRot(),
+                  Sleep(1.0f),
+                  Custom(
                     "$.worldItemReference('NPC').send('npc_trial_start', {\n" +
-                    "  block: CONDITION['block'], rep: CONDITION['rep'],\n" +
+                    "  block: CONDITION['block'], rep: CONDITION['rep'], fwd: " + fwd + ",\n" +
                     "  avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });")),
                 L(Custom(
                     "if (nd_donePulse()) { ToNextState(); }\n" +
@@ -1324,11 +1339,18 @@ return {
                     "  ToNextState();\n" +
                     "}"))),
             // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
-            // From the VEQ on the NPC is hidden so it does not stand in front of the questionnaires (it is
-            // shown again at the next block's greeting).
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();\nelse $.worldItemReference('NPC').send('npc_hide', {});"))),
-            Listener(S_END, L(Act(T_Upload))),
+            // (The NPC has already hidden itself at the end of the touch phase.)
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
+            // End: walking is allowed again so the participant can reach the exit gate.
+            Listener(S_END, L(Act(T_Upload), Custom("nd_setMove(1);"))),
         };
+    }
+
+    static List<EventHandlerData> NpcDirectorHandlers()
+    {
+        var update = new EventHandlerData("Update");
+        update.actions.Add(Custom("nd_tick(deltaTime);"));
+        return new List<EventHandlerData> { update };
     }
 
     const string NpcDirectorLegacy = @"// ---- Study 4: NpcDirector helpers (shared by the actions above) ----
@@ -1348,6 +1370,20 @@ function nd_donePulse() {
   if (t !== ($.state.nd_lastDone || 0)) { $.state.nd_lastDone = t; return t !== 0; }
   return false;
 }
+// Participant locomotion (stick / keyboard move speed): 0 unless set otherwise; walking in the room is
+// not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
+// to 1 when the participant is (re)initialized.
+const ND_MOVE_REAPPLY_SEC = 1.0;
+function nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn = 0; }
+function nd_tick(dt) {
+  $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn || 0) - dt;
+  if ($.state.nd_moveApplyIn > 0) return;
+  $.state.nd_moveApplyIn = ND_MOVE_REAPPLY_SEC;
+  const p = PARTICIPANTS[1];
+  if (!p || !p.exists()) return;
+  const rate = (typeof $.state.nd_moveRate === 'number') ? $.state.nd_moveRate : 0;
+  try { p.setMoveSpeedRate(rate); } catch (e) { $.log('[NpcDirector] setMoveSpeedRate failed: ' + e); }
+}
 ";
 
     // ------------------------------------------------------------------ AvatarGate
@@ -1364,9 +1400,12 @@ function nd_donePulse() {
     }
 
     const string AvatarGateLegacy = @"// ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
-// Bone-length signature of the LUIDA transparent avatar (transparent-avatar.vrm). Update after test T2.
-const AG_T_ARM = 0.485;      // upper arm + forearm (m)
-const AG_T_SHOULDER = 0.332; // distance between the two upper-arm joints (m)
+// Bone-length signature of the LUIDA ""Default Avatar"" (participantAvatarMode = DEFAULT; luida_default_avatar).
+// Not measured yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is off and the gate relies on
+// the participant's two-step self-report (recorded as avatarCheckFallback = true). To calibrate, wear the
+// Default Avatar in Cluster, read the ""[AvatarGate] signature"" log line and put its values here.
+const AG_D_ARM = 0;          // upper arm + forearm (m)
+const AG_D_SHOULDER = 0;     // distance between the two upper-arm joints (m)
 const AG_TOL = 0.015;
 const AG_STABLE_MS = 1000;
 // If the automatic check has not matched after this many seconds, show the button anyway and rely on
@@ -1398,13 +1437,14 @@ function ag_signature(p) {
     hipsH: hips ? hips.y - root.y : -1,
   };
 }
-function ag_isTransparent(s) {
-  return !!s && Math.abs(s.armLen - AG_T_ARM) < AG_TOL && Math.abs(s.shoulder - AG_T_SHOULDER) < AG_TOL;
+function ag_calibrated() { return AG_D_ARM > 0 && AG_D_SHOULDER > 0; }
+function ag_isDefault(s) {
+  return ag_calibrated() && !!s && Math.abs(s.armLen - AG_D_ARM) < AG_TOL && Math.abs(s.shoulder - AG_D_SHOULDER) < AG_TOL;
 }
 function ag_targetMatches(sig) {
-  if (!sig) return false;
-  const transparent = ag_isTransparent(sig);
-  return $.state.ag_avatar === 'assigned' ? transparent : !transparent;
+  if (!sig || !ag_calibrated()) return false;
+  const isDefault = ag_isDefault(sig);
+  return $.state.ag_avatar === 'assigned' ? isDefault : !isDefault;
 }
 function ag_begin() {
   $.state.ag_active = false;
@@ -1424,7 +1464,7 @@ function ag_begin() {
   $.state.ag_lastMatch = null;
   $.state.ag_matchSince = Date.now();
   $.state.ag_okShown = null;
-  $.state.ag_fallback = false;
+  $.state.ag_fallback = !ag_calibrated();   // not calibrated: self-report only
   $.state.ag_logAt = 0;
   ShowChild('Text');
   ag_showButtons(false, false);
@@ -1437,11 +1477,11 @@ function ag_renderText(note) {
   if ($.state.ag_step === 1) {
     t = daily
       ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
-      : 'メニューから、この実験で\n最初に着ていた透明アバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。';
+      : 'メニューのアバター変更に\n表示される「Default Avatar」に\n着替えてください。\n終わったら「着替えました」\nを押してください。';
   } else {
     t = daily
       ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
-      : 'いま着ているのは\n透明アバター（自分の体が\n見えない状態）ですか？';
+      : 'いま着ているのは\n「Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -1457,7 +1497,7 @@ function ag_update(dt) {
   if (sig && elapsed >= ($.state.ag_logAt || 0)) {
     $.state.ag_logAt = elapsed + AG_LOG_SEC;
     $.log('[AvatarGate] signature armLen=' + sig.armLen.toFixed(3) + ' shoulder=' + sig.shoulder.toFixed(3) +
-          ' headH=' + sig.headH.toFixed(3) + ' transparent=' + ag_isTransparent(sig) + ' target=' + $.state.ag_avatar);
+          ' headH=' + sig.headH.toFixed(3) + ' calibrated=' + ag_calibrated() + ' default=' + ag_isDefault(sig) + ' target=' + $.state.ag_avatar);
   }
   if (!$.state.ag_fallback && AG_FALLBACK_SEC > 0 && elapsed >= AG_FALLBACK_SEC && !match) {
     $.state.ag_fallback = true;
@@ -1469,7 +1509,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターに\nなっていません）' : '（まだ透明アバターのままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」に\nなっていません）' : '（まだ「Default Avatar」の\nままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -1503,7 +1543,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarShoulder', sig ? sig.shoulder : -1);
   SendDataToCollector('avatarHeadH', sig ? sig.headH : -1);
   SendDataToCollector('avatarHipsH', sig ? sig.hipsH : -1);
-  SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));
+  SendDataToCollector('avatarIsDefault', ag_calibrated() ? ag_isDefault(sig) : null);
   SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now())) / 1000);
   SendDataToCollector('setupRetry', $.state.ag_retry || 0);
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);

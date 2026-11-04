@@ -4,18 +4,22 @@
 // by LuidaScriptCombiner (BONE_MAP, BONE_PARENT, AVATAR_* constants).
 //
 // Messages (sent by the NpcDirector state-listening item):
-//   "npc_setup"           { social: boolean }   -> remember the social-cue condition (NPC stays hidden)
+//   "npc_setup"           { social, fwd }       -> remember the social-cue condition and the marker's facing
+//                                                  direction (the NPC stands along it); NPC stays hidden
 //   "npc_hide"            {}                    -> hide the body (avatar-switch phase)
 //   "npc_show"            { social? }           -> stand at conversation distance in front of the participant and show the body
 //   "npc_greeting_begin"  { social? }           -> greeting period (social condition only): head gaze with body
 //                                                  turn, random reactions (nod / wave / both, sometimes smiling),
 //                                                  surprised face when touched
 //   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
-//   "npc_trial_start"     { block, rep, avatar, social } -> step closer -> prep -> raise hand -> approach (2 cm/s)
-//                                                  -> stroke the face vertically (2 cm/s) -> hold -> retract -> step back
-//   "npc_abort"           {}                    -> back to idle
+//   "npc_trial_start"     { block, rep, avatar, social, fwd } -> (reappear at the conversation spot if hidden)
+//                                                  -> turn to the participant and step closer -> prep -> raise hand
+//                                                  -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold
+//                                                  -> retract -> step back to the conversation spot -> hide -> npc_done
+//   "npc_abort"           {}                    -> step back and hide (no npc_done)
 // Output:
-//   item signal "npc_done" (a GlobalLogic on this item relays it to the global signal "npc_done")
+//   item signal "npc_done" once the NPC has stepped back and hidden (a GlobalLogic on this item relays it to
+//   the global signal "npc_done")
 //   per-trial measurements merged into $.groupState.collectedData (this item is an ItemGroupMember)
 //
 // All pose math is done in the item-local frame of the NPC root, in the "normalized skeleton"
@@ -45,6 +49,7 @@ const NPC_CFG = {
   IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach distance + this (m)
   MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)
   GLIDE_SEC: 1.0,          // step closer / step back duration
+  REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation spot this long before stepping in
   HEAD_MAX_DEG: 50,        // gaze: the head alone turns up to this angle ...
   EYE_EXTRA_DEG: 12,       // ... and the eyes a bit further
   BODY_TURN_START_DEG: 35, // greeting: if the participant is farther than this from the NPC's facing,
@@ -294,6 +299,7 @@ $.onStart(() => {
 
 $.onReceive((messageType, arg, sender) => {
   try {
+    if (arg && arg.fwd) $.state.npc_fwd = arg.fwd;   // facing direction of the participant's marker
     if (messageType === "npc_setup") {
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       $.state.npc_phase = "idle";
@@ -321,12 +327,17 @@ $.onReceive((messageType, arg, sender) => {
       $.state.npc_trial = arg || {};
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       if ($.state.npc_mode === "greeting") endGreeting();
-      if (!$.state.npc_visible) setVisible(true);
-      startTrial();
+      if (!$.state.npc_visible) {
+        // hidden since the previous trial: reappear at the conversation spot, then step in a moment later
+        moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);
+        setVisible(true);
+        $.state.npc_startDelay = NPC_CFG.REAPPEAR_SEC;
+        $.state.npc_pendingStart = true;
+      } else {
+        startTrial();
+      }
     } else if (messageType === "npc_abort") {
-      $.state.npc_phase = "idle";
-      $.state.npc_t = 0;
-      moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);
+      leave(false);
     }
   } catch (e) {
     $.log("[NPC] onReceive error: " + e);
@@ -376,7 +387,8 @@ function standPose(extraDist) {
   for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (wristDist(mid) < reach) lo = mid; else hi = mid; }
   const shoulderFwd = vdot(rest.sR, rest.fwd);
   const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, lo + shoulderFwd + NPC_CFG.FACE_FWD) + (extraDist || 0);
-  const pfwd = vhoriz(head.fwd);
+  // in front of the participant along the marker's facing direction (falls back to where the head points)
+  const pfwd = $.state.npc_fwd ? vhoriz($.state.npc_fwd) : vhoriz(head.fwd);
   const pos = v3(head.pos.x + pfwd.x * horiz, root.y, head.pos.z + pfwd.z * horiz);
   const faceDir = vhoriz(vsub(head.pos, pos));
   const rot = qfromTo(rest.fwd, faceDir);
@@ -611,11 +623,18 @@ function finishTrial() {
   };
   pushData(data);
   $.state.npc_trace = [];
-  $.state.npc_phase = "idle";
-  $.state.npc_t = 0;
-  moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);   // step back to conversation distance
-  $.sendSignalCompat("this", "npc_done");
   $.log("[NPC] trial done: samples=" + traces.length + " contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist));
+  leave(true);
+}
+
+// Step back to the conversation spot, then disappear (tick); with signalDone, "npc_done" is sent once hidden.
+function leave(signalDone) {
+  $.state.npc_pendingStart = false;
+  $.state.npc_phase = "leave";
+  $.state.npc_t = 0;
+  $.state.npc_leaveSignal = !!signalDone;
+  clearReaction();
+  if (!$.state.npc_visible || !moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true)) $.state.npc_glide = null;
 }
 
 function pushData(obj) {
@@ -751,7 +770,11 @@ function tick(dt) {
   // Visibility: hidden until shown (also re-applied after a script reload).
   if ($.state.npc_visibilityApplied !== !!$.state.npc_visible) applyVisibility();
 
-  if ($.state.npc_pendingStart) { startTrial(); return; }
+  if ($.state.npc_pendingStart) {
+    $.state.npc_startDelay = ($.state.npc_startDelay || 0) - dt;
+    if ($.state.npc_startDelay <= 0) startTrial();
+    return;
+  }
 
   // Glide to the target standing pose (position/rotation are networked, so keep it short).
   const g = $.state.npc_glide;
@@ -761,6 +784,18 @@ function tick(dt) {
     $.setPosition(vlerp(g.fromPos, g.toPos, e));
     $.setRotation(qslerp(g.fromRot, g.toRot, e));
     if (t >= 1) $.state.npc_glide = null; else { g.t = t; $.state.npc_glide = g; }
+  }
+
+  // Back at the conversation spot after a trial: disappear (out of the way of the report panel and the
+  // questionnaires), then let the director move on.
+  if ($.state.npc_phase === "leave" && !$.state.npc_glide) {
+    $.state.npc_phase = "idle";
+    $.state.npc_t = 0;
+    setVisible(false);
+    if ($.state.npc_leaveSignal) $.sendSignalCompat("this", "npc_done");
+    $.state.npc_leaveSignal = false;
+    $.log("[NPC] back at the conversation spot; hidden");
+    return;
   }
 
   if (!$.state.npc_visible) return;        // nothing to animate while hidden

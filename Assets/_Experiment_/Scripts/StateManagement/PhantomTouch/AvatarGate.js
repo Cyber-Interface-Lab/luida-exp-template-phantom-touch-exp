@@ -35,9 +35,12 @@ const stateExitActions = {
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
 // ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
-// Bone-length signature of the LUIDA transparent avatar (transparent-avatar.vrm). Update after test T2.
-const AG_T_ARM = 0.485;      // upper arm + forearm (m)
-const AG_T_SHOULDER = 0.332; // distance between the two upper-arm joints (m)
+// Bone-length signature of the LUIDA "Default Avatar" (participantAvatarMode = DEFAULT; luida_default_avatar).
+// Not measured yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is off and the gate relies on
+// the participant's two-step self-report (recorded as avatarCheckFallback = true). To calibrate, wear the
+// Default Avatar in Cluster, read the "[AvatarGate] signature" log line and put its values here.
+const AG_D_ARM = 0;          // upper arm + forearm (m)
+const AG_D_SHOULDER = 0;     // distance between the two upper-arm joints (m)
 const AG_TOL = 0.015;
 const AG_STABLE_MS = 1000;
 // If the automatic check has not matched after this many seconds, show the button anyway and rely on
@@ -69,13 +72,14 @@ function ag_signature(p) {
     hipsH: hips ? hips.y - root.y : -1,
   };
 }
-function ag_isTransparent(s) {
-  return !!s && Math.abs(s.armLen - AG_T_ARM) < AG_TOL && Math.abs(s.shoulder - AG_T_SHOULDER) < AG_TOL;
+function ag_calibrated() { return AG_D_ARM > 0 && AG_D_SHOULDER > 0; }
+function ag_isDefault(s) {
+  return ag_calibrated() && !!s && Math.abs(s.armLen - AG_D_ARM) < AG_TOL && Math.abs(s.shoulder - AG_D_SHOULDER) < AG_TOL;
 }
 function ag_targetMatches(sig) {
-  if (!sig) return false;
-  const transparent = ag_isTransparent(sig);
-  return $.state.ag_avatar === 'assigned' ? transparent : !transparent;
+  if (!sig || !ag_calibrated()) return false;
+  const isDefault = ag_isDefault(sig);
+  return $.state.ag_avatar === 'assigned' ? isDefault : !isDefault;
 }
 function ag_begin() {
   $.state.ag_active = false;
@@ -95,7 +99,7 @@ function ag_begin() {
   $.state.ag_lastMatch = null;
   $.state.ag_matchSince = Date.now();
   $.state.ag_okShown = null;
-  $.state.ag_fallback = false;
+  $.state.ag_fallback = !ag_calibrated();   // not calibrated: self-report only
   $.state.ag_logAt = 0;
   ShowChild('Text');
   ag_showButtons(false, false);
@@ -108,11 +112,11 @@ function ag_renderText(note) {
   if ($.state.ag_step === 1) {
     t = daily
       ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
-      : 'メニューから、この実験で\n最初に着ていた透明アバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。';
+      : 'メニューのアバター変更に\n表示される「Default Avatar」に\n着替えてください。\n終わったら「着替えました」\nを押してください。';
   } else {
     t = daily
       ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
-      : 'いま着ているのは\n透明アバター（自分の体が\n見えない状態）ですか？';
+      : 'いま着ているのは\n「Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -128,7 +132,7 @@ function ag_update(dt) {
   if (sig && elapsed >= ($.state.ag_logAt || 0)) {
     $.state.ag_logAt = elapsed + AG_LOG_SEC;
     $.log('[AvatarGate] signature armLen=' + sig.armLen.toFixed(3) + ' shoulder=' + sig.shoulder.toFixed(3) +
-          ' headH=' + sig.headH.toFixed(3) + ' transparent=' + ag_isTransparent(sig) + ' target=' + $.state.ag_avatar);
+          ' headH=' + sig.headH.toFixed(3) + ' calibrated=' + ag_calibrated() + ' default=' + ag_isDefault(sig) + ' target=' + $.state.ag_avatar);
   }
   if (!$.state.ag_fallback && AG_FALLBACK_SEC > 0 && elapsed >= AG_FALLBACK_SEC && !match) {
     $.state.ag_fallback = true;
@@ -140,7 +144,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ透明アバターに\nなっていません）' : '（まだ透明アバターのままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」に\nなっていません）' : '（まだ「Default Avatar」の\nままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -174,7 +178,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarShoulder', sig ? sig.shoulder : -1);
   SendDataToCollector('avatarHeadH', sig ? sig.headH : -1);
   SendDataToCollector('avatarHipsH', sig ? sig.hipsH : -1);
-  SendDataToCollector('avatarIsTransparent', ag_isTransparent(sig));
+  SendDataToCollector('avatarIsDefault', ag_calibrated() ? ag_isDefault(sig) : null);
   SendDataToCollector('setupSec', (Date.now() - ($.state.ag_startTs || Date.now())) / 1000);
   SendDataToCollector('setupRetry', $.state.ag_retry || 0);
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);

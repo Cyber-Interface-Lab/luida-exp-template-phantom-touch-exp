@@ -19,7 +19,7 @@ return {
     // block setup (Trial - Start, rep == 1)
     avatar: CD['avatar'],
     avatarArmLen: CD['avatarArmLen'], avatarShoulder: CD['avatarShoulder'],
-    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsTransparent: CD['avatarIsTransparent'],
+    avatarHeadH: CD['avatarHeadH'], avatarHipsH: CD['avatarHipsH'], avatarIsDefault: CD['avatarIsDefault'],
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],

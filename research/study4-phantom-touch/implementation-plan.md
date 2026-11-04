@@ -5,6 +5,8 @@
 - 実装基盤: 本リポジトリ `luida-exp-template`（branch `hao/phantom-touch`、CCK 3.3.0、Unity 6）、Web Console `luida-frontend`（main @ 69fc08b）、管理ボット `project-luida-automization-bot`、ドキュメントサイト `https://luida.cluster.mu/docs/`（2026-10-23 取得）
 - 根拠はファイルパス付きで示す。ドキュメント・論文と実コードが食い違う箇所は実コードを優先した（「※コード優先」と明記）。
 
+> **訂正（2026-11-04）**: 参加者内のアバター条件は「透明アバター vs 普段使い」ではなく **「Default Avatar vs 普段使い」**。Web Console の参加者アバターモードは **DEFAULT**（`luida_default_avatar`）で、このワールドではアバター変更メニューに「Default Avatar」が表示される。本書の「透明アバター」「HIDE」「`transparent_avatar_0`」「`isTransparent`」は、それぞれ Default Avatar・DEFAULT・`luida_default_avatar`・`ag_isDefault`（行データは `avatarIsDefault`）と読み替える。Default Avatar の骨格値は未計測のため、自動判定は計測するまで無効（二段階の自己申告で進める）。現在の実装は `IMPLEMENTATION_NOTES.md` を参照。
+
 ---
 
 ## 0. 要約（この案の骨子）
