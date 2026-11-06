@@ -16,7 +16,7 @@ MonoBehaviour:
   - StateName: Start
     DestStateName: DeviceCheck
     HasExitTime: 0
-    ExitTime: 0
+    ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -24,7 +24,7 @@ MonoBehaviour:
   - StateName: DeviceCheck
     DestStateName: Trial - Start
     HasExitTime: 0
-    ExitTime: 0
+    ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -64,7 +64,7 @@ MonoBehaviour:
   - StateName: Trial - VEQ
     DestStateName: Trial - Rest
     HasExitTime: 0
-    ExitTime: 0
+    ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -80,7 +80,7 @@ MonoBehaviour:
   - StateName: SocialPresence
     DestStateName: PersonalExperience
     HasExitTime: 0
-    ExitTime: 0
+    ExitTime: 5
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -88,7 +88,7 @@ MonoBehaviour:
   - StateName: PersonalExperience
     DestStateName: Debrief
     HasExitTime: 0
-    ExitTime: 0
+    ExitTime: 5
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -100,7 +100,7 @@ MonoBehaviour:
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
-    qID: 5
+    qID: 0
   - StateName: End
     DestStateName: 
     HasExitTime: 0
