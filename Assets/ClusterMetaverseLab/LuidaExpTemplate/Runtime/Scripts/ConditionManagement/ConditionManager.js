@@ -55,6 +55,23 @@ $.onReceive((messageType, arg, sender) => {
       $.groupState.sessionID = arg.sessionID;
       sender.send("betweenSubjectsCondition", $.state.betweenSubjectsConditions);
       break;
+    case "luida_reset": {
+      // Sent by a world's session reset item after End, once the previous participant has left.
+      // Same steps as $.onStart (except sending betweenSubjectsConfig), plus isLast, which reset() keeps.
+      // The token is saved only after the reset succeeded; the sender reads luida_resetAck from the group state.
+      const resetToken = arg && arg.token;
+      if ($.state.luida_lastResetToken !== resetToken) {
+        $.state.isLast = false;
+        $.state.isServerAssigned = false;
+        $.state.betweenSubjectsConditions = {};
+        initializeBetweenSubjectsConditions();
+        reset();
+        $.state.luida_lastResetToken = resetToken;
+        $.log("[ConditionManager] session reset");
+      }
+      $.groupState.luida_resetAck = resetToken;
+      break;
+    }
     default:
       break;
   }

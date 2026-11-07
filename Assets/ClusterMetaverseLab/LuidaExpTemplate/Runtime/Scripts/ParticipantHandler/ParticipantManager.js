@@ -22,10 +22,21 @@ $.onStart(() => {
         + " expID=" + (typeof expID !== "undefined" ? expID : null)
         + " pNum=" + (typeof pNum !== "undefined" ? pNum : null));
 
+  $.state.betweenSubjectsConfig = [];  // populated by ConditionManager message (sent once per space)
+  initSession();
+
+  // Place world gate at remote position and keep it enabled
+  $.subNode("WorldGateToLuidaBar").setPosition(REJECTION_GATE_POS);
+  $.subNode("WorldGateToLuidaBar").setEnabled(false);
+})
+
+// Per-participant session state. Runs at space start and again on "luida_reset" (a world that lets the next
+// participant start in the same space after End). betweenSubjectsConfig is kept.
+function initSession() {
   $.state.isBetweenSubjectsConditionsSet = false;
-  $.groupState.isParticipantsEnough = false;
   $.groupState.sessionID = Date.now() + "_" +  (Math.random() + 1).toString(36).substring(2, 8);
   $.groupState.participants = []; // array of PlayerHandle who are currently in the experiment
+  $.groupState.qCompletedCount = 0;
   $.state.participantsEnvInfo = [];
   $.state.idfc2userId = {};
   $.state.timer = 0;
@@ -35,13 +46,11 @@ $.onStart(() => {
   $.state.rejectionTimer = 0;
   $.state.isSessionApproved = false;
   $.state.existingConditions = null;  // existing conditions from server for balancing
-  $.state.betweenSubjectsConfig = [];  // populated by ConditionManager message
+  $.state.betweenSubjectsConditions = null;
   $.state.eligibleCount = 0;  // only confirmed-eligible players count toward pNum
-
-  // Place world gate at remote position and keep it enabled
-  $.subNode("WorldGateToLuidaBar").setPosition(REJECTION_GATE_POS);
-  $.subNode("WorldGateToLuidaBar").setEnabled(false);
-})
+  // Last: enrollment starts again once this is false, so a failure above leaves enrollment blocked.
+  $.groupState.isParticipantsEnough = false;
+}
 
 $.onUpdate((deltaTime) => {
     if (!$.groupState.isParticipantsEnough) {
@@ -179,6 +188,20 @@ $.onReceive((messageType, arg, sender) => {
                 );
             }
             break;
+        case "luida_reset": {
+            // Sent by a world's session reset item after End, once the previous participant has left.
+            // Idempotent per token; the token is saved only after the reset succeeded, so a re-send retries a failed one.
+            // Do not send luida_participants_info here: the new sessionID has no backend session yet.
+            const resetToken = arg && arg.token;
+            if ($.state.luida_lastResetToken !== resetToken) {
+                initSession();
+                $.setStateCompat("this", "exp_showWaitingMessage", true);
+                $.state.luida_lastResetToken = resetToken;
+                $.log("LUIDA session reset: new sID=" + $.groupState.sessionID);
+            }
+            sender.send("luida_reset_ack", { token: resetToken, sessionID: $.groupState.sessionID });
+            break;
+        }
         default:
             break;
     }

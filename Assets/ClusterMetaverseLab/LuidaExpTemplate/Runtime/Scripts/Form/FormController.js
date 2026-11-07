@@ -7,6 +7,19 @@ $.onStart(() => {
 });
 
 $.onUpdate((deltaTime) => {
+    // A new sessionID means a new participant (ParticipantManager "luida_reset"): forget the previous one and
+    // reopen the form. Must run before the assignment below. The first frame only records the sessionID.
+    if ($.state.boundSessionID !== $.groupState.sessionID) {
+        const hadParticipant = !!$.state.isParticipantAssigned;
+        $.state.boundSessionID = $.groupState.sessionID;
+        if (hadParticipant) {
+            $.state.participant = null;
+            $.state.isParticipantAssigned = false;
+            reset(true);
+            $.setStateCompat("this", "form_show_start_hint", true);
+        }
+    }
+
     if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough) {
         let player = $.groupState.participants[($.getStateCompat("this", "pID", "integer") - 1) || 0];
         $.state.participant = player;
