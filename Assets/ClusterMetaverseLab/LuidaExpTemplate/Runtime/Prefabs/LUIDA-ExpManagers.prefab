@@ -569,41 +569,46 @@ PrefabInstance:
         // didn't flip it and platform/eligibility checks are silently skipped.\n 
         $.log(\"LUIDA boot: isTestMode=\" + isTestMode\n        + \" expID=\" + (typeof
         expID !== \"undefined\" ? expID : null)\n        + \" pNum=\" + (typeof pNum
-        !== \"undefined\" ? pNum : null));\n\n  $.state.isBetweenSubjectsConditionsSet
-        = false;\n  $.groupState.isParticipantsEnough = false;\n  $.groupState.sessionID
-        = Date.now() + \"_\" +  (Math.random() + 1).toString(36).substring(2, 8);\n 
-        $.groupState.participants = []; // array of PlayerHandle who are currently
-        in the experiment\n  $.state.participantsEnvInfo = [];\n  $.state.idfc2userId
-        = {};\n  $.state.timer = 0;\n  $.state.pendingEligibilityChecks = {};\n 
-        $.state.rejectionQueue = [];\n  $.state.isProcessingRejection = false;\n 
-        $.state.rejectionTimer = 0;\n  $.state.isSessionApproved = false;\n  $.state.existingConditions
-        = null;  // existing conditions from server for balancing\n  $.state.betweenSubjectsConfig
-        = [];  // populated by ConditionManager message\n  $.state.eligibleCount
-        = 0;  // only confirmed-eligible players count toward pNum\n\n  // Place
-        world gate at remote position and keep it enabled\n  $.subNode(\"WorldGateToLuidaBar\").setPosition(REJECTION_GATE_POS);\n 
-        $.subNode(\"WorldGateToLuidaBar\").setEnabled(false);\n})\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.groupState.isParticipantsEnough) {\n        $.state.timer
-        += deltaTime;\n        if ($.state.timer >= 1){\n            $.state.timer
-        = 0;\n            let pIdfcs = $.groupState.participants.map(p => p.idfc);\n           
-        const newPlayers = $.getPlayersNear($.getPosition(), Infinity)\n               
-        .filter(p => !pIdfcs.includes(p.idfc));\n            if (newPlayers.length
-        > 0) {\n                for (const newPlayer of newPlayers) {\n                   
-        $.groupState.participants = [ ...$.groupState.participants, newPlayer ];\n                   
-        $.setPlayerScript(newPlayer);\n                    newPlayer.send(\"initializeParticipant\",
-        true);\n                }\n            }\n            // pNum check moved
-        to onExternalCallEnd \u2014 only eligible players count\n        }\n    }
-        else if ($.state.isBetweenSubjectsConditionsSet) { // participants are enough
-        & conditions are set\n        $.state.isBetweenSubjectsConditionsSet = false;\n       
-        if (!isTestMode) {\n            let request = {\n                type: \"uploadCustomData\",\n               
-        data: {\n                    pInfo: $.state.participantsEnvInfo.map(info
-        => ({ ts: Date.now(), sID: $.groupState.sessionID || \"\", ...info })),\n                   
-        idfc2userId: $.state.idfc2userId\n                },\n                token:
-        token || \"\",\n                eID: expID || \"\",\n                sID:
-        $.groupState.sessionID || \"\"\n            };\n            $.callExternal(new
-        ExternalEndpointId(callExternalEndpointID), JSON.stringify(request), \"customDataUploaded\");\n       
-        }\n    }\n\n    // Process rejection queue: teleport rejected players to
-        remote world gate one at a time\n    if ($.state.rejectionQueue.length >
-        0 && !$.state.isProcessingRejection) {\n        const rejection = $.state.rejectionQueue[0];\n       
+        !== \"undefined\" ? pNum : null));\n\n  $.state.betweenSubjectsConfig = []; 
+        // populated by ConditionManager message (sent once per space)\n  initSession();\n\n 
+        // Place world gate at remote position and keep it enabled\n  $.subNode(\"WorldGateToLuidaBar\").setPosition(REJECTION_GATE_POS);\n 
+        $.subNode(\"WorldGateToLuidaBar\").setEnabled(false);\n})\n\n// Per-participant
+        session state. Runs at space start and again on \"luida_reset\" (a world
+        that lets the next\n// participant start in the same space after End). betweenSubjectsConfig
+        is kept.\nfunction initSession() {\n  $.state.isBetweenSubjectsConditionsSet
+        = false;\n  $.groupState.sessionID = Date.now() + \"_\" +  (Math.random()
+        + 1).toString(36).substring(2, 8);\n  $.groupState.participants = []; //
+        array of PlayerHandle who are currently in the experiment\n  $.groupState.qCompletedCount
+        = 0;\n  $.state.participantsEnvInfo = [];\n  $.state.idfc2userId = {};\n 
+        $.state.timer = 0;\n  $.state.pendingEligibilityChecks = {};\n  $.state.rejectionQueue
+        = [];\n  $.state.isProcessingRejection = false;\n  $.state.rejectionTimer
+        = 0;\n  $.state.isSessionApproved = false;\n  $.state.existingConditions
+        = null;  // existing conditions from server for balancing\n  $.state.betweenSubjectsConditions
+        = null;\n  $.state.eligibleCount = 0;  // only confirmed-eligible players
+        count toward pNum\n  // Last: enrollment starts again once this is false,
+        so a failure above leaves enrollment blocked.\n  $.groupState.isParticipantsEnough
+        = false;\n}\n\n$.onUpdate((deltaTime) => {\n    if (!$.groupState.isParticipantsEnough)
+        {\n        $.state.timer += deltaTime;\n        if ($.state.timer >= 1){\n           
+        $.state.timer = 0;\n            let pIdfcs = $.groupState.participants.map(p
+        => p.idfc);\n            const newPlayers = $.getPlayersNear($.getPosition(),
+        Infinity)\n                .filter(p => !pIdfcs.includes(p.idfc));\n           
+        if (newPlayers.length > 0) {\n                for (const newPlayer of newPlayers)
+        {\n                    $.groupState.participants = [ ...$.groupState.participants,
+        newPlayer ];\n                    $.setPlayerScript(newPlayer);\n                   
+        newPlayer.send(\"initializeParticipant\", true);\n                }\n           
+        }\n            // pNum check moved to onExternalCallEnd \u2014 only eligible
+        players count\n        }\n    } else if ($.state.isBetweenSubjectsConditionsSet)
+        { // participants are enough & conditions are set\n        $.state.isBetweenSubjectsConditionsSet
+        = false;\n        if (!isTestMode) {\n            let request = {\n               
+        type: \"uploadCustomData\",\n                data: {\n                   
+        pInfo: $.state.participantsEnvInfo.map(info => ({ ts: Date.now(), sID: $.groupState.sessionID
+        || \"\", ...info })),\n                    idfc2userId: $.state.idfc2userId\n               
+        },\n                token: token || \"\",\n                eID: expID ||
+        \"\",\n                sID: $.groupState.sessionID || \"\"\n            };\n           
+        $.callExternal(new ExternalEndpointId(callExternalEndpointID), JSON.stringify(request),
+        \"customDataUploaded\");\n        }\n    }\n\n    // Process rejection queue:
+        teleport rejected players to remote world gate one at a time\n    if ($.state.rejectionQueue.length
+        > 0 && !$.state.isProcessingRejection) {\n        const rejection = $.state.rejectionQueue[0];\n       
         const allPlayers = $.getPlayersNear($.getPosition(), Infinity);\n       
         const player = allPlayers.find(p => p.idfc === rejection.idfc);\n\n       
         if (!player) {\n            // Player already left, skip\n            $.state.rejectionQueue
@@ -654,12 +659,23 @@ PrefabInstance:
         }\n\n                $.callExternal(\n                    new ExternalEndpointId(callExternalEndpointID),\n                   
         JSON.stringify(eligibilityRequest),\n                    \"joinEligibilityChecked_\"
         + sender.idfc\n                );\n            }\n            break;\n       
-        default:\n            break;\n    }\n}, { item: true, player: true });\n\nfunction
-        HandleParticipantsEnough() {\n  $.log(\"Participants are enough to start
-        the experiment.\");\n  $.groupState.isParticipantsEnough = true;\n  $.sendSignalCompat(\"this\",
-        \"exp_playersAreEnough\");\n  $.sendSignalCompat(\"this\", \"exp_StartStateTransition\");\n\n 
-        const conditionManager = $.worldItemReference(\"ConditionManager\");\n  if
-        (conditionManager) {\n    // If server returned existing conditions, send
+        case \"luida_reset\": {\n            // Sent by a world's session reset item
+        after End, once the previous participant has left.\n            // Idempotent
+        per token; the token is saved only after the reset succeeded, so a re-send
+        retries a failed one.\n            // Do not send luida_participants_info
+        here: the new sessionID has no backend session yet.\n            const resetToken
+        = arg && arg.token;\n            if ($.state.luida_lastResetToken !== resetToken)
+        {\n                initSession();\n                $.setStateCompat(\"this\",
+        \"exp_showWaitingMessage\", true);\n                $.state.luida_lastResetToken
+        = resetToken;\n                $.log(\"LUIDA session reset: new sID=\" +
+        $.groupState.sessionID);\n            }\n            sender.send(\"luida_reset_ack\",
+        { token: resetToken, sessionID: $.groupState.sessionID });\n            break;\n       
+        }\n        default:\n            break;\n    }\n}, { item: true, player:
+        true });\n\nfunction HandleParticipantsEnough() {\n  $.log(\"Participants
+        are enough to start the experiment.\");\n  $.groupState.isParticipantsEnough
+        = true;\n  $.sendSignalCompat(\"this\", \"exp_playersAreEnough\");\n  $.sendSignalCompat(\"this\",
+        \"exp_StartStateTransition\");\n\n  const conditionManager = $.worldItemReference(\"ConditionManager\");\n 
+        if (conditionManager) {\n    // If server returned existing conditions, send
         them for local balancing\n    if ($.state.isSessionApproved && $.state.existingConditions)
         {\n      conditionManager.send(\"luida_existing_conditions\", $.state.existingConditions);\n   
         } else if (typeof expID === \"undefined\" || !expID) {\n      // No expID

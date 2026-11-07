@@ -251,14 +251,24 @@ MonoBehaviour:
     applied)\" : \"\") + \": \" + JSON.stringify(assignedConditions));\r\n      break;\r\n   
     case \"luida_participants_info\":\r\n      $.groupState.participants = arg.participants;\r\n     
     $.groupState.sessionID = arg.sessionID;\r\n      sender.send(\"betweenSubjectsCondition\",
-    $.state.betweenSubjectsConditions);\r\n      break;\r\n    default:\r\n     
-    break;\r\n  }\r\n});\r\n\r\nfunction updateCondition() {\r\n  if ($.state.trialID
-    >= $.state.trialCount) {\r\n    $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n 
-    } else if ($.state.trialID <= -1) {\r\n    reset();\r\n  } else {\r\n    let
-    condition = { ...$.state.betweenSubjectsConditions };\r\n    for (let i = 0;
-    i < $.state.withinSubjectsVariableNames.length; i++) {\r\n      const varName
-    = $.state.withinSubjectsVariableNames[i];\r\n      const varValue =\r\n         
-    within_subjects_variables[i].values[\r\n              $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
+    $.state.betweenSubjectsConditions);\r\n      break;\r\n    case \"luida_reset\":
+    {\r\n      // Sent by a world's session reset item after End, once the previous
+    participant has left.\r\n      // Same steps as $.onStart (except sending betweenSubjectsConfig),
+    plus isLast, which reset() keeps.\r\n      // The token is saved only after the
+    reset succeeded; the sender reads luida_resetAck from the group state.\r\n     
+    const resetToken = arg && arg.token;\r\n      if ($.state.luida_lastResetToken
+    !== resetToken) {\r\n        $.state.isLast = false;\r\n        $.state.isServerAssigned
+    = false;\r\n        $.state.betweenSubjectsConditions = {};\r\n        initializeBetweenSubjectsConditions();\r\n       
+    reset();\r\n        $.state.luida_lastResetToken = resetToken;\r\n        $.log(\"[ConditionManager]
+    session reset\");\r\n      }\r\n      $.groupState.luida_resetAck = resetToken;\r\n     
+    break;\r\n    }\r\n    default:\r\n      break;\r\n  }\r\n});\r\n\r\nfunction
+    updateCondition() {\r\n  if ($.state.trialID >= $.state.trialCount) {\r\n   
+    $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n  } else if ($.state.trialID
+    <= -1) {\r\n    reset();\r\n  } else {\r\n    let condition = { ...$.state.betweenSubjectsConditions
+    };\r\n    for (let i = 0; i < $.state.withinSubjectsVariableNames.length; i++)
+    {\r\n      const varName = $.state.withinSubjectsVariableNames[i];\r\n      const
+    varValue =\r\n          within_subjects_variables[i].values[\r\n             
+    $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
     ];\r\n      condition[varName] = varValue;\r\n    }\r\n    $.groupState.currentCondition
     = condition;\r\n\r\n    // Check if this is the last trial (if true, stop repeating
     trials when next state transition is triggered)\r\n    if (\r\n        $.state.trialCount

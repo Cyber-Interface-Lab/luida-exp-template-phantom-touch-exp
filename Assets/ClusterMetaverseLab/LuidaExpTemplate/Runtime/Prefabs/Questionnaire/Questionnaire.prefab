@@ -680,7 +680,14 @@ MonoBehaviour:
     = \"callExternalEndpointID_example\";\npNum = 1;\nisTestMode = true;\n\r\n$.onStart(()
     => {\n    reset();\n    $.state.isParticipantAssigned = false;\n    $.groupState.qCompletedCount
     = 0;\n    $.state.spawnBatchSize = 3;\n    $.state.spawnInterval = 0.2;\n});\n\n$.onUpdate((deltaTime)
-    => {\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
+    => {\n    // A new sessionID means a new participant (ParticipantManager \"luida_reset\"):
+    forget the previous one and\n    // reopen the form. Must run before the assignment
+    below. The first frame only records the sessionID.\n    if ($.state.boundSessionID
+    !== $.groupState.sessionID) {\n        const hadParticipant = !!$.state.isParticipantAssigned;\n       
+    $.state.boundSessionID = $.groupState.sessionID;\n        if (hadParticipant)
+    {\n            $.state.participant = null;\n            $.state.isParticipantAssigned
+    = false;\n            reset(true);\n            $.setStateCompat(\"this\", \"form_show_start_hint\",
+    true);\n        }\n    }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
     {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
     \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
     $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n        $.worldItemReference(\"PrevButton\").send(\"setParticipant\",
