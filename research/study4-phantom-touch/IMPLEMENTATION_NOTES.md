@@ -1,6 +1,6 @@
 # Study 4（PhantomTouch）実装メモ
 
-- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作）
+- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動）
 - 設計書: `implementation-plan.md`（同フォルダ）
 - 生成シーン: `Assets/_Experiment_/Scenes/PhantomTouch.unity`
 - 生成手段: `Assets/_Experiment_/Editor/PhantomTouch/Study4SceneBuilder.cs`（メニュー `LUIDA > Study4 > Build PhantomTouch scene`）。LUIDA のエディタ API（シーンテンプレート、State Machine タブの生成処理、State-listening Item 生成、質問紙束縛、Data Collector、アバターラッパー生成）をそのまま呼び出しているので、生成物は LUIDA の各ウィンドウでそのまま編集できる。
@@ -14,11 +14,11 @@
 | 実験変数 | `Assets/_Experiment_/Settings/ExperimentVariables/PhantomTouch.js` | within: `block`=1,2 / `rep`=1,2（非ランダム）、between: `social`=with,without / `order`=daily_first,assigned_first、Trials Count 1 → 4 試行 |
 | 質問紙フォーム | シーン内 `LUIDA-QuestionnaireByState/<State>/Questionnaire_p1` | qID 1–4（Start, VEQ, SocialPresence, PersonalExperience。Web Console 側の登録順と一致させること。Debrief の質問紙は 2026-11-04 に外した）。各コンテナは初期状態で非アクティブ（ステート開始時にギミックが有効化） |
 | Data Collector | `Assets/_Experiment_/Scripts/DataCollectors/PhantomTouch.js`（Code モード、設定は `Settings/DataCollectorConfig/PhantomTouch.asset`） | 1 行のフィールド一覧は設計書 §12 |
-| State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal` |
+| State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal`, `SessionReset`（§8） |
 | NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（目ボーン追加済み）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`、トリガー `smile` でブレンドシェイプ `Fcl_ALL_Fun` を再生する `NpcSmile.anim`） |
 | ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force`, `DebriefUI/DB_Ok` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
 | 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab`（1.2 × 1.8 m、初期非アクティブ） | 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。配置は §7 |
-| その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal`（立ち位置に配置）配下に移した `WorldGateToLuidaBar`（End の 10 秒後に参加者の足元に表示） | |
+| その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal`（立ち位置に配置）配下に移した `WorldGateToLuidaBar`（ExitPortal から (100, 100, 100) 離れた位置に置き、End の 10 秒後に参加者をそこへテレポートする） | |
 
 レイアウトはスポーン地点 (0,0,-2) を原点、+Z を正面として配置している。NPC は実行時に参加者の頭位置から立ち位置を再計算するので、初期位置は仮。
 
@@ -26,7 +26,7 @@
 
 自己アバター条件（参加者内）は **Default Avatar（assigned）vs 普段使い（daily）**。Web Console の参加者アバターモードは DEFAULT（`luida_default_avatar`）で、このワールドではアバター変更メニューに「Default Avatar」が表示される。行データの `avatar` は従来どおり `assigned` / `daily`、実験変数 `order` も `daily_first` / `assigned_first` のまま。
 
-参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間だけ（退出ゲートは End で足元に出るので、歩く必要はない）。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
+参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間だけ（End では退出ゲートへテレポートするので、歩く必要はない）。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
 
 1. `Start`: 同意質問紙（qID 1）。完了で遷移。NPC は非表示。
 2. `DeviceCheck`: 頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒。60 秒経過で救済ボタンが出る。合格で行を保存して遷移。
@@ -43,7 +43,7 @@
 6. `Trial - Report`: 0–10 → 操作チェック 1–7 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 行保存 → 遷移。
 7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
 8. `SocialPresence`(qID 3) → `PersonalExperience`(qID 4) → `Debrief`: 正面の指示板にデブリーフ文、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
-9. `End`: データを 1 回アップロード。指示板に「あと N 秒で募集ワールドへ移動します」（10 秒のカウントダウン）を出し、0 になった時点で ExitPortal が退出ゲート（CCK World Gate）を参加者の足元に表示する。World Gate は触れた瞬間に移動させるので、文と同時に出すと即座に退出してしまう。そのためカウントダウンの後に出している（秒数は builder の `EndGateDelaySec`）。
+9. `End`: データを 1 回アップロード。指示板に「あと N 秒で募集ワールドへ移動します」（10 秒のカウントダウン）を出し、0 になった時点で ExitPortal が退出ゲート（CCK World Gate）を有効にして、参加者をそのゲートへテレポートする。ゲートはスポーン地点から遠い位置（ExitPortal のローカル座標 (100, 100, 100)）にあり、ParticipantManager が参加拒否のときに使う方式と同じ。World Gate は触れた瞬間に移動させるので、カウントダウンの後に有効にしている（秒数は builder の `EndGateDelaySec`）。以前は参加者の足元に出していたが、それだとゲートがスポーン地点に残り、同じスペースに次に入った人がすぐ送り返されていた。参加者が退室した後の流れは §8。
 
 ## 3. 残作業・確認事項（優先順）
 
@@ -98,3 +98,17 @@
 - **NPC と質問紙**: 会話距離の NPC は質問紙の手前に立ってしまうので、毎回の触る段階の終わりに元の位置へ戻ってから消える（§2-5）。
 - **反映方法**: メニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`。上記の 5 つのルート（Instruction, AvatarGateUI, DeviceCheckUI, ReportPanelUI, MirrorPanel）の配置・文字サイズ・背景だけを変え、続けてアイテムの動作を書き直す。ステートリストなど他の設定には触れない。フルビルドも同じ `ApplyLayout` を使う。
 
+## 8. セッションリセット（2026-11-07）
+
+End まで終えた参加者が退室した後、同じスペース（インスタンス）に次の人が入ったら、ワールドを最初の状態に戻して実験を最初から始める。設計と判断の経緯は `session-reset-plan.md`（改訂 3.1）。送信成功の確認と再送は範囲外で、`upload-reliability-plan.md` に後回しにしてある。
+
+- **いつ動くか**: Cluster では誰もいないスペースのスクリプトは止まっているので、リセットは次の人が入室した時点で行う。`SessionReset` アイテムが 0.5 秒ごとに「End である、End に入ってからスクリプト時間で 5 秒以上、前の参加者が退室済み、誰かが入室している」を確かめる。5 秒は、End のデータ送信（End 開始の 1 秒後に発行）を前の参加者の sessionID のまま発行させるための待ち時間で、送信成功の保証ではない。
+- **手順**: (1) `exp_sessionReset` 信号 → GlobalLogic 5 個が Global を戻す（`state_exited`、`state_currentID = 0`、`exp_trialID = 0`、`exp_readyToLeaveTrials = false`、`exp_arePlayersEnough = false`）。同時に CM グループの `participants` と `collectedData` を空にし、NPC に `npc_hide`、ConditionManager に `luida_reset` を送る。(2) Global の 4 値と ConditionManager の応答（グループ状態 `luida_resetAck`）を確認できたら、ParticipantManager に `luida_reset` を送る。(3) ParticipantManager が新しい sessionID で初期化し、最後に登録を再開する。応答 `luida_reset_ack` か Start で完了。以降は 1 人目と同じ流れ（登録、eligibility、Start）。
+- **確認できない場合**: 各段階は確認できるまで 2 秒ごとに再送し、タイムアウトしても先へ進まない。15 秒経っても確認できなければ指示板に「エラー：実験の初期化に失敗しました。実験者にご連絡ください。」を出す。ParticipantManager の初期化が最後なので、それまで次の人は登録されない。
+- **質問紙**: 各 FormController が自分のグループの sessionID の変化を見て、前の参加者の割当と送信済みの状態を消し、次の参加者に開き直す。
+- **指示板**: End 中に前の参加者がもういないときは「しばらくお待ちください…」（入室から Start までの 1〜3 秒）。
+- **LUIDA 本体の変更**（追加のみ。SessionReset の無いワールドでは呼ばれない）: `ParticipantManager.js` の `initSession()` と `luida_reset`、`ConditionManager.js` の `luida_reset`（`isLast` も戻す）、`FormController.js` の sessionID 変化による初期化。どれも初期化が例外なく終わってから token を保存するので、途中で失敗しても再送でやり直せる。
+- **設置**: メニュー `LUIDA > Study4 > Add session reset item (keep scene)`。SessionReset が無ければ作り、参照（NPC, ConditionManager, ParticipantManager）と GlobalLogic を付け直し、退出ゲートを遠方に置き、SessionReset / ExitPortal / Instruction の動作と JS だけを書き直す。何度実行してもよい。バッチ実行は `-executeMethod Study4SceneBuilder.AddSessionResetItemFromBatch`。
+- **モックテスト**: `node --test "research/study4-phantom-touch/tests/*.test.mjs"`。LUIDA の 3 スクリプトのハンドラ（途中失敗からの再送を含む）と、生成された `SessionReset.js` を実際の ConditionManager / ParticipantManager と組み合わせた一連の流れ、止まる条件を確かめる。
+- **実機で確かめること**（エディタでは退室と再入室を再現できない）: 1 人目が最後まで終えて退室 → 数分以内に別アカウントで入室して最初から最後まで実施（Web Console に別の sessionID で 2 セッション分のデータと回答があること）。End のカウントダウン中に退室した場合も 1 人目のデータが残ること。2 人目のスポーン地点にゲートが無いこと。2 人目も 4 試行で SocialPresence へ進むこと。同じスペースで 3 人目。
+- **既知の制約**: 送信の成功は確認しない。空のスペースがどれだけ存続するか、次の人が同じスペースに入るかは Cluster 次第（入らなければ従来どおり新しいスペースで始まる）。同じアカウントで入り直したときに前の PlayerHandle の `exists()` が true に戻る場合はリセットされない（実機で確認する）。
