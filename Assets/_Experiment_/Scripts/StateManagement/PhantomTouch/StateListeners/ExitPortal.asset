@@ -73,13 +73,14 @@ MonoBehaviour:
       _variableValuesList: []
     onStateExitedActions: []
   eventHandlers: []
-  otherImplementation: "// ---- Study 4: ExitPortal (gate back to the recruitment
-    world, at the participant's feet) ----\nconst EP_DELAY_SEC = 10;\nfunction ep_begin()
-    { $.state.ep_startTs = Date.now(); $.state.ep_shown = false; }\nfunction ep_update()
-    {\n  if ($.state.ep_shown) return;\n  if (Date.now() - ($.state.ep_startTs ||
-    Date.now()) < EP_DELAY_SEC * 1000) return;\n  const gate = $.subNode('WorldGateToLuidaBar');\n 
-    if (!gate) return;\n  const p = PARTICIPANTS[1];\n  const feet = (p && p.exists())
-    ? p.getPosition() : null;\n  if (feet) {\n    const r = $.getRotation();\n   
-    const inv = new Quaternion(-r.x, -r.y, -r.z, r.w);\n    gate.setPosition(feet.clone().sub($.getPosition()).applyQuaternion(inv));\n 
-    }\n  gate.setEnabled(true);\n  $.state.ep_shown = true;\n  $.log('[ExitPortal]
-    gate shown' + (feet ? ' at the participant' : ' (participant not found)'));\n}\n"
+  otherImplementation: "// ---- Study 4: ExitPortal (participant teleported into
+    a gate far from the spawn point) ----\nconst EP_DELAY_SEC = 10;\nconst EP_GATE_OFFSET
+    = new Vector3(100, 100, 100);   // item-local\nfunction ep_begin() { $.state.ep_startTs
+    = Date.now(); $.state.ep_shown = false; }\nfunction ep_update() {\n  if ($.state.ep_shown)
+    return;\n  if (Date.now() - ($.state.ep_startTs || Date.now()) < EP_DELAY_SEC
+    * 1000) return;\n  const gate = $.subNode('WorldGateToLuidaBar');\n  if (!gate)
+    return;\n  gate.setPosition(EP_GATE_OFFSET);\n  gate.setEnabled(true);\n  $.state.ep_shown
+    = true;\n  const p = PARTICIPANTS[1];\n  if (p && p.exists()) {\n    p.setPosition($.getPosition().add(EP_GATE_OFFSET.clone().applyQuaternion($.getRotation())).add(new
+    Vector3(0, 0.5, 0)));\n    $.log('[ExitPortal] participant teleported to the
+    exit gate');\n  } else {\n    $.log('[ExitPortal] gate shown (participant not
+    found)');\n  }\n}\n"

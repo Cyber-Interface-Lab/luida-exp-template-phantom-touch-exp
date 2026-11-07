@@ -680,14 +680,21 @@ PrefabInstance:
         $.setStateCompat('this', 'ins_btn', 0); ins_okButton(true); }\nfunction ins_okPressed()
         {\n  const b = $.getStateCompat('this', 'ins_btn', 'integer');\n  if (!(b
         > 0)) return false;\n  $.setStateCompat('this', 'ins_btn', 0);\n  return
-        true;\n}\n// End: countdown to the exit gate (ExitPortal uses the same delay)\nconst
-        INS_END_SEC = 10;\nfunction ins_endBegin() { $.state.ins_endTs = Date.now();
-        $.state.ins_endLeft = -1; ins_endTick(); }\nfunction ins_endTick() {\n  const
-        left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs
-        || Date.now())) / 1000));\n  if (left === $.state.ins_endLeft) return;\n 
-        $.state.ins_endLeft = left;\n  ins_show('center', left > 0\n    ? '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u3042\u3068
+        true;\n}\n// End: countdown to the exit gate (ExitPortal uses the same delay).
+        After the participant has left, the next\n// participant who joins the same
+        space sees a waiting text until the session reset brings the world back to\n//
+        Start, or an error text when the reset cannot be confirmed (SessionReset
+        publishes luida_resetStatus).\nconst INS_END_SEC = 10;\nfunction ins_endBegin()
+        { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick();
+        }\nfunction ins_endText() {\n  const rs = $.groupState.luida_resetStatus;\n 
+        if (rs && rs.error) return '\u30A8\u30E9\u30FC\uFF1A\u5B9F\u9A13\u306E\u521D\u671F\u5316\u306B\\n\u5931\u6557\u3057\u307E\u3057\u305F\u3002\\n\u5B9F\u9A13\u8005\u306B\u3054\u9023\u7D61\u304F\u3060\u3055\u3044\u3002';\n 
+        const p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return '\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026';\n 
+        const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs
+        || Date.now())) / 1000));\n  return left > 0\n    ? '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u3042\u3068
         ' + left + ' \u79D2\u3067\u52DF\u96C6\u30EF\u30FC\u30EB\u30C9\u3078\\n\u79FB\u52D5\u3057\u307E\u3059\u3002'\n   
-        : '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u52DF\u96C6\u30EF\u30FC\u30EB\u30C9\u3078\u79FB\u52D5\u3057\u307E\u3059\u3002');\n}"
+        : '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u52DF\u96C6\u30EF\u30FC\u30EB\u30C9\u3078\u79FB\u52D5\u3057\u307E\u3059\u3002';\n}\nfunction
+        ins_endTick() {\n  const text = ins_endText();\n  if (text === $.state.ins_endText)
+        return;\n  $.state.ins_endText = text;\n  ins_show('center', text);\n}"
       objectReference: {fileID: 0}
     - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -4705,17 +4712,17 @@ PrefabInstance:
     - target: {fileID: 2263574305700755212, guid: 5475fa3e27333b2419a0bb8086303137,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 2263574305700755212, guid: 5475fa3e27333b2419a0bb8086303137,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 2263574305700755212, guid: 5475fa3e27333b2419a0bb8086303137,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 2263574305700755212, guid: 5475fa3e27333b2419a0bb8086303137,
         type: 3}
@@ -5957,41 +5964,46 @@ PrefabInstance:
         // didn't flip it and platform/eligibility checks are silently skipped.\n 
         $.log(\"LUIDA boot: isTestMode=\" + isTestMode\n        + \" expID=\" + (typeof
         expID !== \"undefined\" ? expID : null)\n        + \" pNum=\" + (typeof pNum
-        !== \"undefined\" ? pNum : null));\n\n  $.state.isBetweenSubjectsConditionsSet
-        = false;\n  $.groupState.isParticipantsEnough = false;\n  $.groupState.sessionID
-        = Date.now() + \"_\" +  (Math.random() + 1).toString(36).substring(2, 8);\n 
-        $.groupState.participants = []; // array of PlayerHandle who are currently
-        in the experiment\n  $.state.participantsEnvInfo = [];\n  $.state.idfc2userId
-        = {};\n  $.state.timer = 0;\n  $.state.pendingEligibilityChecks = {};\n 
-        $.state.rejectionQueue = [];\n  $.state.isProcessingRejection = false;\n 
-        $.state.rejectionTimer = 0;\n  $.state.isSessionApproved = false;\n  $.state.existingConditions
-        = null;  // existing conditions from server for balancing\n  $.state.betweenSubjectsConfig
-        = [];  // populated by ConditionManager message\n  $.state.eligibleCount
-        = 0;  // only confirmed-eligible players count toward pNum\n\n  // Place
-        world gate at remote position and keep it enabled\n  $.subNode(\"WorldGateToLuidaBar\").setPosition(REJECTION_GATE_POS);\n 
-        $.subNode(\"WorldGateToLuidaBar\").setEnabled(false);\n})\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.groupState.isParticipantsEnough) {\n        $.state.timer
-        += deltaTime;\n        if ($.state.timer >= 1){\n            $.state.timer
-        = 0;\n            let pIdfcs = $.groupState.participants.map(p => p.idfc);\n           
-        const newPlayers = $.getPlayersNear($.getPosition(), Infinity)\n               
-        .filter(p => !pIdfcs.includes(p.idfc));\n            if (newPlayers.length
-        > 0) {\n                for (const newPlayer of newPlayers) {\n                   
-        $.groupState.participants = [ ...$.groupState.participants, newPlayer ];\n                   
-        $.setPlayerScript(newPlayer);\n                    newPlayer.send(\"initializeParticipant\",
-        true);\n                }\n            }\n            // pNum check moved
-        to onExternalCallEnd \u2014 only eligible players count\n        }\n    }
-        else if ($.state.isBetweenSubjectsConditionsSet) { // participants are enough
-        & conditions are set\n        $.state.isBetweenSubjectsConditionsSet = false;\n       
-        if (!isTestMode) {\n            let request = {\n                type: \"uploadCustomData\",\n               
-        data: {\n                    pInfo: $.state.participantsEnvInfo.map(info
-        => ({ ts: Date.now(), sID: $.groupState.sessionID || \"\", ...info })),\n                   
-        idfc2userId: $.state.idfc2userId\n                },\n                token:
-        token || \"\",\n                eID: expID || \"\",\n                sID:
-        $.groupState.sessionID || \"\"\n            };\n            $.callExternal(new
-        ExternalEndpointId(callExternalEndpointID), JSON.stringify(request), \"customDataUploaded\");\n       
-        }\n    }\n\n    // Process rejection queue: teleport rejected players to
-        remote world gate one at a time\n    if ($.state.rejectionQueue.length >
-        0 && !$.state.isProcessingRejection) {\n        const rejection = $.state.rejectionQueue[0];\n       
+        !== \"undefined\" ? pNum : null));\n\n  $.state.betweenSubjectsConfig = []; 
+        // populated by ConditionManager message (sent once per space)\n  initSession();\n\n 
+        // Place world gate at remote position and keep it enabled\n  $.subNode(\"WorldGateToLuidaBar\").setPosition(REJECTION_GATE_POS);\n 
+        $.subNode(\"WorldGateToLuidaBar\").setEnabled(false);\n})\n\n// Per-participant
+        session state. Runs at space start and again on \"luida_reset\" (a world
+        that lets the next\n// participant start in the same space after End). betweenSubjectsConfig
+        is kept.\nfunction initSession() {\n  $.state.isBetweenSubjectsConditionsSet
+        = false;\n  $.groupState.sessionID = Date.now() + \"_\" +  (Math.random()
+        + 1).toString(36).substring(2, 8);\n  $.groupState.participants = []; //
+        array of PlayerHandle who are currently in the experiment\n  $.groupState.qCompletedCount
+        = 0;\n  $.state.participantsEnvInfo = [];\n  $.state.idfc2userId = {};\n 
+        $.state.timer = 0;\n  $.state.pendingEligibilityChecks = {};\n  $.state.rejectionQueue
+        = [];\n  $.state.isProcessingRejection = false;\n  $.state.rejectionTimer
+        = 0;\n  $.state.isSessionApproved = false;\n  $.state.existingConditions
+        = null;  // existing conditions from server for balancing\n  $.state.betweenSubjectsConditions
+        = null;\n  $.state.eligibleCount = 0;  // only confirmed-eligible players
+        count toward pNum\n  // Last: enrollment starts again once this is false,
+        so a failure above leaves enrollment blocked.\n  $.groupState.isParticipantsEnough
+        = false;\n}\n\n$.onUpdate((deltaTime) => {\n    if (!$.groupState.isParticipantsEnough)
+        {\n        $.state.timer += deltaTime;\n        if ($.state.timer >= 1){\n           
+        $.state.timer = 0;\n            let pIdfcs = $.groupState.participants.map(p
+        => p.idfc);\n            const newPlayers = $.getPlayersNear($.getPosition(),
+        Infinity)\n                .filter(p => !pIdfcs.includes(p.idfc));\n           
+        if (newPlayers.length > 0) {\n                for (const newPlayer of newPlayers)
+        {\n                    $.groupState.participants = [ ...$.groupState.participants,
+        newPlayer ];\n                    $.setPlayerScript(newPlayer);\n                   
+        newPlayer.send(\"initializeParticipant\", true);\n                }\n           
+        }\n            // pNum check moved to onExternalCallEnd \u2014 only eligible
+        players count\n        }\n    } else if ($.state.isBetweenSubjectsConditionsSet)
+        { // participants are enough & conditions are set\n        $.state.isBetweenSubjectsConditionsSet
+        = false;\n        if (!isTestMode) {\n            let request = {\n               
+        type: \"uploadCustomData\",\n                data: {\n                   
+        pInfo: $.state.participantsEnvInfo.map(info => ({ ts: Date.now(), sID: $.groupState.sessionID
+        || \"\", ...info })),\n                    idfc2userId: $.state.idfc2userId\n               
+        },\n                token: token || \"\",\n                eID: expID ||
+        \"\",\n                sID: $.groupState.sessionID || \"\"\n            };\n           
+        $.callExternal(new ExternalEndpointId(callExternalEndpointID), JSON.stringify(request),
+        \"customDataUploaded\");\n        }\n    }\n\n    // Process rejection queue:
+        teleport rejected players to remote world gate one at a time\n    if ($.state.rejectionQueue.length
+        > 0 && !$.state.isProcessingRejection) {\n        const rejection = $.state.rejectionQueue[0];\n       
         const allPlayers = $.getPlayersNear($.getPosition(), Infinity);\n       
         const player = allPlayers.find(p => p.idfc === rejection.idfc);\n\n       
         if (!player) {\n            // Player already left, skip\n            $.state.rejectionQueue
@@ -6042,12 +6054,23 @@ PrefabInstance:
         }\n\n                $.callExternal(\n                    new ExternalEndpointId(callExternalEndpointID),\n                   
         JSON.stringify(eligibilityRequest),\n                    \"joinEligibilityChecked_\"
         + sender.idfc\n                );\n            }\n            break;\n       
-        default:\n            break;\n    }\n}, { item: true, player: true });\n\nfunction
-        HandleParticipantsEnough() {\n  $.log(\"Participants are enough to start
-        the experiment.\");\n  $.groupState.isParticipantsEnough = true;\n  $.sendSignalCompat(\"this\",
-        \"exp_playersAreEnough\");\n  $.sendSignalCompat(\"this\", \"exp_StartStateTransition\");\n\n 
-        const conditionManager = $.worldItemReference(\"ConditionManager\");\n  if
-        (conditionManager) {\n    // If server returned existing conditions, send
+        case \"luida_reset\": {\n            // Sent by a world's session reset item
+        after End, once the previous participant has left.\n            // Idempotent
+        per token; the token is saved only after the reset succeeded, so a re-send
+        retries a failed one.\n            // Do not send luida_participants_info
+        here: the new sessionID has no backend session yet.\n            const resetToken
+        = arg && arg.token;\n            if ($.state.luida_lastResetToken !== resetToken)
+        {\n                initSession();\n                $.setStateCompat(\"this\",
+        \"exp_showWaitingMessage\", true);\n                $.state.luida_lastResetToken
+        = resetToken;\n                $.log(\"LUIDA session reset: new sID=\" +
+        $.groupState.sessionID);\n            }\n            sender.send(\"luida_reset_ack\",
+        { token: resetToken, sessionID: $.groupState.sessionID });\n            break;\n       
+        }\n        default:\n            break;\n    }\n}, { item: true, player:
+        true });\n\nfunction HandleParticipantsEnough() {\n  $.log(\"Participants
+        are enough to start the experiment.\");\n  $.groupState.isParticipantsEnough
+        = true;\n  $.sendSignalCompat(\"this\", \"exp_playersAreEnough\");\n  $.sendSignalCompat(\"this\",
+        \"exp_StartStateTransition\");\n\n  const conditionManager = $.worldItemReference(\"ConditionManager\");\n 
+        if (conditionManager) {\n    // If server returned existing conditions, send
         them for local balancing\n    if ($.state.isSessionApproved && $.state.existingConditions)
         {\n      conditionManager.send(\"luida_existing_conditions\", $.state.existingConditions);\n   
         } else if (typeof expID === \"undefined\" || !expID) {\n      // No expID
@@ -6147,14 +6170,25 @@ PrefabInstance:
         + \": \" + JSON.stringify(assignedConditions));\r\n      break;\r\n    case
         \"luida_participants_info\":\r\n      $.groupState.participants = arg.participants;\r\n     
         $.groupState.sessionID = arg.sessionID;\r\n      sender.send(\"betweenSubjectsCondition\",
-        $.state.betweenSubjectsConditions);\r\n      break;\r\n    default:\r\n     
-        break;\r\n  }\r\n});\r\n\r\nfunction updateCondition() {\r\n  if ($.state.trialID
-        >= $.state.trialCount) {\r\n    $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n 
-        } else if ($.state.trialID <= -1) {\r\n    reset();\r\n  } else {\r\n   
-        let condition = { ...$.state.betweenSubjectsConditions };\r\n    for (let
-        i = 0; i < $.state.withinSubjectsVariableNames.length; i++) {\r\n      const
-        varName = $.state.withinSubjectsVariableNames[i];\r\n      const varValue
-        =\r\n          within_subjects_variables[i].values[\r\n              $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
+        $.state.betweenSubjectsConditions);\r\n      break;\r\n    case \"luida_reset\":
+        {\r\n      // Sent by a world's session reset item after End, once the previous
+        participant has left.\r\n      // Same steps as $.onStart (except sending
+        betweenSubjectsConfig), plus isLast, which reset() keeps.\r\n      // The
+        token is saved only after the reset succeeded; the sender reads luida_resetAck
+        from the group state.\r\n      const resetToken = arg && arg.token;\r\n     
+        if ($.state.luida_lastResetToken !== resetToken) {\r\n        $.state.isLast
+        = false;\r\n        $.state.isServerAssigned = false;\r\n        $.state.betweenSubjectsConditions
+        = {};\r\n        initializeBetweenSubjectsConditions();\r\n        reset();\r\n       
+        $.state.luida_lastResetToken = resetToken;\r\n        $.log(\"[ConditionManager]
+        session reset\");\r\n      }\r\n      $.groupState.luida_resetAck = resetToken;\r\n     
+        break;\r\n    }\r\n    default:\r\n      break;\r\n  }\r\n});\r\n\r\nfunction
+        updateCondition() {\r\n  if ($.state.trialID >= $.state.trialCount) {\r\n   
+        $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n  } else if ($.state.trialID
+        <= -1) {\r\n    reset();\r\n  } else {\r\n    let condition = { ...$.state.betweenSubjectsConditions
+        };\r\n    for (let i = 0; i < $.state.withinSubjectsVariableNames.length;
+        i++) {\r\n      const varName = $.state.withinSubjectsVariableNames[i];\r\n     
+        const varValue =\r\n          within_subjects_variables[i].values[\r\n             
+        $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
         ];\r\n      condition[varName] = varValue;\r\n    }\r\n    $.groupState.currentCondition
         = condition;\r\n\r\n    // Check if this is the last trial (if true, stop
         repeating trials when next state transition is triggered)\r\n    if (\r\n       
@@ -6450,6 +6484,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6487efbf7339493cb3e1fa581f53b763, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &930668822 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2788665037610529933, guid: c429a845517c96a419988cd638c846f1,
+    type: 3}
+  m_PrefabInstance: {fileID: 930668817}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3977a5e65e72f4db4b85ddba10d48dd4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &972837459
@@ -7730,6 +7776,656 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1125888379}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &1142343859
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[0].id
+      value: luida-data-collector
+      objectReference: {fileID: 0}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[1].id
+      value: NPC
+      objectReference: {fileID: 0}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[2].id
+      value: ConditionManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[3].id
+      value: ParticipantManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[0].item
+      value: 
+      objectReference: {fileID: 2120968066}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[1].item
+      value: 
+      objectReference: {fileID: 580053179}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[2].item
+      value: 
+      objectReference: {fileID: 930668819}
+    - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: worldItemReferences.Array.data[3].item
+      value: 
+      objectReference: {fileID: 930668822}
+    - target: {fileID: 833797841801743093, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: 'itemScripts.Array.data[1]'
+      value: 
+      objectReference: {fileID: 5022602860645237092, guid: e5eac235678f3f84c9fb6ded2cb88d34,
+        type: 3}
+    - target: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_Name
+      value: SessionReset
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071926, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: sourceCode
+      value: "let timer = 0;\nlet CONDITION;\nlet PARTICIPANTS = [];\n\n$.onStart(()
+        => {\n    $.state.last_state_id = 0;\n    $.state.state_id = 0;\n    $.state.stateEnterActionID
+        = -1;\n    $.state.stateExitActionID = -1;\n    $.state.duringStateActionID
+        = -1;\n    Start();\n})\n\n$.onUpdate((deltaTime) => {\n    // Refresh every
+        frame so enter/during/exit actions (and helper functions\n    // like SendHaptics)
+        always see the current participant roster and condition.\n    // Do not rely
+        on OnStateEnter alone \u2014 $.state persists across script reloads,\n   
+        // so DuringState can resume without OnStateEnter re-running.\n    CONDITION
+        = $.groupState.currentCondition;\n    PARTICIPANTS = [null].concat($.groupState.participants
+        || []);\n\n    if ($.getStateCompat(\"this\", \"state_exit\", \"boolean\"))
+        {\n        $.state.stateExitActionID = 0;\n        $.state.last_state_id
+        = $.state.state_id;\n        $.setStateCompat(\"this\", \"state_exit\", false);\n   
+        }\n    if ($.state.stateExitActionID >= 0) OnStateExit(deltaTime);\n\n   
+        if ($.getStateCompat(\"this\", \"state_enter\", \"boolean\")) {\n       
+        $.setStateCompat(\"this\", \"state_enter\", false);\n        $.state.state_id
+        = $.getStateCompat(\"global\", \"state_currentID\", \"integer\");\n       
+        $.state.stateEnterActionID = 0;\n        $.state.duringStateActionID = 0;\n   
+        }\n    if ($.state.stateEnterActionID >= 0) OnStateEnter(deltaTime);\n\n   
+        if ($.state.duringStateActionID >= 0) DuringState(deltaTime);\n\n    Update(deltaTime);\n})\n\nfunction
+        ShowItem() {\n    $.setStateCompat(\"this\", \"exp_showItem\", true);\n}\n\nfunction
+        HideItem() {\n    $.setStateCompat(\"this\", \"exp_showItem\", false);\n}\n\nfunction
+        SetPosition(x, y, z) {\n    try {\n        $.setPosition(new Vector3(parseFloat(x),
+        parseFloat(y), parseFloat(z)));\n    } catch (e) {\n        $.log(`Error
+        in SetPosition: ${e}. Ensure MovableItem is present and x,y,z are valid numbers.`);\n   
+        }\n}\n\nfunction AddPosition(x, y, z) {\n    try {\n        $.setPosition($.getPosition().add(new
+        Vector3(parseFloat(x), parseFloat(y), parseFloat(z))))\n    } catch (e) {\n       
+        $.log(`Error in AddPosition: ${e}. Ensure MovableItem is present and x,y,z
+        are valid numbers.`);\n    }\n}\n\nfunction SetRotation(x, y, z) {\n    try
+        {\n        $.setRotation(new Quaternion().setFromEulerAngles(new Vector3(parseFloat(x),
+        parseFloat(y), parseFloat(z))));\n    } catch (e) {\n        $.log(`Error
+        in SetRotation: ${e}. Ensure MovableItem is present and x,y,z are valid numbers
+        (Euler degrees).`);\n    }\n}\n\nfunction AddRotation(x, y, z) {\n    try
+        {\n        $.setRotation($.getRotation().multiply(new Quaternion().setFromEulerAngles(new
+        Vector3(parseFloat(x), parseFloat(y), parseFloat(z)))))\n    } catch (e)
+        {\n        $.log(`Error in AddRotation: ${e}. Ensure MovableItem is present
+        and x,y,z are valid numbers (Euler degrees).`);\n    }\n}\n\nfunction ShowChild(childName)
+        {\n    $.subNode(childName).setEnabled(true);\n}\n\nfunction HideChild(childName)
+        {\n    $.subNode(childName).setEnabled(false);\n}\n\nfunction SetChildPosition(childName,
+        x, y, z) {\n    try {\n        $.subNode(childName).setPosition(new Vector3(parseFloat(x),
+        parseFloat(y), parseFloat(z)));\n    } catch (e) {\n        $.log(`Error
+        in SetChildPosition: ${e}. Ensure MovableItem is present and x,y,z are valid
+        numbers.`);\n    }\n}\n\nfunction AddChildPosition(childName, x, y, z) {\n   
+        try {\n        $.subNode(childName).setPosition($.subNode(childName).getPosition().add(new
+        Vector3(parseFloat(x), parseFloat(y), parseFloat(z))))\n    } catch (e) {\n       
+        $.log(`Error in AddChildPosition: ${e}. Ensure MovableItem is present and
+        x,y,z are valid numbers.`);\n    }\n}\n\nfunction SetChildRotation(childName,
+        x, y, z) {\n    try {\n        $.subNode(childName).setRotation(new Quaternion().setFromEulerAngles(new
+        Vector3(parseFloat(x), parseFloat(y), parseFloat(z))));\n    } catch (e)
+        {\n        $.log(`Error in SetChildRotation: ${e}. Ensure MovableItem is
+        present and x,y,z are valid numbers (Euler degrees).`);\n    }\n}\n\nfunction
+        AddChildRotation(childName, x, y, z) {\n    try {\n        $.subNode(childName).setRotation($.subNode(childName).getRotation().multiply(new
+        Quaternion().setFromEulerAngles(new Vector3(parseFloat(x), parseFloat(y),
+        parseFloat(z)))))\n    } catch (e) {\n        $.log(`Error in AddChildRotation:
+        ${e}. Ensure MovableItem is present and x,y,z are valid numbers (Euler degrees).`);\n   
+        }\n}\n\nfunction ToNextState() {\n    $.sendSignalCompat(\"this\", \"state_triggerTransition\");\n}\n\nfunction
+        SendDataToCollector(label, value) {\n    if (!$.groupState.collectedData)
+        $.groupState.collectedData = {};\n    let collectedData = $.groupState.collectedData;\n   
+        collectedData[label] = value;\n    $.groupState.collectedData = collectedData;\n}\n\nfunction
+        ProcessAndSaveCollectedData() {\n    $.sendSignalCompat(\"this\", \"exp_recordCustomData\");\n}\n\nfunction
+        UploadCollectedData() {\n    $.sendSignalCompat(\"this\", \"exp_uploadCustomData\");\n}\n\nfunction
+        SetText(text) {\n    try {\n        $.subNode(\"Text\").setText(`${text}`);\n   
+        } catch (e) {\n        $.log(`Error in SetText: ${e}. Ensure a 'Text' sub-node
+        exists and has setText method.`);\n    }\n}\n\nfunction SendHaptics(participantId,
+        target, frequency, amplitude, duration) {\n    try {\n        if (PARTICIPANTS[participantId])
+        {\n            let hapticsTarget = target;\n            if (typeof target
+        === 'string') {\n                const lowerTarget = target.toLowerCase();\n               
+        if (lowerTarget === '\"left\"' || lowerTarget === \"'left'\") {\n                   
+        hapticsTarget = \"left\";\n                } else if (lowerTarget === '\"right\"'
+        || lowerTarget === \"'right'\") {\n                    hapticsTarget = \"right\";\n               
+        } else {\n                    hapticsTarget = null;\n                }\n           
+        }\n\n            PARTICIPANTS[participantId].send(\"haptics\", {\n               
+        target: hapticsTarget,\n                frequency: parseFloat(frequency),\n               
+        amplitude: parseFloat(amplitude),\n                duration: parseFloat(duration)\n           
+        });\n        } else {\n            $.log(\"SendHaptics: No player found nearby.\");\n       
+        }\n    } catch (e) {\n        $.log(`Error in SendHaptics: ${e}`);\n    }\n}\n\nfunction
+        SendViaOsc(participantId, address, values) {\n    PARTICIPANTS[participantId].send(\"sendOsc\",
+        { address, values });\n}\n\nfunction OnStateEnter(deltaTime) {\n    if (!stateEnterActions[$.state.state_id]
+        || $.state.stateEnterActionID >= stateEnterActions[$.state.state_id].length)
+        return;\n    \n    while ($.state.stateEnterActionID < stateEnterActions[$.state.state_id].length
+        && stateEnterActions[$.state.state_id][$.state.stateEnterActionID].type !==
+        \"sleep\") {\n        stateEnterActions[$.state.state_id][$.state.stateEnterActionID].action(deltaTime);\n       
+        $.state.stateEnterActionID += 1;\n    }\n\n    if ($.state.stateEnterActionID
+        >= stateEnterActions[$.state.state_id].length) {\n        $.state.stateEnterActionID
+        = -1;\n    } else if (stateEnterActions[$.state.state_id][$.state.stateEnterActionID].type
+        === \"sleep\") {\n        if (timer >= stateEnterActions[$.state.state_id][$.state.stateEnterActionID].value)
+        {\n            $.state.stateEnterActionID += 1;\n            timer = 0;\n       
+        } else {\n            timer += deltaTime;\n        }\n    }\n}\n\nfunction
+        OnStateExit(deltaTime) {\n    if (!stateExitActions[$.state.last_state_id]
+        || $.state.stateExitActionID >= stateExitActions[$.state.last_state_id].length)
+        return;\n    while ($.state.stateExitActionID < stateExitActions[$.state.last_state_id].length
+        && stateExitActions[$.state.last_state_id][$.state.stateExitActionID].type
+        !== \"sleep\") {\n        stateExitActions[$.state.last_state_id][$.state.stateExitActionID].action(deltaTime);\n       
+        $.state.stateExitActionID += 1;\n    }\n\n    if ($.state.stateExitActionID
+        >= stateExitActions[$.state.last_state_id].length) {\n        $.state.stateExitActionID
+        = -1;\n        $.state.last_state_id = $.state.state_id;\n    } else if (stateExitActions[$.state.last_state_id][$.state.stateExitActionID].type
+        === \"sleep\") {\n        if (timer >= stateExitActions[$.state.last_state_id][$.state.stateExitActionID].value)
+        {\n            $.state.stateExitActionID += 1;\n            timer = 0;\n           
+        if ($.state.stateExitActionID >= stateExitActions[$.state.last_state_id].length)
+        {\n                $.state.stateExitActionID = -1;\n            }\n       
+        } else {\n            timer += deltaTime;\n        }\n    }\n}\n\nfunction
+        DuringState(deltaTime) {\n    if (!duringStateActions[$.state.state_id] ||
+        !duringStateActions[$.state.state_id][$.state.duringStateActionID]) return;\n   
+        \n    while ($.state.duringStateActionID < duringStateActions[$.state.state_id].length)
+        {\n        if (duringStateActions[$.state.state_id][$.state.duringStateActionID].type
+        === \"sleep\") {\n            $.state.duringStateActionID += 1;\n       
+        } else {\n            duringStateActions[$.state.state_id][$.state.duringStateActionID].action(deltaTime);\n           
+        $.state.duringStateActionID += 1;\n        }\n    }\n    $.state.duringStateActionID
+        = 0;\n}\n\nfunction Start() {}\nfunction Update(deltaTime) {}\n\r\nconst
+        stateEnterActions = {\r\n    0: [\n        { type: \"exec\", action: (deltaTime)
+        => {\n            $.setStateCompat('this', 'exp_showItem', true);\n       
+        } },\r\n        { type: \"exec\", action: (deltaTime) => {\n            sr_idle();\n       
+        } }\r\n    ],\r\n    11: [\n        { type: \"exec\", action: (deltaTime)
+        => {\n            sr_endBegin();\n        } }\r\n    ]\r\n};\n\r\nconst duringStateActions
+        = {\r\n};\n\r\nconst stateExitActions = {\r\n};\r\n\n\nfunction Update(deltaTime)
+        {\n    sr_tick(deltaTime);\n}\n\n// ---- legacy free-form code (migrate to
+        event handlers when possible) ----\n\n// ---- Study 4: SessionReset (next
+        participant in the same space) ----\n// Scripts run only while someone is
+        in the space, so the reset runs when the NEXT player joins and finds End\n//
+        with the previous participant gone. Phases: idle -> end -> (reset) -> settle
+        -> pm -> idle.\n// Each step waits for confirmation and never advances on
+        a timeout. Enrollment stays blocked by construction\n// until ParticipantManager
+        has finished its own reset (the last step: ParticipantManager enrolls only
+        while\n// isParticipantsEnough is false, and its reset clears that flag last).
+        'luida_reset_ack' is a completion notice;\n// Start (sr_idle) also ends the
+        wait, because Start can only follow a completed ParticipantManager reset.\n//
+        Upload success is not verified (decision 2026-11-06): SR_MIN_END_SEC only
+        lets the existing uploader issue\n// End's request under the old sessionID
+        before anything is reset.\nconst SR_END_ID = 11;\nconst SR_POLL_SEC = 0.5;\nconst
+        SR_MIN_END_SEC = 5;     // script time since End began (End's upload is issued
+        1 s after End begins)\nconst SR_RESEND_SEC = 2;      // re-send while unconfirmed
+        (the handlers are idempotent per token)\nconst SR_ALERT_SEC = 15;      //
+        show an error on the instruction board after this long without confirmation\n\nfunction
+        sr_status(extra) {   // read by Instruction (same group) for the waiting
+        / error texts\n  $.groupState.luida_resetStatus = Object.assign({ phase:
+        $.state.sr_phase || 'idle', token: $.state.sr_token || null }, extra || {});\n}\nfunction
+        sr_phase(p) { $.state.sr_phase = p; $.state.sr_phaseSec = 0; $.state.sr_lastSend
+        = -1e9; sr_status(); }\nfunction sr_idle() { sr_phase('idle'); $.state.sr_pmAck
+        = false; }\nfunction sr_endBegin() { sr_phase('end'); $.state.sr_pollIn =
+        0; }\nfunction sr_prevGone() { const p = PARTICIPANTS[1]; return !!p && !p.exists();
+        }\nfunction sr_someoneHere() { return $.getPlayersNear($.getPosition(), Infinity).length
+        > 0; }\nfunction sr_globalsReset() {\n  return $.getStateCompat('global',
+        'state_currentID', 'integer') === 0\n      && $.getStateCompat('global',
+        'exp_trialID', 'integer') === 0\n      && $.getStateCompat('global', 'exp_readyToLeaveTrials',
+        'boolean') === false\n      && $.getStateCompat('global', 'exp_arePlayersEnough',
+        'boolean') === false;\n}\nfunction sr_send(id, msg, arg) {\n  try {\n   
+        const h = $.worldItemReference(id);\n    if (!h) { $.log('[SessionReset]
+        missing world item reference: ' + id); return false; }\n    h.send(msg, arg
+        || {});\n    return true;\n  } catch (e) { $.log('[SessionReset] send ' +
+        id + '/' + msg + ': ' + e); return false; }\n}\nfunction sr_due() {          
+        // rate-limits the re-sends\n  if ($.state.sr_phaseSec - $.state.sr_lastSend
+        < SR_RESEND_SEC) return false;\n  $.state.sr_lastSend = $.state.sr_phaseSec;\n 
+        return true;\n}\nfunction sr_startReset() {\n  $.state.sr_token = ($.groupState.sessionID
+        || 'none') + ':' + Date.now();\n  $.state.sr_pmAck = false;\n  $.log('[SessionReset]
+        previous participant left after End; resetting for the next participant,
+        token=' + $.state.sr_token);\n  $.sendSignalCompat('this', 'exp_sessionReset');  
+        // GlobalLogic x5 (see the builder)\n  $.groupState.participants = [];\n 
+        $.groupState.collectedData = {};\n  sr_send('NPC', 'npc_hide');\n  sr_send('ConditionManager',
+        'luida_reset', { token: $.state.sr_token });\n  sr_phase('settle');\n  $.state.sr_lastSend
+        = 0;    // the first re-send comes SR_RESEND_SEC after the first send\n}\nfunction
+        sr_tick(dt) {\n  const phase = $.state.sr_phase || 'idle';\n  if (phase ===
+        'idle') return;\n  $.state.sr_phaseSec = ($.state.sr_phaseSec || 0) + dt;\n 
+        $.state.sr_pollIn = ($.state.sr_pollIn || 0) - dt;\n  if ($.state.sr_pollIn
+        > 0) return;\n  $.state.sr_pollIn = SR_POLL_SEC;\n  if (phase === 'end')
+        {\n    if ($.getStateCompat('global', 'state_currentID', 'integer') !== SR_END_ID)
+        return;\n    if ($.state.sr_phaseSec < SR_MIN_END_SEC) return;\n    if (!sr_prevGone()
+        || !sr_someoneHere()) return;\n    sr_startReset();\n  } else if (phase ===
+        'settle') {\n    const acked = $.groupState.luida_resetAck === $.state.sr_token;\n   
+        if (acked && sr_globalsReset()) {\n      $.log('[SessionReset] Globals and
+        ConditionManager reset; resetting ParticipantManager');\n      sr_phase('pm');\n     
+        sr_send('ParticipantManager', 'luida_reset', { token: $.state.sr_token });\n     
+        $.state.sr_lastSend = 0;\n      return;\n    }\n    if (sr_due()) {\n     
+        if (!sr_globalsReset()) { $.log('[SessionReset] Globals not reset yet; re-sending');
+        $.sendSignalCompat('this', 'exp_sessionReset'); }\n      if (!acked) { $.log('[SessionReset]
+        ConditionManager not reset yet; re-sending'); sr_send('ConditionManager',
+        'luida_reset', { token: $.state.sr_token }); }\n    }\n    if ($.state.sr_phaseSec
+        >= SR_ALERT_SEC) sr_status({ error: 'reset' });\n  } else if (phase === 'pm')
+        {\n    if ($.state.sr_pmAck) { $.log('[SessionReset] done; ParticipantManager
+        reset acknowledged'); sr_idle(); return; }\n    if (sr_due()) { $.log('[SessionReset]
+        ParticipantManager not reset yet; re-sending'); sr_send('ParticipantManager',
+        'luida_reset', { token: $.state.sr_token }); }\n    if ($.state.sr_phaseSec
+        >= SR_ALERT_SEC) sr_status({ error: 'reset' });\n  }\n}\n$.onReceive((messageType,
+        arg) => {\n  if (messageType === 'luida_reset_ack' && arg && arg.token ===
+        $.state.sr_token) {\n    $.state.sr_pmAck = true;\n    $.log('[SessionReset]
+        ParticipantManager reset acknowledged, new sID=' + arg.sessionID);\n  }\n});"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: itemName
+      value: SessionReset
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5660514857068071931, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6758608954925073686, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      propertyPath: host
+      value: 
+      objectReference: {fileID: 930668818}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1142343866}
+    - targetCorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1142343865}
+    - targetCorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1142343864}
+    - targetCorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1142343863}
+    - targetCorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1142343862}
+  m_SourcePrefab: {fileID: 100100000, guid: de40e14777f5f4d3190981c4f4b1cddf, type: 3}
+--- !u!1 &1142343860 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5660514857068071925, guid: de40e14777f5f4d3190981c4f4b1cddf,
+    type: 3}
+  m_PrefabInstance: {fileID: 1142343859}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1142343861 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
+    type: 3}
+  m_PrefabInstance: {fileID: 1142343859}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3977a5e65e72f4db4b85ddba10d48dd4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1142343862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e67bdc2960f9462385a7fba1c0052836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  globalGimmickKey:
+    key:
+      target: 0
+      key: exp_sessionReset
+    item: {fileID: 1142343861}
+  logic:
+    statements:
+    - singleStatement:
+        targetState:
+          target: 2
+          key: exp_arePlayersEnough
+          parameterType: 1
+        expression:
+          type: 0
+          value:
+            type: 0
+            constant:
+              type: 1
+              boolValue: 0
+              floatValue: 0
+              integerValue: 0
+              vector2Value: {x: 0, y: 0}
+              vector3Value: {x: 0, y: 0, z: 0}
+            sourceState:
+              target: 2
+              key: 
+              type: 6
+          operatorExpression:
+            operator: 0
+            operands:
+            - type: 0
+              value:
+                type: 0
+                constant:
+                  type: 1
+                  boolValue: 0
+                  floatValue: 0
+                  integerValue: 0
+                  vector2Value: {x: 0, y: 0}
+                  vector3Value: {x: 0, y: 0, z: 0}
+                sourceState:
+                  target: 2
+                  key: 
+                  type: 6
+              operatorExpression:
+                operator: 0
+                operands: []
+--- !u!114 &1142343863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e67bdc2960f9462385a7fba1c0052836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  globalGimmickKey:
+    key:
+      target: 0
+      key: exp_sessionReset
+    item: {fileID: 1142343861}
+  logic:
+    statements:
+    - singleStatement:
+        targetState:
+          target: 2
+          key: exp_readyToLeaveTrials
+          parameterType: 1
+        expression:
+          type: 0
+          value:
+            type: 0
+            constant:
+              type: 1
+              boolValue: 0
+              floatValue: 0
+              integerValue: 0
+              vector2Value: {x: 0, y: 0}
+              vector3Value: {x: 0, y: 0, z: 0}
+            sourceState:
+              target: 2
+              key: 
+              type: 6
+          operatorExpression:
+            operator: 0
+            operands:
+            - type: 0
+              value:
+                type: 0
+                constant:
+                  type: 1
+                  boolValue: 0
+                  floatValue: 0
+                  integerValue: 0
+                  vector2Value: {x: 0, y: 0}
+                  vector3Value: {x: 0, y: 0, z: 0}
+                sourceState:
+                  target: 2
+                  key: 
+                  type: 6
+              operatorExpression:
+                operator: 0
+                operands: []
+--- !u!114 &1142343864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e67bdc2960f9462385a7fba1c0052836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  globalGimmickKey:
+    key:
+      target: 0
+      key: exp_sessionReset
+    item: {fileID: 1142343861}
+  logic:
+    statements:
+    - singleStatement:
+        targetState:
+          target: 2
+          key: exp_trialID
+          parameterType: 3
+        expression:
+          type: 0
+          value:
+            type: 0
+            constant:
+              type: 3
+              boolValue: 0
+              floatValue: 0
+              integerValue: 0
+              vector2Value: {x: 0, y: 0}
+              vector3Value: {x: 0, y: 0, z: 0}
+            sourceState:
+              target: 2
+              key: 
+              type: 6
+          operatorExpression:
+            operator: 0
+            operands:
+            - type: 0
+              value:
+                type: 0
+                constant:
+                  type: 1
+                  boolValue: 0
+                  floatValue: 0
+                  integerValue: 0
+                  vector2Value: {x: 0, y: 0}
+                  vector3Value: {x: 0, y: 0, z: 0}
+                sourceState:
+                  target: 2
+                  key: 
+                  type: 6
+              operatorExpression:
+                operator: 0
+                operands: []
+--- !u!114 &1142343865
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e67bdc2960f9462385a7fba1c0052836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  globalGimmickKey:
+    key:
+      target: 0
+      key: exp_sessionReset
+    item: {fileID: 1142343861}
+  logic:
+    statements:
+    - singleStatement:
+        targetState:
+          target: 2
+          key: state_currentID
+          parameterType: 3
+        expression:
+          type: 0
+          value:
+            type: 0
+            constant:
+              type: 3
+              boolValue: 0
+              floatValue: 0
+              integerValue: 0
+              vector2Value: {x: 0, y: 0}
+              vector3Value: {x: 0, y: 0, z: 0}
+            sourceState:
+              target: 2
+              key: 
+              type: 6
+          operatorExpression:
+            operator: 0
+            operands:
+            - type: 0
+              value:
+                type: 0
+                constant:
+                  type: 1
+                  boolValue: 0
+                  floatValue: 0
+                  integerValue: 0
+                  vector2Value: {x: 0, y: 0}
+                  vector3Value: {x: 0, y: 0, z: 0}
+                sourceState:
+                  target: 2
+                  key: 
+                  type: 6
+              operatorExpression:
+                operator: 0
+                operands: []
+--- !u!114 &1142343866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142343860}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e67bdc2960f9462385a7fba1c0052836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  globalGimmickKey:
+    key:
+      target: 0
+      key: exp_sessionReset
+    item: {fileID: 1142343861}
+  logic:
+    statements:
+    - singleStatement:
+        targetState:
+          target: 2
+          key: state_exited
+          parameterType: 0
+        expression:
+          type: 0
+          value:
+            type: 0
+            constant:
+              type: 1
+              boolValue: 1
+              floatValue: 0
+              integerValue: 0
+              vector2Value: {x: 0, y: 0}
+              vector3Value: {x: 0, y: 0, z: 0}
+            sourceState:
+              target: 2
+              key: 
+              type: 6
+          operatorExpression:
+            operator: 0
+            operands:
+            - type: 0
+              value:
+                type: 0
+                constant:
+                  type: 1
+                  boolValue: 0
+                  floatValue: 0
+                  integerValue: 0
+                  vector2Value: {x: 0, y: 0}
+                  vector3Value: {x: 0, y: 0, z: 0}
+                sourceState:
+                  target: 2
+                  key: 
+                  type: 6
+              operatorExpression:
+                operator: 0
+                operands: []
 --- !u!1001 &1154936610
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8443,7 +9139,15 @@ PrefabInstance:
         = \"callExternalEndpointID_example\";\npNum = 1;\nisTestMode = true;\n\r\n$.onStart(()
         => {\n    reset();\n    $.state.isParticipantAssigned = false;\n    $.groupState.qCompletedCount
         = 0;\n    $.state.spawnBatchSize = 3;\n    $.state.spawnInterval = 0.2;\n});\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
+        => {\n    // A new sessionID means a new participant (ParticipantManager
+        \"luida_reset\"): forget the previous one and\n    // reopen the form. Must
+        run before the assignment below. The first frame only records the sessionID.\n   
+        if ($.state.boundSessionID !== $.groupState.sessionID) {\n        const hadParticipant
+        = !!$.state.isParticipantAssigned;\n        $.state.boundSessionID = $.groupState.sessionID;\n       
+        if (hadParticipant) {\n            $.state.participant = null;\n           
+        $.state.isParticipantAssigned = false;\n            reset(true);\n           
+        $.setStateCompat(\"this\", \"form_show_start_hint\", true);\n        }\n   
+        }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
         {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
         \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
         $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n       
@@ -10894,7 +11598,15 @@ PrefabInstance:
         = \"callExternalEndpointID_example\";\npNum = 1;\nisTestMode = true;\n\r\n$.onStart(()
         => {\n    reset();\n    $.state.isParticipantAssigned = false;\n    $.groupState.qCompletedCount
         = 0;\n    $.state.spawnBatchSize = 3;\n    $.state.spawnInterval = 0.2;\n});\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
+        => {\n    // A new sessionID means a new participant (ParticipantManager
+        \"luida_reset\"): forget the previous one and\n    // reopen the form. Must
+        run before the assignment below. The first frame only records the sessionID.\n   
+        if ($.state.boundSessionID !== $.groupState.sessionID) {\n        const hadParticipant
+        = !!$.state.isParticipantAssigned;\n        $.state.boundSessionID = $.groupState.sessionID;\n       
+        if (hadParticipant) {\n            $.state.participant = null;\n           
+        $.state.isParticipantAssigned = false;\n            reset(true);\n           
+        $.setStateCompat(\"this\", \"form_show_start_hint\", true);\n        }\n   
+        }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
         {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
         \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
         $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n       
@@ -13267,16 +13979,18 @@ PrefabInstance:
         = {\r\n    11: [\n        { type: \"exec\", action: (deltaTime) => {\n           
         ep_update();\n        } }\r\n    ]\r\n};\n\r\nconst stateExitActions = {\r\n};\r\n\n\n//
         ---- legacy free-form code (migrate to event handlers when possible) ----\n\n//
-        ---- Study 4: ExitPortal (gate back to the recruitment world, at the participant's
-        feet) ----\nconst EP_DELAY_SEC = 10;\nfunction ep_begin() { $.state.ep_startTs
-        = Date.now(); $.state.ep_shown = false; }\nfunction ep_update() {\n  if ($.state.ep_shown)
+        ---- Study 4: ExitPortal (participant teleported into a gate far from the
+        spawn point) ----\nconst EP_DELAY_SEC = 10;\nconst EP_GATE_OFFSET = new Vector3(100,
+        100, 100);   // item-local\nfunction ep_begin() { $.state.ep_startTs = Date.now();
+        $.state.ep_shown = false; }\nfunction ep_update() {\n  if ($.state.ep_shown)
         return;\n  if (Date.now() - ($.state.ep_startTs || Date.now()) < EP_DELAY_SEC
         * 1000) return;\n  const gate = $.subNode('WorldGateToLuidaBar');\n  if (!gate)
-        return;\n  const p = PARTICIPANTS[1];\n  const feet = (p && p.exists()) ?
-        p.getPosition() : null;\n  if (feet) {\n    const r = $.getRotation();\n   
-        const inv = new Quaternion(-r.x, -r.y, -r.z, r.w);\n    gate.setPosition(feet.clone().sub($.getPosition()).applyQuaternion(inv));\n 
-        }\n  gate.setEnabled(true);\n  $.state.ep_shown = true;\n  $.log('[ExitPortal]
-        gate shown' + (feet ? ' at the participant' : ' (participant not found)'));\n}"
+        return;\n  gate.setPosition(EP_GATE_OFFSET);\n  gate.setEnabled(true);\n 
+        $.state.ep_shown = true;\n  const p = PARTICIPANTS[1];\n  if (p && p.exists())
+        {\n    p.setPosition($.getPosition().add(EP_GATE_OFFSET.clone().applyQuaternion($.getRotation())).add(new
+        Vector3(0, 0.5, 0)));\n    $.log('[ExitPortal] participant teleported to
+        the exit gate');\n  } else {\n    $.log('[ExitPortal] gate shown (participant
+        not found)');\n  }\n}"
       objectReference: {fileID: 0}
     - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -13454,7 +14168,15 @@ PrefabInstance:
         = \"callExternalEndpointID_example\";\npNum = 1;\nisTestMode = true;\n\r\n$.onStart(()
         => {\n    reset();\n    $.state.isParticipantAssigned = false;\n    $.groupState.qCompletedCount
         = 0;\n    $.state.spawnBatchSize = 3;\n    $.state.spawnInterval = 0.2;\n});\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
+        => {\n    // A new sessionID means a new participant (ParticipantManager
+        \"luida_reset\"): forget the previous one and\n    // reopen the form. Must
+        run before the assignment below. The first frame only records the sessionID.\n   
+        if ($.state.boundSessionID !== $.groupState.sessionID) {\n        const hadParticipant
+        = !!$.state.isParticipantAssigned;\n        $.state.boundSessionID = $.groupState.sessionID;\n       
+        if (hadParticipant) {\n            $.state.participant = null;\n           
+        $.state.isParticipantAssigned = false;\n            reset(true);\n           
+        $.setStateCompat(\"this\", \"form_show_start_hint\", true);\n        }\n   
+        }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
         {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
         \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
         $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n       
@@ -15016,7 +15738,15 @@ PrefabInstance:
         = \"callExternalEndpointID_example\";\npNum = 1;\nisTestMode = true;\n\r\n$.onStart(()
         => {\n    reset();\n    $.state.isParticipantAssigned = false;\n    $.groupState.qCompletedCount
         = 0;\n    $.state.spawnBatchSize = 3;\n    $.state.spawnInterval = 0.2;\n});\n\n$.onUpdate((deltaTime)
-        => {\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
+        => {\n    // A new sessionID means a new participant (ParticipantManager
+        \"luida_reset\"): forget the previous one and\n    // reopen the form. Must
+        run before the assignment below. The first frame only records the sessionID.\n   
+        if ($.state.boundSessionID !== $.groupState.sessionID) {\n        const hadParticipant
+        = !!$.state.isParticipantAssigned;\n        $.state.boundSessionID = $.groupState.sessionID;\n       
+        if (hadParticipant) {\n            $.state.participant = null;\n           
+        $.state.isParticipantAssigned = false;\n            reset(true);\n           
+        $.setStateCompat(\"this\", \"form_show_start_hint\", true);\n        }\n   
+        }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
         {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
         \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
         $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n       
@@ -15291,3 +16021,4 @@ SceneRoots:
   - {fileID: 1052452704}
   - {fileID: 1797019138}
   - {fileID: 2123149120}
+  - {fileID: 1142343859}

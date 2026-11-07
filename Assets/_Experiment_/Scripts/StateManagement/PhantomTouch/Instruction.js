@@ -121,14 +121,24 @@ function ins_okPressed() {
   $.setStateCompat('this', 'ins_btn', 0);
   return true;
 }
-// End: countdown to the exit gate (ExitPortal uses the same delay)
+// End: countdown to the exit gate (ExitPortal uses the same delay). After the participant has left, the next
+// participant who joins the same space sees a waiting text until the session reset brings the world back to
+// Start, or an error text when the reset cannot be confirmed (SessionReset publishes luida_resetStatus).
 const INS_END_SEC = 10;
-function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endLeft = -1; ins_endTick(); }
-function ins_endTick() {
+function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick(); }
+function ins_endText() {
+  const rs = $.groupState.luida_resetStatus;
+  if (rs && rs.error) return 'エラー：実験の初期化に\n失敗しました。\n実験者にご連絡ください。';
+  const p = PARTICIPANTS[1];
+  if (!p || !p.exists()) return 'しばらくお待ちください…';
   const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs || Date.now())) / 1000));
-  if (left === $.state.ins_endLeft) return;
-  $.state.ins_endLeft = left;
-  ins_show('center', left > 0
+  return left > 0
     ? 'ご参加ありがとうございました。\nあと ' + left + ' 秒で募集ワールドへ\n移動します。'
-    : 'ご参加ありがとうございました。\n募集ワールドへ移動します。');
+    : 'ご参加ありがとうございました。\n募集ワールドへ移動します。';
+}
+function ins_endTick() {
+  const text = ins_endText();
+  if (text === $.state.ins_endText) return;
+  $.state.ins_endText = text;
+  ins_show('center', text);
 }
