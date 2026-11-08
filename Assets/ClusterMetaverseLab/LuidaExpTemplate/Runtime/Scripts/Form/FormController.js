@@ -19,6 +19,19 @@ $.onUpdate((deltaTime) => {
         }
     }
 
+    // The participant left and rejoined with the same account: the ParticipantManager put the new PlayerHandle
+    // into their slot ("いいえ" on its new-participant prompt). Follow it. A form that was open is closed and
+    // restarted, because its answer options and texts were only visible to the previous join.
+    if ($.state.isParticipantAssigned && $.state.participant && !$.state.participant.exists()) {
+        const fresh = $.groupState.participants[($.getStateCompat("this", "pID", "integer") - 1) || 0];
+        if (fresh && fresh.exists() && fresh.id !== $.state.participant.id) {
+            $.state.participant = fresh;
+            $.worldItemReference("PrevButton").send("setParticipant", fresh);
+            $.worldItemReference("NextButton").send("setParticipant", fresh);
+            if ($.state.isInitiated && !$.state.isSubmitted) reopenForm();
+        }
+    }
+
     // The form can be answered once per visit of its state. After the answers are sent it stays closed (the
     // waiting screen is still shown and a click must not reload it) until the state machine has entered another
     // state, which is when the container is deactivated; the next visit of the state finds it closed and ready.

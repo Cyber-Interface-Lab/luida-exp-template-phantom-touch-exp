@@ -12,6 +12,17 @@ $.onStart(() => {
 })
 
 $.onUpdate((deltaTime) => {
+    // A different sessionID in this group means a new participant's session started (session reset). Rows of the
+    // previous session that were never uploaded (a participant who left in the middle) are dropped instead of
+    // being uploaded under the new sessionID. Not while an upload is in progress: it empties the buffer itself.
+    if ($.state.boundSessionID !== $.groupState.sessionID) {
+        if ($.state.boundSessionID !== undefined && !$.state.isUploading
+            && Array.isArray($.state.customData) && $.state.customData.length > 0) {
+            $.log("[DataCollector] new session; dropping " + $.state.customData.length + " unsent row(s) of the previous session");
+            $.state.customData = [];
+        }
+        $.state.boundSessionID = $.groupState.sessionID;
+    }
     if ($.getStateCompat("this", "exp_recordCustomData", "boolean")) {
         $.setStateCompat("this", "exp_recordCustomData", false);
         recordData();

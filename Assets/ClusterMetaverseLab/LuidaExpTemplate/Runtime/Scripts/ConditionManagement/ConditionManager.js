@@ -51,14 +51,31 @@ $.onReceive((messageType, arg, sender) => {
       $.log("Conditions balanced locally" + (isTestMode ? " (debug overrides applied)" : "") + ": " + JSON.stringify(assignedConditions));
       break;
     case "luida_participants_info":
+      // A different sessionID means a new participant's session (session reset): forget the values the items of
+      // this group collected for the previous participant, so they cannot end up in the new participant's rows.
+      // This is the right moment: it comes after the exit actions of the state that was reset have run.
+      if ($.groupState.sessionID !== arg.sessionID) $.groupState.collectedData = {};
       $.groupState.participants = arg.participants;
       $.groupState.sessionID = arg.sessionID;
       sender.send("betweenSubjectsCondition", $.state.betweenSubjectsConditions);
       break;
+    case "luida_rebind_participant":
+      // A participant who left rejoined with the same account ("いいえ" on the ParticipantManager's
+      // new-participant prompt): the ParticipantManager put the new PlayerHandle into their slot; mirror it here.
+      if (arg && typeof arg.index === "number" && arg.player) {
+        const ps = ($.groupState.participants || []).slice();
+        if (arg.index >= 0 && arg.index < ps.length) {
+          ps[arg.index] = arg.player;
+          $.groupState.participants = ps;
+          $.log("[ConditionManager] participant " + (arg.index + 1) + " rejoined; handle replaced");
+        }
+      }
+      break;
     case "luida_reset": {
-      // Sent by a world's session reset item after End, once the previous participant has left.
-      // Same steps as $.onStart (except sending betweenSubjectsConfig), plus isLast, which reset() keeps.
-      // The token is saved only after the reset succeeded; the sender reads luida_resetAck from the group state.
+      // Sent by the ParticipantManager when a newly joined player confirmed that they are a new participant
+      // (or by any item that resets the session). Same steps as $.onStart (except sending betweenSubjectsConfig),
+      // plus isLast, which reset() keeps. The token is saved only after the reset succeeded; completion is
+      // reported to the sender (which may be in another item group) and in luida_resetAck of this group.
       const resetToken = arg && arg.token;
       if ($.state.luida_lastResetToken !== resetToken) {
         $.state.isLast = false;
@@ -70,6 +87,7 @@ $.onReceive((messageType, arg, sender) => {
         $.log("[ConditionManager] session reset");
       }
       $.groupState.luida_resetAck = resetToken;
+      if (sender && sender.send) sender.send("luida_reset_ack", { token: resetToken });
       break;
     }
     default:
