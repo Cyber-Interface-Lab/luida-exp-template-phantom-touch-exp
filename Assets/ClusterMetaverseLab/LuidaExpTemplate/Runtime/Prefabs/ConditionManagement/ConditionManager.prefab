@@ -249,19 +249,35 @@ MonoBehaviour:
     = {\r\n        ...($.groupState.currentCondition || {}),\r\n        ...assignedConditions,\r\n     
     };\r\n      $.log(\"Conditions balanced locally\" + (isTestMode ? \" (debug overrides
     applied)\" : \"\") + \": \" + JSON.stringify(assignedConditions));\r\n      break;\r\n   
-    case \"luida_participants_info\":\r\n      $.groupState.participants = arg.participants;\r\n     
-    $.groupState.sessionID = arg.sessionID;\r\n      sender.send(\"betweenSubjectsCondition\",
-    $.state.betweenSubjectsConditions);\r\n      break;\r\n    case \"luida_reset\":
-    {\r\n      // Sent by a world's session reset item after End, once the previous
-    participant has left.\r\n      // Same steps as $.onStart (except sending betweenSubjectsConfig),
-    plus isLast, which reset() keeps.\r\n      // The token is saved only after the
-    reset succeeded; the sender reads luida_resetAck from the group state.\r\n     
-    const resetToken = arg && arg.token;\r\n      if ($.state.luida_lastResetToken
+    case \"luida_participants_info\":\r\n      // A different sessionID means a new
+    participant's session (session reset): forget the values the items of\r\n     
+    // this group collected for the previous participant, so they cannot end up in
+    the new participant's rows.\r\n      // This is the right moment: it comes after
+    the exit actions of the state that was reset have run.\r\n      if ($.groupState.sessionID
+    !== arg.sessionID) $.groupState.collectedData = {};\r\n      $.groupState.participants
+    = arg.participants;\r\n      $.groupState.sessionID = arg.sessionID;\r\n     
+    sender.send(\"betweenSubjectsCondition\", $.state.betweenSubjectsConditions);\r\n     
+    break;\r\n    case \"luida_rebind_participant\":\r\n      // A participant who
+    left rejoined with the same account (\"\u3044\u3044\u3048\" on the ParticipantManager's\r\n     
+    // new-participant prompt): the ParticipantManager put the new PlayerHandle into
+    their slot; mirror it here.\r\n      if (arg && typeof arg.index === \"number\"
+    && arg.player) {\r\n        const ps = ($.groupState.participants || []).slice();\r\n       
+    if (arg.index >= 0 && arg.index < ps.length) {\r\n          ps[arg.index] = arg.player;\r\n         
+    $.groupState.participants = ps;\r\n          $.log(\"[ConditionManager] participant
+    \" + (arg.index + 1) + \" rejoined; handle replaced\");\r\n        }\r\n     
+    }\r\n      break;\r\n    case \"luida_reset\": {\r\n      // Sent by the ParticipantManager
+    when a newly joined player confirmed that they are a new participant\r\n     
+    // (or by any item that resets the session). Same steps as $.onStart (except
+    sending betweenSubjectsConfig),\r\n      // plus isLast, which reset() keeps.
+    The token is saved only after the reset succeeded; completion is\r\n      //
+    reported to the sender (which may be in another item group) and in luida_resetAck
+    of this group.\r\n      const resetToken = arg && arg.token;\r\n      if ($.state.luida_lastResetToken
     !== resetToken) {\r\n        $.state.isLast = false;\r\n        $.state.isServerAssigned
     = false;\r\n        $.state.betweenSubjectsConditions = {};\r\n        initializeBetweenSubjectsConditions();\r\n       
     reset();\r\n        $.state.luida_lastResetToken = resetToken;\r\n        $.log(\"[ConditionManager]
     session reset\");\r\n      }\r\n      $.groupState.luida_resetAck = resetToken;\r\n     
-    break;\r\n    }\r\n    default:\r\n      break;\r\n  }\r\n});\r\n\r\nfunction
+    if (sender && sender.send) sender.send(\"luida_reset_ack\", { token: resetToken
+    });\r\n      break;\r\n    }\r\n    default:\r\n      break;\r\n  }\r\n});\r\n\r\nfunction
     updateCondition() {\r\n  if ($.state.trialID >= $.state.trialCount) {\r\n   
     $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n  } else if ($.state.trialID
     <= -1) {\r\n    reset();\r\n  } else {\r\n    let condition = { ...$.state.betweenSubjectsConditions
