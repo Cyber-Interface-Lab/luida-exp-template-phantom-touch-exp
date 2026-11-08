@@ -48,7 +48,7 @@ test("ExitPortal: a participant who already left is not teleported", (t) => {
   assert.equal(p1.positions.length, 0);
 });
 
-test("Instruction: countdown, then waiting text after the participant left, error text on a stuck reset", (t) => {
+test("Instruction: countdown, then waiting text after the participant left", (t) => {
   const p1 = makePlayer("p1");
   const group = { participants: [p1] };
   const { item } = endItem("Instruction", group);
@@ -63,10 +63,7 @@ test("Instruction: countdown, then waiting text after the participant left, erro
   p1.here = false;                                     // left; the next player joined
   item.update(0.1);
   assert.equal(text(), "しばらくお待ちください…");
-  group.participants = [];                             // the session reset cleared the roster
+  group.participants = [];                             // no participant at all
   item.update(0.1);
   assert.equal(text(), "しばらくお待ちください…");
-  group.luida_resetStatus = { phase: "settle", token: "t", error: "reset" };
-  item.update(0.1);
-  assert.match(text(), /^エラー：実験の初期化に\n失敗しました。\n実験者にご連絡ください。$/);
 });

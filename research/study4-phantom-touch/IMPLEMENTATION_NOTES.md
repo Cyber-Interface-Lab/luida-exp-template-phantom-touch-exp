@@ -1,6 +1,6 @@
 # Study 4（PhantomTouch）実装メモ
 
-- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述）、注意の質問を最後へ、機器（ポーズ）確認を各ブロックの着替えの後へ移し正面に鏡、着替え指示の横にアバターメニューの写真、VEQ の指示文に「あなた」）
+- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述）、注意の質問を最後へ、機器（ポーズ）確認を各ブロックの着替えの後へ移し正面に鏡、着替え指示の横にアバターメニューの写真、VEQ の指示文に「あなた」。2026-11-08 更新: セッションリセットを「新しく入った人に確認してから」に変更し、同じアカウントの入り直しは続きから再開できるようにした（§8））
 - 設計書: `implementation-plan.md`（同フォルダ）
 - 生成シーン: `Assets/_Experiment_/Scenes/PhantomTouch.unity`
 - 生成手段: `Assets/_Experiment_/Editor/PhantomTouch/Study4SceneBuilder.cs`（メニュー `LUIDA > Study4 > Build PhantomTouch scene`）。LUIDA のエディタ API（シーンテンプレート、State Machine タブの生成処理、State-listening Item 生成、質問紙束縛、Data Collector、アバターラッパー生成）をそのまま呼び出しているので、生成物は LUIDA の各ウィンドウでそのまま編集できる。
@@ -108,20 +108,19 @@
 - **反映方法**: メニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`。上記の 5 つのルート（Instruction, AvatarGateUI, DeviceCheckUI, ReportPanelUI, MirrorPanel）の配置・文字サイズ・背景だけを変え、続けてアイテムの動作を書き直す。ステートリストなど他の設定には触れない。フルビルドも同じ `ApplyLayout` を使う。
 - **ステートの並べ替え（2026-11-08）**: メニュー `LUIDA > Study4 > Move the pose check into the trials (keep scene)` が、ステートリストの DeviceCheck を `Trial - PoseCheck` に改名して `Trial - Start` の直後へ移し、実験変数 JS の `state_names` と既存のステートオブジェクト（並び順、各 Transition のステート ID・遷移先・Exit Time、Trial - Rest の戻り先）を合わせてから、上のメニューと同じ更新を行う。LUIDA の State Machine タブの再生成は質問紙フォームも作り直すので使わない。2 回目以降の実行では並べ替えずに ID だけ合わせ直す。
 
-## 8. セッションリセット（2026-11-07）
+## 8. セッションリセット: 新しく入った人に確認してから（2026-11-08。2026-11-07 の End 後の自動リセットを置き換え）
 
-End まで終えた参加者が退室した後、同じスペース（インスタンス）に次の人が入ったら、ワールドを最初の状態に戻して実験を最初から始める。設計と判断の経緯は `session-reset-plan.md`（改訂 3.1）。送信成功の確認と再送は範囲外で、`upload-reliability-plan.md` に後回しにしてある。
+セッションが使われているインスタンス（Start 以降。End 到達後も途中離脱後も）に、登録済みの参加者が誰もいない状態で未登録の人が入ると、LUIDA の ParticipantManager（PM）がその人に確認してからワールドを初期状態に戻す。設計と確認した事実は `session-reset-prompt-plan.md`（前の自動リセットの設計は `session-reset-plan.md`）。送信成功の確認と再送は範囲外のまま（`upload-reliability-plan.md`）。
 
-- **いつ動くか**: Cluster では誰もいないスペースのスクリプトは止まっているので、リセットは次の人が入室した時点で行う。`SessionReset` アイテムが 0.5 秒ごとに「End である、End に入ってからスクリプト時間で 5 秒以上、前の参加者が退室済み、誰かが入室している」を確かめる。5 秒は、End のデータ送信（End 開始の 1 秒後に発行）を前の参加者の sessionID のまま発行させるための待ち時間で、送信成功の保証ではない。
-- **手順**: (1) `exp_sessionReset` 信号 → GlobalLogic 5 個が Global を戻す（`state_exited`、`state_currentID = 0`、`exp_trialID = 0`、`exp_readyToLeaveTrials = false`、`exp_arePlayersEnough = false`）。同時に CM グループの `participants` と `collectedData` を空にし、NPC に `npc_hide`、ConditionManager に `luida_reset` を送る。(2) Global の 4 値と ConditionManager の応答（グループ状態 `luida_resetAck`）を確認できたら、ParticipantManager に `luida_reset` を送る。(3) ParticipantManager が新しい sessionID で初期化し、最後に登録を再開する。応答 `luida_reset_ack` か Start で完了。以降は 1 人目と同じ流れ（登録、eligibility、Start）。
-- **確認できない場合**: 各段階は確認できるまで 2 秒ごとに再送し、タイムアウトしても先へ進まない。15 秒経っても確認できなければ指示板に「エラー：実験の初期化に失敗しました。実験者にご連絡ください。」を出す。ParticipantManager の初期化が最後なので、それまで次の人は登録されない。
-- **質問紙**: 各 FormController が自分のグループの sessionID の変化を見て、前の参加者の割当と送信済みの状態を消し、次の参加者に開き直す。
-- **指示板**: End 中に前の参加者がもういないときは「しばらくお待ちください…」（入室から Start までの 1〜3 秒）。
-- **LUIDA 本体の変更**（追加のみ。SessionReset の無いワールドでは呼ばれない）: `ParticipantManager.js` の `initSession()` と `luida_reset`、`ConditionManager.js` の `luida_reset`（`isLast` も戻す）、`FormController.js` の sessionID 変化による初期化。どれも初期化が例外なく終わってから token を保存するので、途中で失敗しても再送でやり直せる。
-- **設置**: メニュー `LUIDA > Study4 > Add session reset item (keep scene)`。SessionReset が無ければ作り、参照（NPC, ConditionManager, ParticipantManager）と GlobalLogic を付け直し、退出ゲートを遠方に置き、SessionReset / ExitPortal / Instruction の動作と JS だけを書き直す。何度実行してもよい。バッチ実行は `-executeMethod Study4SceneBuilder.AddSessionResetItemFromBatch`。
-- **モックテスト**: `node --test "research/study4-phantom-touch/tests/*.test.mjs"`。LUIDA の 3 スクリプトのハンドラ（途中失敗からの再送を含む）と、生成された `SessionReset.js` を実際の ConditionManager / ParticipantManager と組み合わせた一連の流れ、止まる条件を確かめる。
-- **実機で確かめること**（エディタでは退室と再入室を再現できない）: 1 人目が最後まで終えて退室 → 数分以内に別アカウントで入室して最初から最後まで実施（Web Console に別の sessionID で 2 セッション分のデータと回答があること）。End のカウントダウン中に退室した場合も 1 人目のデータが残ること。2 人目のスポーン地点にゲートが無いこと。2 人目も 4 試行で SocialPresence へ進むこと。同じスペースで 3 人目。
-- **既知の制約**: 送信の成功は確認しない。空のスペースがどれだけ存続するか、次の人が同じスペースに入るかは Cluster 次第（入らなければ従来どおり新しいスペースで始まる）。同じアカウントで入り直したときに前の PlayerHandle の `exists()` が true に戻る場合はリセットされない（実機で確認する）。
+- **いつ・どう聞くか**: PM が 1 秒ごとに在室者を見る。登録済みの参加者が誰も残っていない（`exists()` が false で、同じ入室 id の人もいない）かつ未登録の人がいると、3 秒後にその人の正面 1.2 m・頭の高さにパネル（PM プレハブの `NewParticipantPrompt`）を出す。「あなたは新しく入った参加者ですか？」と「はい」。相手が 2 m 以上離れたら置き直す。押されるまで何も変えない。相手が去ればパネルは消え、次に入った人にまた聞く。
+- **「はい」**（PM の `$.onInteract`）: 自アイテム信号 `exp_sessionReset` → PM プレハブの GlobalLogic 5 個が Global を戻す（`state_exited`、`state_currentID = 0`、`exp_trialID = 0`、`exp_readyToLeaveTrials = false`、`exp_arePlayersEnough = false`）。同時に ConditionManager（CM）へ `luida_reset`。Global の 4 値と CM の返信 `luida_reset_ack` を確認してから PM 自身を `initSession()` で戻す（新しい sessionID、最後に登録再開）。確認できなければ 2 秒ごとに再送し、15 秒でパネルに「エラー：実験の初期化に失敗しました。実験者にご連絡ください。」。進まない。以降は 1 人目と同じ流れ（登録 → eligibility → Start）。
+- **「いいえ（続きから）」**（`LUIDA-ExpManagers` 配下の別アイテム `NewParticipantPromptNo`）: 登録済みの参加者と同じアカウント（idfc）で入り直した人にだけ出す。押すと、その人を前の参加者の枠に結び直す（PM グループと CM グループの `participants`、PlayerScript、各質問紙の `participant`）。リセットしない。位置はスポーン地点のまま、開いていた質問紙は閉じて最初から、Touch の途中なら NPC は止まっていて 120 秒で先に進む。
+- **捨てるもの**: 途中離脱した人の未送信行（DataCollector が CM グループの sessionID の変化で捨てる）と、CM グループの寄せ集め値 `collectedData`（CM が `luida_participants_info` で sessionID が変わったときに空にする。途中ステートの exit アクションより後なので競合しない）。
+- **途中ステートからのリセットで残るもの**: Exit Time のタイマーは `state_isActive` を見てから遷移するので残っても無害。`ToNextState()` も `state_isActive` で無効（直前 0.2 秒のものだけ例外）。during アクションは Start が来るまで動くが表示の更新だけ。NPC と鏡は Start で隠す（下記）。
+- **LUIDA 本体の変更**: `ParticipantManager.js`（`nr_*`、`luida_prompt_no` / `luida_reset_ack` の受信、`participantIdfcs`。文言は `NR_TEXT_*`）、新規 `NewParticipantPromptNo.js`、`ConditionManager.js`（返信、`collectedData`、`luida_rebind_participant`）、`CustomDataUploader.js`（未送信行の破棄）、`FormController.js`（結び直し）。プレハブ: `ParticipantManager.prefab` にパネル（`NewParticipantPrompt` / `NewParticipantPromptText` / `NewParticipantPromptYes`。初期非アクティブ、既定位置はローカル (0, 1.4, 1.2)）と GlobalLogic 5 個、`LUIDA-ExpManagers.prefab` に `NewParticipantPromptNo`（Item + MovableItem + ScriptableItem）と PM の参照。組み込みは `research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs`（Unity MCP の `execute_code` で実行。冪等）。プレハブのサブノードが無い既存ワールドでは何も起きない。
+- **シーン側（2026-11-08）**: 旧 `SessionReset` アイテム（自動リセット）と生成物、builder の設置メニューを削除。残すと End 後に自動でリセットしてしまう。NpcDirector の Start で `npc_hide`（NPC を隠し、台も下げる）、MirrorPanel の Start で両方の鏡を隠す。NpcController の `participant()` は登録参加者が退室済みなら傍観者に切り替えない。Instruction の End 文言から旧 `luida_resetStatus` の分岐を削除（前の参加者がいなければ「しばらくお待ちください…」）。
+- **確認**: プレハブモードで `NewParticipantPrompt` をアクティブにして文字の大きさと向きを見る（WaitingMessage と同じ向き。逆なら PM.js の `nr_place` で 180° 回す）。モックテスト `node --test "research/study4-phantom-touch/tests/*.test.mjs"`（`session-reset-prompt.test.mjs` が確認・リセット・結び直し・破棄を扱う）。実機テストは計画 §6.3（R1〜R8。同じアカウントの入り直し、途中離脱、押さずに退室、実験者の入室、不達）。
+- **既知の制約**: 送信の成功は確認しない。空のスペースの存続時間と振り分けは Cluster 次第。保存した PlayerHandle の `id` / `exists()` が再開後も使えることを前提にしている（使えなければ「誰か入れば必ず聞く」側に倒れる）。
 
 ## 9. 質問紙は「ステートの訪問ごとに 1 回」答えられる（2026-11-08）
 

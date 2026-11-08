@@ -1,5 +1,5 @@
 // Minimal Cluster Script mock for running LUIDA item scripts in Node (no Unity, no Cluster).
-// Only the parts of the API that the session reset touches are implemented.
+// Only the parts of the API that the session reset / new-participant prompt touch are implemented.
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
@@ -15,13 +15,20 @@ export class Vector3 {
   clone() { return new Vector3(this.x, this.y, this.z); }
   add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
   sub(v) { this.x -= v.x; this.y -= v.y; this.z -= v.z; return this; }
+  multiplyScalar(s) { this.x *= s; this.y *= s; this.z *= s; return this; }
+  length() { return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
+  normalize() { const l = this.length(); if (l > 0) this.multiplyScalar(1 / l); return this; }
   applyQuaternion() { return this; }   // the tests use identity rotations
 }
 export class Quaternion {
   constructor(x = 0, y = 0, z = 0, w = 1) { this.x = x; this.y = y; this.z = z; this.w = w; }
+  clone() { return new Quaternion(this.x, this.y, this.z, this.w); }
   setFromEulerAngles() { return this; }
+  setFromAxisAngle() { return this; }
   multiply() { return this; }
+  invert() { return this; }
 }
+export const HumanoidBone = { Head: 10 };
 
 export function makeHandle(id, log) {
   return {
@@ -33,20 +40,25 @@ export function makeHandle(id, log) {
   };
 }
 
-export function makePlayer(idfc) {
-  return { idfc, userId: "u_" + idfc, here: true, sent: [], positions: [],
+let joinCounter = 0;
+// idfc: stable per account; id: unique per join (Cluster: PlayerHandle.id changes every time the same user joins).
+export function makePlayer(idfc, id) {
+  return { idfc, id: id || ("join" + (++joinCounter) + "_" + idfc), userId: "u_" + idfc, here: true, sent: [], positions: [],
     exists() { return this.here; },
     send(type, arg) { this.sent.push({ type, arg }); },
     setPosition(p) { this.positions.push(p); },
-    getPosition() { return new Vector3(); } };
+    getPosition() { return new Vector3(); },
+    getRotation() { return new Quaternion(); },
+    getHumanoidBonePosition() { return null; } };
 }
 
 // world: { global: {}, players: [] } shared by the items of one test.
-export function loadItem(files, { world, groupState = {}, globals = {}, refs = {}, name = "item" } = {}) {
+// subNodes: list of sub-node names the item has (null = every name exists, as before).
+export function loadItem(files, { world, groupState = {}, globals = {}, refs = {}, name = "item", subNodes = null } = {}) {
   const cb = {};
   const item = {
-    name, cb, state: {}, groupState, itemState: {}, signals: [], logs: [], subNodes: {},
-    refs,
+    name, cb, state: {}, groupState, itemState: {}, signals: [], logs: [], subNodes: {}, playerScripts: [],
+    refs, pos: null, rot: null,
   };
   const $ = {
     get state() { return item.stateProxy || item.state; },
@@ -66,21 +78,24 @@ export function loadItem(files, { world, groupState = {}, globals = {}, refs = {
       return item.itemState[key];
     },
     sendSignalCompat: (target, key) => { item.signals.push(key); if (world.onSignal) world.onSignal(item, key); },
-    subNode: (n) => (item.subNodes[n] ||= { name: n, enabled: null, pos: null,
-      setEnabled(v) { this.enabled = v; }, setPosition(p) { this.pos = p; }, setRotation() {}, setText(t) { this.text = t; },
-      getPosition() { return new Vector3(); }, getGlobalPosition() { return new Vector3(); }, getGlobalRotation() { return new Quaternion(); } }),
+    subNode: (n) => {
+      if (subNodes && !subNodes.includes(n)) return null;
+      return (item.subNodes[n] ||= { name: n, enabled: null, pos: null, rot: null, text: null,
+        setEnabled(v) { this.enabled = v; }, setPosition(p) { this.pos = p; }, setRotation(r) { this.rot = r; }, setText(t) { this.text = t; },
+        getPosition() { return new Vector3(); }, getGlobalPosition() { return new Vector3(); }, getGlobalRotation() { return new Quaternion(); } });
+    },
     worldItemReference: (id) => (id in item.refs ? item.refs[id] : null),
     getPlayersNear: () => world.players.filter((p) => p.here),
     getPosition: () => new Vector3(),
     getRotation: () => new Quaternion(),
-    setPlayerScript: () => {},
+    setPlayerScript: (p) => { item.playerScripts.push(p); },
     callExternal: (ep, req, meta) => { (world.external ||= []).push({ req: JSON.parse(req), meta }); },
     requestOwner: () => {},
     setVisiblePlayers: () => {},
-    setPosition: () => {}, setRotation: () => {},
+    setPosition: (p) => { item.pos = p; }, setRotation: (r) => { item.rot = r; },
   };
   const ctx = vm.createContext({
-    $, Vector3, Quaternion, Date, Math, JSON, console,
+    $, Vector3, Quaternion, HumanoidBone, Date, Math, JSON, console,
     ExternalEndpointId: class { constructor(id) { this.id = id; } },
     isTestMode: true, expID: "", token: "", callExternalEndpointID: "", pNum: 1,
     ...globals,
