@@ -29,6 +29,40 @@ MonoBehaviour:
       _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
+  - stateID: 2
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Show child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - MirrorFront
+    duringStateActions: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Hide child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - MirrorFront
   - stateID: 3
     onStateStartedActions:
     - predefinedActionTemplate:

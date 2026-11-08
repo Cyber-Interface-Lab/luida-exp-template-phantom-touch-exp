@@ -7,7 +7,7 @@ const stateEnterActions = {
             dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild('Text');
         } }
     ],
-    1: [
+    2: [
         { type: "exec", action: (deltaTime) => {
             dc_begin();
         } }
@@ -15,7 +15,7 @@ const stateEnterActions = {
 };
 
 const duringStateActions = {
-    1: [
+    2: [
         { type: "exec", action: (deltaTime) => {
             dc_update(deltaTime);
         } }
@@ -23,7 +23,7 @@ const duringStateActions = {
 };
 
 const stateExitActions = {
-    1: [
+    2: [
         { type: "exec", action: (deltaTime) => {
             dc_end();
         } }
@@ -34,10 +34,14 @@ const stateExitActions = {
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
 // ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
+// Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
+// with the MirrorPanel's front mirror shown; the 2nd trial of a block skips it immediately.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
+  $.state.dc_active = false;
+  if (!CONDITION || CONDITION['rep'] !== '1') { ToNextState(); return; }
   $.state.dc_active = true;
   $.state.dc_start = Date.now();
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;

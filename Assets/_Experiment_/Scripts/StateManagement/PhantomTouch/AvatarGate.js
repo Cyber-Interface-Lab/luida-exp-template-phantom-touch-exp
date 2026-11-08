@@ -4,10 +4,10 @@ const stateEnterActions = {
             $.setStateCompat('this', 'exp_showItem', true);
         } },
         { type: "exec", action: (deltaTime) => {
-            ag_showButtons(false, false); HideChild('Text');
+            ag_showButtons(false, false); HideChild('Text'); ag_photos(false);
         } }
     ],
-    2: [
+    1: [
         { type: "sleep", value: 0.5 },
         { type: "exec", action: (deltaTime) => {
             ag_begin();
@@ -16,7 +16,7 @@ const stateEnterActions = {
 };
 
 const duringStateActions = {
-    2: [
+    1: [
         { type: "exec", action: (deltaTime) => {
             ag_update(deltaTime);
         } }
@@ -24,7 +24,7 @@ const duringStateActions = {
 };
 
 const stateExitActions = {
-    2: [
+    1: [
         { type: "exec", action: (deltaTime) => {
             ag_end();
         } }
@@ -55,6 +55,12 @@ function ag_showButtons(changed, yesNo) {
   ag_send('AG_Changed', { visible: changed, label: '着替えました' });
   ag_send('AG_Yes', { visible: yesNo, label: 'はい' });
   ag_send('AG_No', { visible: yesNo, label: 'いいえ' });
+}
+// Photo 1: open the menu and tap 'Avatar'. Photo 2 picks 'LUIDA Default Avatar', so it is shown only when that is
+// the avatar to wear (in the daily-avatar block it could lead to the wrong choice).
+function ag_photos(show) {
+  if (show) ShowChild('MenuPhoto1'); else HideChild('MenuPhoto1');
+  if (show && $.state.ag_avatar === 'assigned') ShowChild('MenuPhoto2'); else HideChild('MenuPhoto2');
 }
 function ag_signature(p) {
   const ua = p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);
@@ -102,6 +108,7 @@ function ag_begin() {
   $.state.ag_fallback = !ag_calibrated();   // not calibrated: self-report only
   $.state.ag_logAt = 0;
   ShowChild('Text');
+  ag_photos(true);   // photos of how to switch the avatar, next to the panel
   ag_showButtons(false, false);
   ag_renderText('');
   $.log('[AvatarGate] block ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);
@@ -184,11 +191,13 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。まもなく始まります。');
+  ag_photos(false);
+  SetText('ありがとうございます。');
   ToNextState();
 }
 function ag_end() {
   ag_showButtons(false, false);
   HideChild('Text');
+  ag_photos(false);
   $.state.ag_active = false;
 }

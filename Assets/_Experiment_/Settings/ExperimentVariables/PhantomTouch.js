@@ -7,4 +7,4 @@ const between_subjects_variables = [
     { name: "social", values: ["with", "without"], isRandom: true, debugValue: null },
     { name: "order", values: ["daily_first", "assigned_first"], isRandom: true, debugValue: null },
 ];
-const state_names = ["Start", "DeviceCheck", "Trial - Start", "Trial - Greeting", "Trial - Touch", "Trial - Report", "Trial - VEQ", "Trial - Rest", "SocialPresence", "PersonalExperience", "Debrief", "End"];
+const state_names = ["Start", "Trial - Start", "Trial - PoseCheck", "Trial - Greeting", "Trial - Touch", "Trial - Report", "Trial - VEQ", "Trial - Rest", "SocialPresence", "PersonalExperience", "Debrief", "End"];

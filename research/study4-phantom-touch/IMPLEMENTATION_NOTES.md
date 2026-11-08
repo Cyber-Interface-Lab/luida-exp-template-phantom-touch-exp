@@ -1,6 +1,6 @@
 # Study 4（PhantomTouch）実装メモ
 
-- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述））
+- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述）、注意の質問を最後へ、機器（ポーズ）確認を各ブロックの着替えの後へ移し正面に鏡、着替え指示の横にアバターメニューの写真、VEQ の指示文に「あなた」）
 - 設計書: `implementation-plan.md`（同フォルダ）
 - 生成シーン: `Assets/_Experiment_/Scenes/PhantomTouch.unity`
 - 生成手段: `Assets/_Experiment_/Editor/PhantomTouch/Study4SceneBuilder.cs`（メニュー `LUIDA > Study4 > Build PhantomTouch scene`）。LUIDA のエディタ API（シーンテンプレート、State Machine タブの生成処理、State-listening Item 生成、質問紙束縛、Data Collector、アバターラッパー生成）をそのまま呼び出しているので、生成物は LUIDA の各ウィンドウでそのまま編集できる。
@@ -10,14 +10,15 @@
 | 種別 | パス | 内容 |
 |---|---|---|
 | シーン | `Assets/_Experiment_/Scenes/PhantomTouch.unity` | テンプレート由来の環境 + 下記すべて |
-| ステート | `Assets/_Experiment_/Settings/StateList/PhantomTouch.asset` | Start（質問紙なし、OK ボタン）→ DeviceCheck → Trial - Start → Trial - Greeting(30 s) → Trial - Touch → Trial - Report → Trial - VEQ(qID2) → Trial - Rest(1 s) → SocialPresence(qID3) → PersonalExperience(qID4) → Debrief（質問紙なし、OK ボタン）→ End |
+| ステート | `Assets/_Experiment_/Settings/StateList/PhantomTouch.asset` | Start（質問紙なし、OK ボタン）→ Trial - Start → Trial - PoseCheck → Trial - Greeting(30 s) → Trial - Touch → Trial - Report → Trial - VEQ(qID2) → Trial - Rest(1 s) → SocialPresence(qID3) → PersonalExperience(qID4) → Debrief（質問紙なし、OK ボタン）→ End |
 | 実験変数 | `Assets/_Experiment_/Settings/ExperimentVariables/PhantomTouch.js` | within: `block`=1,2 / `rep`=1,2（非ランダム）、between: `social`=with,without / `order`=daily_first,assigned_first、Trials Count 1 → 4 試行 |
 | 質問紙フォーム | シーン内 `LUIDA-QuestionnaireByState/<State>/Questionnaire_p1` | VEQ（qID 2）, SocialPresence（qID 3）, PersonalExperience（qID 4）。qID は Web Console 側の登録順と一致させること。Debrief の質問紙は 2026-11-04 に、Start の同意質問紙は 2026-11-08 に外した（qID はそのまま）。各コンテナは初期状態で非アクティブ（ステート開始時にギミックが有効化） |
 | Data Collector | `Assets/_Experiment_/Scripts/DataCollectors/PhantomTouch.js`（Code モード、設定は `Settings/DataCollectorConfig/PhantomTouch.asset`） | 1 行のフィールド一覧は設計書 §12 |
 | State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal`, `SessionReset`（§8） |
 | NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（目ボーン追加済み）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`: Bool `joy` / Trigger `surprised`、クリップ `NpcFaceNeutral/Joy/Surprised`）と、それを NPC アイテムの状態 `npc_joy`（Bool）・信号 `npc_surprised` から動かす CCK の Set Animator Value Gimmick 2 個（§2-4） |
 | ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RPW_0..RPW_7, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force`, `DebriefUI/DB_Ok` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
-| 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab`（1.2 × 1.8 m、初期非アクティブ） | 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。配置は §7 |
+| 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab` を 2 枚（`Mirror` と `MirrorFront`、どちらも 1.2 × 1.8 m、初期非アクティブ） | `Mirror`: 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。`MirrorFront`: 正面 1.6 m（中心の高さ 1.1 m）。Trial - PoseCheck（rep=1）の間だけ表示。配置は §7 |
+| アバター変更の写真 | `AvatarGateUI/AvatarGate/MenuPhoto1`, `MenuPhoto2`（Quad、Unlit/Texture、コライダーなし、初期非アクティブ）。画像は `Assets/_Experiment_/Textures/PhantomTouch/open-menu.png`（1: メニューを開いて「アバター」）と `open-avatar-menu.png`（2: アバター変更画面で「LUIDA Default Avatar」を選び「アバターを変更」）、マテリアルは `Materials/PhantomTouch/MenuPhoto1.mat`, `MenuPhoto2.mat`。画像は 2 の累乗へ縮小せずに取り込む | 着替え指示（AvatarGate）の右隣に上から 1, 2 の順で縦に並べる（幅 0.52 m、縦横比は画像のまま）。AvatarGate が rep=1 の着替えの間だけ表示。2 は Default Avatar を選ぶ写真なので、Default Avatar のブロックでだけ出す（普段使いのブロックでは 1 だけ） |
 | 身長合わせ | `HeightPlatform`（Item + `Scripts/PhantomTouch/Study4Platform.js`、立ち位置。子 `Cube` 1.6 × 1 × 1.6 m、コライダー付き）と NPC の子 `Riser`（0.8 × 1 × 0.8 m、コライダーなし） | どちらも高さ 1 m の直方体で、上面が足元（床）にあるので通常は床下に隠れ、持ち上げた分だけ床の上に出る。NPC が `platform_set { h }` で台を上げる。§2-4 |
 | その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal`（立ち位置に配置）配下に移した `WorldGateToLuidaBar`（ExitPortal から (100, 100, 100) 離れた位置に置き、End の 10 秒後に参加者をそこへテレポートする） | |
 
@@ -30,8 +31,8 @@
 参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間だけ（End では退出ゲートへテレポートするので、歩く必要はない）。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
 
 1. `Start`: 質問紙なし（同意は募集側で取る）。正面の指示板に、何をするかだけを書いた説明（条件や仮説には触れない）と、その下に「OK」ボタン（Debrief と同じ `DebriefUI/DB_Ok`）。押すと遷移（デバッグ用にステートへ Exit Time を付けてもよい）。NPC は非表示。
-2. `DeviceCheck`: 頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒。60 秒経過で救済ボタンが出る。合格で行を保存して遷移。
-3. `Trial - Start`（rep=1 のみ）: NPC に `npc_setup`（マーカーの位置・向き・床の高さを渡す。前のブロックの身長合わせを解除し、足元の台を下げる）を送ってから参加者をマーカー（床の高さ）へテレポートし、NPC を非表示（`npc_hide`）にして AvatarGate が着替え指示（Default Avatar の条件では「メニューのアバター変更に表示される『Default Avatar』に着替えてください」）→「着替えました」→「はい/いいえ」→ 行保存 → 遷移。rep=2 では AvatarGate が即 `ToNextState()`。Default Avatar の骨格値（`AG_D_ARM` / `AG_D_SHOULDER`）は未計測なので、現在は自動判定なしで「着替えました」をすぐ出し、二段階の自己申告で進める（行データ `avatarCheckFallback = true`、`avatarIsDefault = null`）。Cluster 上で Default Avatar を着て `[AvatarGate] signature …` のログ値を 2 つの定数（builder の `AvatarGateLegacy`）に入れると、骨格による一致判定（1 秒安定）が有効になる。
+2. `Trial - Start`（rep=1 のみ）: NPC に `npc_setup`（マーカーの位置・向き・床の高さを渡す。前のブロックの身長合わせを解除し、足元の台を下げる）を送ってから参加者をマーカー（床の高さ）へテレポートし、NPC を非表示（`npc_hide`）にして AvatarGate が着替え指示（Default Avatar の条件では「メニューのアバター変更に表示される『Default Avatar』に着替えてください」）→「着替えました」→「はい/いいえ」→ 行保存 → 遷移。rep=2 では AvatarGate が即 `ToNextState()`。着替えの指示の間、パネルの右隣にアバター変更の手順の写真を出す（1: メニューを開く。2: アバター変更画面。2 は Default Avatar のブロックだけ）。Default Avatar の骨格値（`AG_D_ARM` / `AG_D_SHOULDER`）は未計測なので、現在は自動判定なしで「着替えました」をすぐ出し、二段階の自己申告で進める（行データ `avatarCheckFallback = true`、`avatarIsDefault = null`）。Cluster 上で Default Avatar を着て `[AvatarGate] signature …` のログ値を 2 つの定数（builder の `AvatarGateLegacy`）に入れると、骨格による一致判定（1 秒安定）が有効になる。
+3. `Trial - PoseCheck`（rep=1 のみ。rep=2 は DeviceCheck アイテムが即 `ToNextState()`）: 着替えの後、NPC が現れる前に、ブロックごと（アバター条件ごと）にトラッキングとポーズを確認する。正面に鏡（`MirrorFront`）を出し、指示板は「鏡を見ながら、次の動きをしてください。1) 頭をゆっくり左右に向ける 2) 両手を頭より高く上げる」。DeviceCheck（右側の緑のパネル）が、頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒を判定する。60 秒経過で救済ボタンが出る。合格で行を保存して遷移（行データ `deviceCheckSec`, `deviceCheckForced`。ブロックごとに 1 行）。以前は Start の直後に 1 回だけ行っていた（ステート名 DeviceCheck）。デバッグ時はこのステートに Exit Time（数秒）を付けると自動で進む。本番では付けない。
 4. `Trial - Greeting`（30 秒、rep=1 のみ。rep=2 は即遷移）: 参加者は歩いて移動できる（終了時に再び 0）。NpcDirector が `npc_show` → NPC がまず身長を合わせる: 参加者の頭ボーンの高さ（頭ボーン − 足元）と自分の頭ボーンの高さを比べ、差が 5 cm 以上なら、参加者が低いときは立ち位置の台（`HeightPlatform`）を差の分だけ上げて参加者をその上に乗せ（位置だけテレポート、向きはそのまま）、NPC が低いときは自分の足元の `Riser` に乗る（NPC の移動時は一緒に動く）。着替え直後でボーンが読めないときは最大 3 秒待って再試行し、読めなければ合わせない。次にマーカーの正面方向、会話距離（手が届く位置 + 0.45 m ≈ 0.9 m）に現れる。鏡が表示される。指示板は「30 秒間、目の前のアバターを見て、手を振って挨拶してください」。行データに `participantHeadH`, `npcHeadH`, `heightPlatform`, `npcLift`（m）。閾値は `NPC_CFG.HEIGHT_MATCH_MIN`。
    - social = with:
      - 視線: 頭（と目）だけで参加者を追う（頭は最大 50°、目はさらに 12°）。参加者が NPC の正面から 35° 以上ずれると体全体が補間（指数的、2.5/s）で向き直り、4° 以内で止まる。体が回るにつれ頭のローカル回転は自然に戻る。
@@ -47,8 +48,8 @@
    - 部位（`ploc`）: 1 額 / 2 目・目のまわり / 3 頬 / 4 鼻・鼻のまわり / 5 唇・口のまわり / 6 あご / 7 頭の側面・耳 / 8 その他。場所が分からない人は「その他」を選ぶ想定。
    - 値は選んだ番号を昇順に `,` でつないだ文字列（例 `1,5`）。評定 0 の行は空。2026-11-08 に選択肢を入れ替えたので、それより前のテストデータとは番号の意味が違う。
    - 「その他」を含めて「決定」を押すと、Cluster の文字入力（`requestTextInput`）が開く。入力した文字列は改行を空白に置き換えて `ptypeOther` / `plocOther` に入る。入力を閉じるか、1.5 秒以上たってからもう一度「決定」を押すと、空のまま次へ進む。入力できない状態（Busy）なら 2 秒ごとに最大 5 回まで開き直す。
-7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙の上に「いま使っているアバターについてのアンケートです。問題文の「仮想身体」は、そのアバターのことです。」を出し、質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
-8. `SocialPresence`(qID 3、質問紙の上に「あなたの顔に触れてきた相手についてのアンケートです。」) → `PersonalExperience`(qID 4、「最後のアンケートです。」) → `Debrief`: 正面の指示板にデブリーフ文（感謝 → 調べていたこと: ファントムセンス（VR感覚・V感）のうち、誰かに触れられたと感じるファントムタッチ錯覚が、相手の反応や自分のアバターに影響されるか → その錯覚の説明 → 条件（相手の社会的な反応の有無 × 普段使い／初期アバター）→ 今月中は内容と条件を他言しないお願い → OK の案内。13 行、文字 0.022）、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
+7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙の上に「あなたがいま使っているアバターについて伺います。問題文の「仮想身体」は、あなたのアバターのことです。」を出し（相手のアバターではなく、参加者自身のアバターについて聞いていることをはっきりさせる）、質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
+8. `SocialPresence`(qID 3、質問紙の上に「あなたの顔に触れてきた相手についてのアンケートです。」) → `PersonalExperience`(qID 4、「最後のアンケートです。」) → `Debrief`: 正面の指示板にデブリーフ文（感謝 → 調べていたこと: ファントムセンス（VR感覚・V感）のうち、誰かに触れられたと感じるファントムタッチ錯覚が、相手の反応や自分のアバターに影響されるか → その錯覚の説明 → 条件（相手の社会的な反応の有無 × 普段使いのアバターかどうか）→「【お願い】」に続けて、今月中は内容と条件を他言しないお願い → OK の案内。13 行、文字 0.022）、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
 9. `End`: データを 1 回アップロード。指示板に「あと N 秒で募集ワールドへ移動します」（10 秒のカウントダウン）を出し、0 になった時点で ExitPortal が退出ゲート（CCK World Gate）を有効にして、参加者をそのゲートへテレポートする。ゲートはスポーン地点から遠い位置（ExitPortal のローカル座標 (100, 100, 100)）にあり、ParticipantManager が参加拒否のときに使う方式と同じ。World Gate は触れた瞬間に移動させるので、カウントダウンの後に有効にしている（秒数は builder の `EndGateDelaySec`）。以前は参加者の足元に出していたが、それだとゲートがスポーン地点に残り、同じスペースに次に入った人がすぐ送り返されていた。参加者が退室した後の流れは §8。
 
 ## 3. 残作業・確認事項（優先順）
@@ -93,16 +94,19 @@
 | Start, Debrief, End | 指示板「center」位置（正面）と OK ボタン（Start・Debrief、その下） | デブリーフ（13 行、文字 0.022）±22° / −11〜+18°、ボタン −17° / 1.5 m |
 | 上記以外 | 指示板「front」位置（NPC の頭の上） | ±14° / +17〜+28°（4 行時） / 1.5 m |
 | Trial - Start | AvatarGate（紫、正面。NPC は非表示） | ±20° / −22〜+4° / 1.25 m |
-| DeviceCheck | DeviceCheck（緑） | +27〜+53° / −16〜−2° / 1.25 m |
+| Trial - Start | アバター変更の写真 1・2（AvatarGate の右隣、上から順に） | +22〜+45° / −25〜+3° / 1.25 m |
+| Trial - PoseCheck | DeviceCheck（緑） | +27〜+53° / −16〜−2° / 1.25 m |
+| Trial - PoseCheck | 正面の鏡（`MirrorFront`。上端は front 位置の 3 行の文字の下端 +19° より下） | ±21° / −40〜+16° / 1.6 m |
 | Trial - Report | ReportPanel（茶、正面。NPC は非表示） | ±19° / −32〜+5° / 1.25 m |
 | Trial - Greeting, Trial - Touch | 鏡 | −20〜−70° / −41〜+21° / 1.3 m |
 
 - **文字**: CCK の TextView では全角 1 文字の幅が size × 1.85、行の高さが size × 2.74（実測）。指示板 0.024（1.5 m で 1 文字約 1.7°）、パネル 0.018（1.25 m で約 1.5°）。1 行の長さは場所ごとの空きに合わせた（全角換算）: front（NPC の頭上、隣に鏡）20 字、above（質問紙の上）26 字、center 26 字（デブリーフは 30 字）、AvatarGate と ReportPanel（正面）24 字。パネルの文字は下端を基準に上へ伸びるので、行数が増えてもボタンに重ならない。
 - **背景**: 文字ごとに半透明の色板（Standard / Fade、文字より先に描画する render queue 2990、コライダーなし）。指示板は紺、AvatarGate は紫、DeviceCheck は緑、ReportPanel は茶。背景は各 `Text` の子なので、文字と一緒に表示・非表示になる。指示板の背景は 1 枚（`Bg`）で、`ins_show` が行数と最長行の文字数から大きさを計算し、`getUnityComponent('Transform').unityProp.localScale` で合わせる。
-- **指示板の移動**: Instruction アイテムは立ち位置に置き、`ins_show(slot, text, size?)` が `Text` サブノードを front（NPC の頭上）/ above（質問紙の上）/ center（正面）に移し、文字サイズも切り替える（`SubNode.setPosition/setRotation/setTextSize`）。Start は center に課題の説明だけ（条件・仮説なし）と OK ボタン。質問紙のあるステートの文言: VEQ「いま使っているアバターについてのアンケートです。問題文の「仮想身体」は、そのアバターのことです。」、SocialPresence「あなたの顔に触れてきた相手についてのアンケートです。」、PersonalExperience「最後のアンケートです。」。
+- **指示板の移動**: Instruction アイテムは立ち位置に置き、`ins_show(slot, text, size?)` が `Text` サブノードを front（NPC の頭上）/ above（質問紙の上）/ center（正面）に移し、文字サイズも切り替える（`SubNode.setPosition/setRotation/setTextSize`）。Start は center に課題の説明だけ（条件・仮説なし）と OK ボタン。質問紙のあるステートの文言: VEQ「あなたがいま使っているアバターについて伺います。問題文の「仮想身体」は、あなたのアバターのことです。」、SocialPresence「あなたの顔に触れてきた相手についてのアンケートです。」、PersonalExperience「最後のアンケートです。」。
 - **ボタン**: 報告パネルの数字は 4 列 × 3 行（0〜10 を左上から順に、0.16 × 0.10 m）。種類と部位は別の 2 列 × 4 行のボタン（0.38 × 0.115 m、上端は数字の格子と同じ高さ）で、ラベルは問題文と同じ 0.018（1 行全角 10 字まで、2 行まで）。その下に「決定」。ラベルの文字サイズは `Study4Button.js` がボタンに収まるように決める（`btn_cfg` の `fit`）。AvatarGate の「着替えました」と「はい/いいえ」は別の行（連打で確認を飛ばさないように）。
 - **NPC と質問紙**: 会話距離の NPC は質問紙の手前に立ってしまうので、毎回の触る段階の終わりに元の位置へ戻ってから消える（§2-5）。
 - **反映方法**: メニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`。上記の 5 つのルート（Instruction, AvatarGateUI, DeviceCheckUI, ReportPanelUI, MirrorPanel）の配置・文字サイズ・背景だけを変え、続けてアイテムの動作を書き直す。ステートリストなど他の設定には触れない。フルビルドも同じ `ApplyLayout` を使う。
+- **ステートの並べ替え（2026-11-08）**: メニュー `LUIDA > Study4 > Move the pose check into the trials (keep scene)` が、ステートリストの DeviceCheck を `Trial - PoseCheck` に改名して `Trial - Start` の直後へ移し、実験変数 JS の `state_names` と既存のステートオブジェクト（並び順、各 Transition のステート ID・遷移先・Exit Time、Trial - Rest の戻り先）を合わせてから、上のメニューと同じ更新を行う。LUIDA の State Machine タブの再生成は質問紙フォームも作り直すので使わない。2 回目以降の実行では並べ替えずに ID だけ合わせ直す。
 
 ## 8. セッションリセット（2026-11-07）
 

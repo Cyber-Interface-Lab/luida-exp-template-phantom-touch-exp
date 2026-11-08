@@ -33,7 +33,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: ag_showButtons(false, false); HideChild('Text');
+      customAction: ag_showButtons(false, false); HideChild('Text'); ag_photos(false);
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -41,7 +41,7 @@ MonoBehaviour:
       _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
-  - stateID: 2
+  - stateID: 1
     onStateStartedActions:
     - predefinedActionTemplate:
         actionType: Sleep
@@ -115,9 +115,14 @@ MonoBehaviour:
     send ' + id + ': ' + e); }\n}\nfunction ag_showButtons(changed, yesNo) {\n  ag_send('AG_Changed',
     { visible: changed, label: '\u7740\u66FF\u3048\u307E\u3057\u305F' });\n  ag_send('AG_Yes',
     { visible: yesNo, label: '\u306F\u3044' });\n  ag_send('AG_No', { visible: yesNo,
-    label: '\u3044\u3044\u3048' });\n}\nfunction ag_signature(p) {\n  const ua =
-    p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);\n  const la = p.getHumanoidBonePosition(HumanoidBone.LeftLowerArm);\n 
-    const h = p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n  const rua = p.getHumanoidBonePosition(HumanoidBone.RightUpperArm);\n 
+    label: '\u3044\u3044\u3048' });\n}\n// Photo 1: open the menu and tap 'Avatar'.
+    Photo 2 picks 'LUIDA Default Avatar', so it is shown only when that is\n// the
+    avatar to wear (in the daily-avatar block it could lead to the wrong choice).\nfunction
+    ag_photos(show) {\n  if (show) ShowChild('MenuPhoto1'); else HideChild('MenuPhoto1');\n 
+    if (show && $.state.ag_avatar === 'assigned') ShowChild('MenuPhoto2'); else HideChild('MenuPhoto2');\n}\nfunction
+    ag_signature(p) {\n  const ua = p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);\n 
+    const la = p.getHumanoidBonePosition(HumanoidBone.LeftLowerArm);\n  const h =
+    p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n  const rua = p.getHumanoidBonePosition(HumanoidBone.RightUpperArm);\n 
     const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const hips = p.getHumanoidBonePosition(HumanoidBone.Hips);\n 
     const root = p.getPosition();\n  if (!ua || !la || !h || !rua || !head || !root)
     return null;\n  return {\n    armLen: ua.clone().sub(la).length() + la.clone().sub(h).length(),\n   
@@ -137,6 +142,7 @@ MonoBehaviour:
     = 0;\n  $.state.ag_lastMatch = null;\n  $.state.ag_matchSince = Date.now();\n 
     $.state.ag_okShown = null;\n  $.state.ag_fallback = !ag_calibrated();   // not
     calibrated: self-report only\n  $.state.ag_logAt = 0;\n  ShowChild('Text');\n 
+    ag_photos(true);   // photos of how to switch the avatar, next to the panel\n 
     ag_showButtons(false, false);\n  ag_renderText('');\n  $.log('[AvatarGate] block
     ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);\n}\nfunction ag_renderText(note)
     {\n  const daily = $.state.ag_avatar === 'daily';\n  let t;\n  if ($.state.ag_step
@@ -181,6 +187,7 @@ MonoBehaviour:
     ? ag_isDefault(sig) : null);\n  SendDataToCollector('setupSec', (Date.now() -
     ($.state.ag_startTs || Date.now())) / 1000);\n  SendDataToCollector('setupRetry',
     $.state.ag_retry || 0);\n  SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);\n 
-    ProcessAndSaveCollectedData();\n  ag_showButtons(false, false);\n  SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002\u307E\u3082\u306A\u304F\u59CB\u307E\u308A\u307E\u3059\u3002');\n 
+    ProcessAndSaveCollectedData();\n  ag_showButtons(false, false);\n  ag_photos(false);\n 
+    SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction ag_end() {\n  ag_showButtons(false, false);\n  HideChild('Text');\n 
-    $.state.ag_active = false;\n}\n"
+    ag_photos(false);\n  $.state.ag_active = false;\n}\n"

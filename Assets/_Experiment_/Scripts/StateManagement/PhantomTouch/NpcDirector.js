@@ -7,7 +7,7 @@ const stateEnterActions = {
             nd_setMove(0);
         } }
     ],
-    2: [
+    1: [
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
               $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1), origin: new Vector3(0, 0, -2), floorY: 0, eyes: nd_useEyeBones() });

@@ -14,25 +14,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   States:
   - StateName: Start
-    DestStateName: DeviceCheck
-    HasExitTime: 0
-    ExitTime: 3
-    IsRepeated: 0
-    RepeatDestStateName: 
-    RepeatCount: 1
-    qID: 1
-  - StateName: DeviceCheck
     DestStateName: Trial - Start
     HasExitTime: 0
-    ExitTime: 3
+    ExitTime: 0
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
     qID: 0
   - StateName: Trial - Start
-    DestStateName: Trial - Greeting
+    DestStateName: Trial - PoseCheck
     HasExitTime: 0
     ExitTime: 0
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 0
+  - StateName: Trial - PoseCheck
+    DestStateName: Trial - Greeting
+    HasExitTime: 0
+    ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -40,7 +40,7 @@ MonoBehaviour:
   - StateName: Trial - Greeting
     DestStateName: Trial - Touch
     HasExitTime: 1
-    ExitTime: 15
+    ExitTime: 30
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1

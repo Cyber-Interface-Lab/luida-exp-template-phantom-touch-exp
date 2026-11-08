@@ -73,8 +73,9 @@ public static class Study4SceneBuilder
     const string HeightPlatformName = "HeightPlatform";   // item under the standing spot (NpcController raises its Cube)
 
     // ------------------------------------------------------------------ state ids
-    const int S_START = 0, S_DEVICE = 1, S_TSTART = 2, S_GREET = 3, S_TOUCH = 4, S_REPORT = 5,
+    const int S_START = 0, S_TSTART = 1, S_POSE = 2, S_GREET = 3, S_TOUCH = 4, S_REPORT = 5,
               S_VEQ = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+    const string PoseStateName = "Trial - PoseCheck";
     const float GreetingSeconds = 30f;
 
     // ------------------------------------------------------------------ entry points
@@ -237,6 +238,84 @@ public static class Study4SceneBuilder
         UpdateItemBehaviours();
     }
 
+    /// <summary>
+    /// Moves the old "DeviceCheck" state (before the trials) into the trials as PoseStateName, right after
+    /// "Trial - Start", in the state list, the variables JS and the existing state objects. The state objects are
+    /// re-ordered and re-numbered in place (LUIDA's own regeneration would also recreate the questionnaire forms).
+    /// The state's other settings (exit time) are kept. Then the layout and the item behaviours are updated.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Move the pose check into the trials (keep scene)")]
+    public static void MovePoseCheckIntoTrials()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        var sl = AssetDatabase.LoadAssetAtPath<StateList>(StateListPath);
+        if (sl == null) throw new Exception("StateList asset missing: " + StateListPath);
+        var list = sl.States.ToList();
+        int dev = list.FindIndex(s => s.StateName == "DeviceCheck");
+        if (dev >= 0)
+        {
+            var st = list[dev];
+            list.RemoveAt(dev);
+            st.StateName = PoseStateName;
+            int ts = list.FindIndex(s => s.StateName == "Trial - Start");
+            if (ts < 0) throw new Exception("Trial - Start not in the state list");
+            list.Insert(ts + 1, st);
+        }
+        else if (list.FindIndex(s => s.StateName == PoseStateName) < 0)
+            throw new Exception("neither DeviceCheck nor " + PoseStateName + " is in the state list");
+        for (int i = 0; i < list.Count; i++)
+        {
+            var s = list[i];
+            s.DestStateName = i < list.Count - 1 ? list[i + 1].StateName : "";
+            list[i] = s;
+        }
+        if (list.Count != 12 || list[S_POSE].StateName != PoseStateName || list[S_TSTART].StateName != "Trial - Start")
+            throw new Exception("unexpected state order: " + string.Join(", ", list.Select(s => s.StateName)));
+        sl.States = list.ToArray();
+        EditorUtility.SetDirty(sl);
+        AssetDatabase.SaveAssets();
+        WriteVariablesJs(sl);
+
+        var managers = FindRoot("LUIDA-ExpManagers", false);
+        var statesRoot = managers != null ? managers.Find("States") : FindRoot("States", false);
+        if (statesRoot == null) throw new Exception("States container not found");
+        var old = statesRoot.Find("DeviceCheck");
+        if (old != null) old.name = PoseStateName;
+        var tab = ScriptableObject.CreateInstance<StateMachineConfigTab>();
+        try
+        {
+            tab.OnEnable();
+            const BindingFlags bf = BindingFlags.NonPublic | BindingFlags.Instance;
+            var setCur = typeof(StateMachineConfigTab).GetMethod("UpdateTransitionCurrentStateId", bf);
+            var setDest = typeof(StateMachineConfigTab).GetMethod("UpdateTransitionDestStateId", bf);
+            var setExit = typeof(StateMachineConfigTab).GetMethod("UpdateTransitionExitTime", bf);
+            var setRepeat = typeof(StateMachineConfigTab).GetMethod("UpdateRepeatedTransition", bf);
+            if (setCur == null || setDest == null || setExit == null || setRepeat == null)
+                throw new Exception("StateMachineConfigTab transition methods not found (LUIDA version mismatch)");
+            for (int i = 0; i < sl.States.Length; i++)
+            {
+                var s = sl.States[i];
+                var child = statesRoot.Find(s.StateName);
+                if (child == null) throw new Exception("state object not found: " + s.StateName);
+                child.SetSiblingIndex(i);
+                var transition = child.Find("Transition");
+                if (transition == null) throw new Exception("Transition not found under " + s.StateName);
+                var g = transition.gameObject;
+                setCur.Invoke(tab, new object[] { g, i });
+                setDest.Invoke(tab, new object[] { g, Array.FindIndex(sl.States, x => x.StateName == s.DestStateName), s.StateName == "Trial - Rest" });
+                setExit.Invoke(tab, new object[] { g, s.HasExitTime, s.ExitTime });
+                setRepeat.Invoke(tab, new object[] { g, Mathf.Max(0, Array.FindIndex(sl.States, x => x.StateName == s.RepeatDestStateName)), s.IsRepeated ? s.RepeatCount : 1 });
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(tab);
+        }
+        Debug.Log("[Study4] states: " + string.Join(", ", sl.States.Select(s => s.StateName)));
+        UpdateLayoutAndBehaviours();
+    }
+
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
     public static void BuildNoPrompt()
     {
@@ -344,8 +423,8 @@ public static class Study4SceneBuilder
         var states = new[]
         {
             S("Start"),                         // task description + OK button (consent is taken at recruitment)
-            S("DeviceCheck"),                   // head / hand tracking check
             S("Trial - Start"),                 // block setup (avatar switch) when rep == 1
+            S(PoseStateName),                   // head / hand tracking check in front of a mirror (rep == 1)
             S("Trial - Greeting", hasExit: true, exit: GreetingSeconds), // NPC appears; greeting period (rep == 1)
             S("Trial - Touch"),                 // NPC reaches toward the face
             S("Trial - Report"),                // 0-10 rating, manipulation check, type, location
@@ -598,7 +677,9 @@ return {
     // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
     //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
-    //   + one side panel: avatar gate (left, trial start) / device check, report (right)
+    //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photo (right of it)
+    //   pose check: front mirror (straight ahead, below the front slot) + device check panel (right)
+    //   report: report panel (straight ahead, NPC hidden)
     //   debrief / end: instruction "center" slot (straight ahead) with the OK button below it
     // The instruction's backing quad ("Bg") is scaled to the text by ins_show() (Transform.localScale via unityProp).
     const float EyeHeight = 1.55f;
@@ -613,6 +694,17 @@ return {
     // in both states. The device check stays on the right (the participant turns the head left and right there).
     const float PanelTextSize = 0.018f, PanelDist = 1.25f, FrontPanelYawDeg = 0f, RightPanelYawDeg = 40f;
     const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
+    // Pose check: a second mirror ("MirrorFront") straight ahead, behind the front instruction slot and below its
+    // text (top edge ~16 deg up vs the 3-line text's bottom ~19 deg), clear of the device check panel on the right.
+    // Seen from 1.6 m it shows the whole avatar, hands raised above the head included.
+    const float PoseMirrorDist = 1.6f, PoseMirrorCenterHeight = 1.1f, PoseMirrorW = 1.2f, PoseMirrorH = 1.8f;
+    // Photos of how to switch the avatar ("MenuPhoto1", "MenuPhoto2", children of the AvatarGate item), stacked top to
+    // bottom right of the gate's backing (which ends ~20 deg right), each MenuPhotoW wide keeping the image's aspect,
+    // the column centred at MenuPhotoHeight. 1: open the menu and tap "Avatar"; 2: pick "LUIDA Default Avatar" and
+    // press "Change avatar" (shown only when the Default Avatar is the one to wear).
+    const string MenuPhotoFolder = "Assets/_Experiment_/Textures/" + SceneName;
+    static readonly string[] MenuPhotoFiles = { "open-menu.png", "open-avatar-menu.png" };
+    const float MenuPhotoYawDeg = 33.5f, MenuPhotoHeight = 1.30f, MenuPhotoW = 0.52f, MenuPhotoGap = 0.03f;
     const int RpCols = 4;   // numeric report options (0-10, 1-7): 4 x 3 grid filled row by row
     const float RpBtnW = 0.16f, RpBtnH = 0.10f, RpPitchX = 0.175f, RpPitchY = 0.115f;
     // Word report options (sensation type, location): a separate 2 x 4 grid of wider buttons RPW_0..7 whose labels
@@ -679,6 +771,8 @@ return {
         SetButton(gate, "AG_Changed", new Vector3(0f, 0f, 0f), new Vector3(0.30f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_Yes", new Vector3(-0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_No", new Vector3(0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
+        var gateItem = gate != null ? gate.Find("AvatarGate") : null;
+        if (gateItem != null) PlaceMenuPhotos(l, gateItem, m);
 
         // DeviceCheck (right)
         var dc = PlacePanel(l, "DeviceCheckUI", "DeviceCheck", RightPanelYawDeg, 1.25f, 0.075f, m.dcBg, new Rect(-0.29f, -0.07f, 0.58f, 0.33f));
@@ -730,6 +824,25 @@ return {
                 mir.localRotation = Quaternion.identity;
                 mir.localScale = new Vector3(MirrorW, MirrorH, 1f);
             }
+            var front = mp.Find("MirrorFront");
+            if (front == null)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MirrorPrefabPath);
+                if (prefab != null)
+                {
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, mp);
+                    go.name = "MirrorFront";
+                    go.SetActive(false);
+                    front = go.transform;
+                }
+                else Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath);
+            }
+            if (front != null)
+            {
+                var fp = l.Around(0f, PoseMirrorDist, PoseMirrorCenterHeight);
+                front.SetPositionAndRotation(fp, l.FaceAwayFromViewer(fp));
+                front.localScale = new Vector3(PoseMirrorW, PoseMirrorH, 1f);
+            }
         }
 
         EnsureHeightObjects(l, m);
@@ -738,6 +851,78 @@ return {
         var npcRoot = FindRoot("NPC", false);
         if (npcRoot != null) AttachFaceExpression(npcRoot.gameObject, EnsureFaceAssets(false));
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+    }
+
+    // Unlit quads (no collider) facing the eye, one per MenuPhotoFiles entry, stacked top to bottom; inactive until
+    // AvatarGate shows them (ag_photos). The images are imported without power-of-two rescaling so the text stays sharp.
+    static void PlaceMenuPhotos(Layout l, Transform gateItem, Materials m)
+    {
+        var oldSingle = gateItem.Find("MenuPhoto");   // earlier single placeholder photo
+        if (oldSingle != null) Object.DestroyImmediate(oldSingle.gameObject);
+        int n = MenuPhotoFiles.Length;
+        var tex = new Texture2D[n];
+        var h = new float[n];
+        float total = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            string path = MenuPhotoFolder + "/" + MenuPhotoFiles[i];
+            var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (imp != null && (imp.npotScale != TextureImporterNPOTScale.None || imp.textureCompression != TextureImporterCompression.CompressedHQ || imp.maxTextureSize != 2048))
+            {
+                imp.npotScale = TextureImporterNPOTScale.None;
+                imp.textureCompression = TextureImporterCompression.CompressedHQ;
+                imp.maxTextureSize = 2048;
+                imp.mipmapEnabled = true;
+                imp.anisoLevel = 4;
+                imp.SaveAndReimport();
+            }
+            tex[i] = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            float aspect = 16f / 9f;
+            if (tex[i] == null) Debug.LogWarning("[Study4] avatar menu photo not found: " + path);
+            else
+            {
+                int sw = tex[i].width, sh = tex[i].height;
+                if (imp != null) imp.GetSourceTextureWidthAndHeight(out sw, out sh);
+                if (sw > 0 && sh > 0) aspect = (float)sw / sh;
+            }
+            h[i] = MenuPhotoW / aspect;
+            total += h[i] + (i > 0 ? MenuPhotoGap : 0f);
+        }
+        float top = MenuPhotoHeight + total * 0.5f;
+        var ps = gateItem.lossyScale;
+        for (int i = 0; i < n; i++)
+        {
+            string name = "MenuPhoto" + (i + 1);
+            var t = gateItem.Find(name);
+            if (t == null)
+            {
+                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                q.name = name;
+                t = q.transform;
+                t.SetParent(gateItem, false);
+            }
+            var col = t.GetComponent<Collider>();
+            if (col != null) Object.DestroyImmediate(col);
+            var pos = l.Around(MenuPhotoYawDeg, PanelDist, top - h[i] * 0.5f);
+            t.SetPositionAndRotation(pos, l.FaceEye(pos));
+            t.localScale = new Vector3(MenuPhotoW / ps.x, h[i] / ps.y, 1f);
+            top -= h[i] + MenuPhotoGap;
+
+            string matPath = MaterialsFolder + "/" + name + ".mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Unlit/Texture"));
+                AssetDatabase.CreateAsset(mat, matPath);
+            }
+            mat.mainTexture = tex[i];
+            EditorUtility.SetDirty(mat);
+            var r = t.GetComponent<MeshRenderer>();
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            t.gameObject.SetActive(false);
+        }
     }
 
     // Height matching (NpcController.js, npc_show): head-bone heights are compared per block. A shorter
@@ -1576,16 +1761,17 @@ return {
                     "相手の手があなたの顔にゆっくり近づく様子を\\n" +
                     "見ていただきます。そのたびに、感じたことを\\n" +
                     "短い質問にお答えください。\\n" +
-                    "途中で機器の確認と、アバターの着替えをお願いします。\\n" +
+                    "途中で、アバターの着替えと機器の確認をお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。")),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
                 L(Custom("ins_okButton(false);"))),
-            Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
+            // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
+            Listener(S_POSE, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\\n手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターについてのアンケートです。\\n問題文の「仮想身体」は、そのアバターのことです。');"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバターについて伺います。\\n問題文の「仮想身体」は、あなたのアバターのことです。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
             Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた相手についてのアンケートです。"))),
             Listener(S_PERSONAL, L(Ins("above", "最後のアンケートです。"))),
@@ -1601,9 +1787,9 @@ return {
                     "近づいたり触れたりしたときに、実際には触れられていないのに、\\n" +
                     "顔に感覚が生じる現象です。\\n" +
                     "具体的には、相手が目を合わせたり手を振ったりするかどうかと、\\n" +
-                    "普段使いのアバターか初期アバター（Default Avatar）かで、\\n" +
+                    "普段使いのアバターかどうかで、\\n" +
                     "感じ方がどう変わるかを比べました。\\n" +
-                    "今月中は、この実験の内容や条件について、\\n" +
+                    "【お願い】 今月中は、この実験の内容や条件について、\\n" +
                     "ほかの方に話さないようお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。", InsDebriefSize)),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
@@ -1806,7 +1992,7 @@ function nd_tick(dt) {
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), Custom("ag_showButtons(false, false); HideChild('Text');"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("ag_showButtons(false, false); HideChild('Text'); ag_photos(false);"))),
             Listener(S_TSTART,
                 L(Sleep(0.5f), Custom("ag_begin();")),
                 L(Custom("ag_update(deltaTime);")),
@@ -1835,6 +2021,12 @@ function ag_showButtons(changed, yesNo) {
   ag_send('AG_Changed', { visible: changed, label: '着替えました' });
   ag_send('AG_Yes', { visible: yesNo, label: 'はい' });
   ag_send('AG_No', { visible: yesNo, label: 'いいえ' });
+}
+// Photo 1: open the menu and tap 'Avatar'. Photo 2 picks 'LUIDA Default Avatar', so it is shown only when that is
+// the avatar to wear (in the daily-avatar block it could lead to the wrong choice).
+function ag_photos(show) {
+  if (show) ShowChild('MenuPhoto1'); else HideChild('MenuPhoto1');
+  if (show && $.state.ag_avatar === 'assigned') ShowChild('MenuPhoto2'); else HideChild('MenuPhoto2');
 }
 function ag_signature(p) {
   const ua = p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);
@@ -1882,6 +2074,7 @@ function ag_begin() {
   $.state.ag_fallback = !ag_calibrated();   // not calibrated: self-report only
   $.state.ag_logAt = 0;
   ShowChild('Text');
+  ag_photos(true);   // photos of how to switch the avatar, next to the panel
   ag_showButtons(false, false);
   ag_renderText('');
   $.log('[AvatarGate] block ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);
@@ -1964,12 +2157,14 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。まもなく始まります。');
+  ag_photos(false);
+  SetText('ありがとうございます。');
   ToNextState();
 }
 function ag_end() {
   ag_showButtons(false, false);
   HideChild('Text');
+  ag_photos(false);
   $.state.ag_active = false;
 }
 ";
@@ -1982,7 +2177,7 @@ function ag_end() {
         return new List<StateListener>
         {
             Listener(S_START, L(Act(T_ShowItem), Custom("dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild('Text');"))),
-            Listener(S_DEVICE,
+            Listener(S_POSE,
                 L(Custom("dc_begin();")),
                 L(Custom("dc_update(deltaTime);")),
                 L(Custom("dc_end();"))),
@@ -1990,10 +2185,14 @@ function ag_end() {
     }
 
     const string DeviceCheckLegacy = @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
+// Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
+// with the MirrorPanel's front mirror shown; the 2nd trial of a block skips it immediately.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
+  $.state.dc_active = false;
+  if (!CONDITION || CONDITION['rep'] !== '1') { ToNextState(); return; }
   $.state.dc_active = true;
   $.state.dc_start = Date.now();
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
@@ -2255,6 +2454,9 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
         return new List<StateListener>
         {
             Listener(S_START, L(Act(T_ShowItem))),
+            // pose check (1st trial of each block): the mirror straight ahead
+            Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1")), null,
+                L(Act(T_HideChild, ("childName", "MirrorFront")))),
             Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
             Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
         };
