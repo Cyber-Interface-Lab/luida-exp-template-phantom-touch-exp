@@ -15,9 +15,15 @@ $.onUpdate((deltaTime) => {
         if (hadParticipant) {
             $.state.participant = null;
             $.state.isParticipantAssigned = false;
-            reset(true);
-            $.setStateCompat("this", "form_show_start_hint", true);
+            reopenForm();
         }
+    }
+
+    // The form can be answered once per visit of its state. After the answers are sent it stays closed (the
+    // waiting screen is still shown and a click must not reload it) until the state machine has entered another
+    // state, which is when the container is deactivated; the next visit of the state finds it closed and ready.
+    if ($.state.isSubmitted && stateEnteredTime() !== ($.state.submittedStateEnteredTime || 0)) {
+        reopenForm();
     }
 
     if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough) {
@@ -296,7 +302,23 @@ function submitAnswers() {
         r: $.getRotation(),
         e: true
     });
+    $.state.submittedStateEnteredTime = stateEnteredTime();
     reset(false);
+}
+
+// Time of the last Global "state_entered" signal (0 if it never fired). Only a value different from the one
+// recorded when the answers were sent counts as a new state.
+function stateEnteredTime() {
+    const d = $.getStateCompat("global", "state_entered", "signal");
+    if (!d) return 0;
+    return (typeof d.getTime === "function") ? d.getTime() : (Number(d) || 0);
+}
+
+// Closed and ready for the next answer: forget the previous answers, show the start hint, hide the waiting text.
+function reopenForm() {
+    reset(true);
+    $.setStateCompat("this", "form_show_start_hint", true);
+    $.state.participant?.send("setQuestionnaireUI", { n: "WaitingText", e: false });
 }
 
 function toNext() {
