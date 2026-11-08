@@ -36,13 +36,13 @@ const NPC_CFG = {
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
   READY_FRAC: 0.35,        // ready palm point: this fraction of the way from the right shoulder to the face
                            // (the approach then extends the arm along the shoulder->face line)
-  STROKE_AMP: 0.04,        // stroke: the fingers slide down the face by this much (m) at REACH_SPEED, then ...
+  STROKE_AMP: 0.06,        // stroke: the fingers slide down the face by this much (m) at REACH_SPEED, then ...
   STROKE_BACK: 0.03,       //   ... pull back this far from the face, rise, touch again and stroke down ...
   STROKE_CYCLES: 3,        //   ... this many times in total (0 disables the stroke)
   STROKE_RETURN_SPEED: 0.04, // speed of the pull-back / rise / re-touch legs (m/s)
   HOLD_SEC: 1.0,           // rest where the last stroke ended
   RETRACT_SPEED: 0.10,     // m/s
-  STOP_MARGIN: 0.03,       // stop this far before the face surface
+  STOP_MARGIN: 0.02,       // stop this far before the face surface
   // Touch target in the participant's head frame: the cheek on the side the NPC's right hand comes from.
   CHEEK_BELOW_EYES: 0.045, //   height: the eye bones' midpoint minus this ...
   FACE_UP: 0.02,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
