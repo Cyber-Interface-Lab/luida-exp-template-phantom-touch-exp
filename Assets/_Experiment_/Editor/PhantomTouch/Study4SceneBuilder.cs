@@ -343,7 +343,7 @@ public static class Study4SceneBuilder
         if (sl == null) throw new Exception("StateList asset missing: " + StateListPath);
         var states = new[]
         {
-            S("Start", qID: 1),                 // consent questionnaire
+            S("Start"),                         // task description + OK button (consent is taken at recruitment)
             S("DeviceCheck"),                   // head / hand tracking check
             S("Trial - Start"),                 // block setup (avatar switch) when rep == 1
             S("Trial - Greeting", hasExit: true, exit: GreetingSeconds), // NPC appears; greeting period (rep == 1)
@@ -414,8 +414,8 @@ public static class Study4SceneBuilder
         if (states == null || states.transform.childCount != 12)
             throw new Exception("States container not generated as expected");
         var qRoot = GameObject.Find("LUIDA-QuestionnaireByState");
-        if (qRoot == null || qRoot.transform.childCount != 4)
-            Debug.LogWarning("[Study4] expected 4 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
+        if (qRoot == null || qRoot.transform.childCount != 3)
+            Debug.LogWarning("[Study4] expected 3 questionnaire containers, found " + (qRoot ? qRoot.transform.childCount : 0));
         // Questionnaire containers start inactive; the state's Set Game Object Active gimmick
         // (copied onto each container) activates them when their state begins.
         if (qRoot != null)
@@ -1529,7 +1529,23 @@ return {
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), Custom("ins_okButton(false);"), Ins("above", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
+            // Start: what the participant will do (no conditions or hypotheses), straight ahead, with an "OK"
+            // button below it (the state has no questionnaire; an exit time set on the state also moves on)
+            Listener(S_START,
+                L(Act(T_ShowItem), Custom("ins_okBegin();"), Ins("center",
+                    "ようこそ。\\n" +
+                    "この実験では、正面に現れる相手に\\n" +
+                    "挨拶をしたあと、相手の手が\\n" +
+                    "あなたの顔にゆっくり近づく様子を\\n" +
+                    "見ていただきます。\\n" +
+                    "そのたびに、感じたことを\\n" +
+                    "短い質問にお答えください。\\n" +
+                    "途中で機器の確認と、\\n" +
+                    "アバターの着替えをお願いします。\\n" +
+                    "読み終わったら、下の「OK」を\\n" +
+                    "押してください。")),
+                L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
+                L(Custom("ins_okButton(false);"))),
             Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
@@ -1658,7 +1674,7 @@ return {
             // Setup first: it also lowers the previous block's height platform (the participant's avatar, and so
             // their height, changes in this state); then the participant is put on the marker at floor level.
             Listener(S_TSTART, L(
-                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + ", origin: " + origin + ", floorY: " + F(l.origin.y) + " });"), "rep", "1"),
+                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + ", origin: " + origin + ", floorY: " + F(l.origin.y) + ", eyes: nd_useEyeBones() });"), "rep", "1"),
                 Sleep(0.5f),
                 If(ResetPos(), "rep", "1"),
                 If(ResetRot(), "rep", "1"),
@@ -1732,6 +1748,10 @@ function nd_donePulse() {
   if (t !== ($.state.nd_lastDone || 0)) { $.state.nd_lastDone = t; return t !== 0; }
   return false;
 }
+// The NPC aims under the participant's eye bones only in a real deployment: the editor emulator (CSEmulator)
+// throws for avatars without eye bones instead of returning null, which would abort the NPC's handlers.
+// isTestMode comes from LUIDA's ExpIdentifiers.js (flipped to false by the pre-upload step); unknown -> off.
+function nd_useEyeBones() { return (typeof isTestMode !== 'undefined') ? !isTestMode : false; }
 // Participant locomotion (stick / keyboard move speed): 0 unless set otherwise; walking in the room is
 // not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
 // to 1 when the participant is (re)initialized.

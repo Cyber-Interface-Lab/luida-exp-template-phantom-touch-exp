@@ -46,6 +46,9 @@ const NPC_CFG = {
   // Touch target in the participant's head frame: the cheek on the side the NPC's right hand comes from.
   CHEEK_BELOW_EYES: 0.045, //   height: the eye bones' midpoint minus this ...
   FACE_UP: 0.02,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
+  USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null for missing bones, but the editor
+                           //   emulator (CSEmulator) throws a .NET exception that aborts the whole handler, so the
+                           //   director turns this on only outside LUIDA's test mode (npc_setup { eyes })
   FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline of the face)
   FACE_FWD: 0.09,          //   forward of the head bone (cheek surface)
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
@@ -314,6 +317,7 @@ $.onReceive((messageType, arg, sender) => {
     if (arg && arg.fwd) $.state.npc_fwd = arg.fwd;   // facing direction of the participant's marker
     if (arg && arg.origin) $.state.npc_origin = arg.origin;   // the marker (participant standing spot, floor)
     if (arg && typeof arg.floorY === "number") $.state.npc_floorY = arg.floorY;
+    if (arg && arg.eyes !== undefined) $.state.npc_useEyes = !!arg.eyes;   // may the eye bones be queried?
     if (messageType === "npc_setup") {
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       $.state.npc_phase = "idle";
@@ -377,11 +381,14 @@ function headOf(p) {
   const pos = p.getHumanoidBonePosition(HumanoidBone.Head);
   const rot = p.getHumanoidBoneRotation(HumanoidBone.Head);
   if (!pos || !rot) return null;
-  // eye height in the head frame (null when the avatar has no eye bones or they are implausible)
+  // eye height in the head frame (null when the eye bones are not queried, missing or implausible)
   let eyeUp = null;
-  const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re = p.getHumanoidBonePosition(HumanoidBone.RightEye);
-  const eye = (le && re) ? vscale(vadd(le, re), 0.5) : (le || re);
-  if (eye) { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) eyeUp = local.y; }
+  const useEyes = ($.state.npc_useEyes === undefined || $.state.npc_useEyes === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;
+  if (useEyes) {
+    const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re = p.getHumanoidBonePosition(HumanoidBone.RightEye);
+    const eye = (le && re) ? vscale(vadd(le, re), 0.5) : (le || re);
+    if (eye) { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) eyeUp = local.y; }
+  }
   return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), eyeUp: eyeUp };
 }
 // Height of the touch target above the head bone (head frame): under the eyes when the avatar has eye bones.
