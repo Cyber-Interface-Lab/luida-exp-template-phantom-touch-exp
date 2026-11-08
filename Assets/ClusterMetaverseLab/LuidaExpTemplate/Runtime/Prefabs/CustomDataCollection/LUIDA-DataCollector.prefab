@@ -74,7 +74,17 @@ MonoBehaviour:
     = 100000; // 102400\r\n\r\n$.onStart(() => {\r\n    $.state.customData = [];\r\n   
     $.state.uploadIndex = 0;\r\n    $.state.elapsedTime = 0;\r\n    // $.state.dataLength
     = 0;\r\n    $.state.steps = 0;\r\n    $.state.isUploading = false;\r\n})\r\n\r\n$.onUpdate((deltaTime)
-    => {\r\n    if ($.getStateCompat(\"this\", \"exp_recordCustomData\", \"boolean\"))
+    => {\r\n    // A different sessionID in this group means a new participant's
+    session started (session reset). Rows of the\r\n    // previous session that
+    were never uploaded (a participant who left in the middle) are dropped instead
+    of\r\n    // being uploaded under the new sessionID. Not while an upload is in
+    progress: it empties the buffer itself.\r\n    if ($.state.boundSessionID !==
+    $.groupState.sessionID) {\r\n        if ($.state.boundSessionID !== undefined
+    && !$.state.isUploading\r\n            && Array.isArray($.state.customData) &&
+    $.state.customData.length > 0) {\r\n            $.log(\"[DataCollector] new session;
+    dropping \" + $.state.customData.length + \" unsent row(s) of the previous session\");\r\n           
+    $.state.customData = [];\r\n        }\r\n        $.state.boundSessionID = $.groupState.sessionID;\r\n   
+    }\r\n    if ($.getStateCompat(\"this\", \"exp_recordCustomData\", \"boolean\"))
     {\r\n        $.setStateCompat(\"this\", \"exp_recordCustomData\", false);\r\n       
     recordData();\r\n    }\r\n    if ($.getStateCompat(\"this\", \"exp_uploadCustomData\",
     \"boolean\")) {\r\n        if ($.state.uploadIndex === 0) {\r\n            uploadDataInit();\r\n           

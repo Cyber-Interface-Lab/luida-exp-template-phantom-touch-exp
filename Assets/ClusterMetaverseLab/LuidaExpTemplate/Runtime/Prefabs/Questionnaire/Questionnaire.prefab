@@ -686,11 +686,27 @@ MonoBehaviour:
     !== $.groupState.sessionID) {\n        const hadParticipant = !!$.state.isParticipantAssigned;\n       
     $.state.boundSessionID = $.groupState.sessionID;\n        if (hadParticipant)
     {\n            $.state.participant = null;\n            $.state.isParticipantAssigned
-    = false;\n            reset(true);\n            $.setStateCompat(\"this\", \"form_show_start_hint\",
-    true);\n        }\n    }\n\n    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough)
-    {\n        let player = $.groupState.participants[($.getStateCompat(\"this\",
-    \"pID\", \"integer\") - 1) || 0];\n        $.state.participant = player;\n       
-    $.requestOwner(player);\n        $.setVisiblePlayers([player]);\n\n        $.worldItemReference(\"PrevButton\").send(\"setParticipant\",
+    = false;\n            reopenForm();\n        }\n    }\n\n    // The participant
+    left and rejoined with the same account: the ParticipantManager put the new PlayerHandle\n   
+    // into their slot (\"\u3044\u3044\u3048\" on its new-participant prompt). Follow
+    it. A form that was open is closed and\n    // restarted, because its answer
+    options and texts were only visible to the previous join.\n    if ($.state.isParticipantAssigned
+    && $.state.participant && !$.state.participant.exists()) {\n        const fresh
+    = $.groupState.participants[($.getStateCompat(\"this\", \"pID\", \"integer\")
+    - 1) || 0];\n        if (fresh && fresh.exists() && fresh.id !== $.state.participant.id)
+    {\n            $.state.participant = fresh;\n            $.worldItemReference(\"PrevButton\").send(\"setParticipant\",
+    fresh);\n            $.worldItemReference(\"NextButton\").send(\"setParticipant\",
+    fresh);\n            if ($.state.isInitiated && !$.state.isSubmitted) reopenForm();\n       
+    }\n    }\n\n    // The form can be answered once per visit of its state. After
+    the answers are sent it stays closed (the\n    // waiting screen is still shown
+    and a click must not reload it) until the state machine has entered another\n   
+    // state, which is when the container is deactivated; the next visit of the state
+    finds it closed and ready.\n    if ($.state.isSubmitted && stateEnteredTime()
+    !== ($.state.submittedStateEnteredTime || 0)) {\n        reopenForm();\n    }\n\n   
+    if (!$.state.isParticipantAssigned && $.groupState.isParticipantsEnough) {\n       
+    let player = $.groupState.participants[($.getStateCompat(\"this\", \"pID\", \"integer\")
+    - 1) || 0];\n        $.state.participant = player;\n        $.requestOwner(player);\n       
+    $.setVisiblePlayers([player]);\n\n        $.worldItemReference(\"PrevButton\").send(\"setParticipant\",
     player);\n        $.worldItemReference(\"NextButton\").send(\"setParticipant\",
     player);\n\n        $.state.isParticipantAssigned = true;\n    }\n\n    // Ensure
     that the question is only initialized after all currently displayed answer options
@@ -819,7 +835,16 @@ MonoBehaviour:
     $.state.answers);\n    }\n    $.callExternal(new ExternalEndpointId(callExternalEndpointID),
     JSON.stringify(request), \"postQuestionAnswers\");\n    $.state.participant?.send(\"setQuestionnaireUI\",
     {\n        n: \"WaitingText\",\n        p: $.getPosition(),\n        r: $.getRotation(),\n       
-    e: true\n    });\n    reset(false);\n}\n\nfunction toNext() {\n    destroyAnswerOptionUIs();
+    e: true\n    });\n    $.state.submittedStateEnteredTime = stateEnteredTime();\n   
+    reset(false);\n}\n\n// Time of the last Global \"state_entered\" signal (0 if
+    it never fired). Only a value different from the one\n// recorded when the answers
+    were sent counts as a new state.\nfunction stateEnteredTime() {\n    const d
+    = $.getStateCompat(\"global\", \"state_entered\", \"signal\");\n    if (!d) return
+    0;\n    return (typeof d.getTime === \"function\") ? d.getTime() : (Number(d)
+    || 0);\n}\n\n// Closed and ready for the next answer: forget the previous answers,
+    show the start hint, hide the waiting text.\nfunction reopenForm() {\n    reset(true);\n   
+    $.setStateCompat(\"this\", \"form_show_start_hint\", true);\n    $.state.participant?.send(\"setQuestionnaireUI\",
+    { n: \"WaitingText\", e: false });\n}\n\nfunction toNext() {\n    destroyAnswerOptionUIs();
     // Ensure previous UI elements are destroyed\n    $.state.qID = $.state.qID +
     1;\n    $.subNode(\"RadioButtonIndicator\").setEnabled(false);\n    if ($.state.qID
     >= $.state.questions.length) {\n        submitAnswers();\n    } else {\n       
