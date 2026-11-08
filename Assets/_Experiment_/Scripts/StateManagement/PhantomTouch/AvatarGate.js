@@ -111,12 +111,12 @@ function ag_renderText(note) {
   let t;
   if ($.state.ag_step === 1) {
     t = daily
-      ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
-      : 'メニューのアバター変更に\n表示される「Default Avatar」に\n着替えてください。\n終わったら「着替えました」\nを押してください。';
+      ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n終わったら「着替えました」を押してください。'
+      : 'メニューのアバター変更に表示される\n「Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
   } else {
     t = daily
-      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
-      : 'いま着ているのは\n「Default Avatar」ですか？';
+      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使うアバターですか？'
+      : 'いま着ているのは「Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -144,7 +144,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」に\nなっていません）' : '（まだ「Default Avatar」の\nままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」になっていません）' : '（まだ「Default Avatar」のままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -184,7 +184,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。\nまもなく始まります。');
+  SetText('ありがとうございます。まもなく始まります。');
   ToNextState();
 }
 function ag_end() {

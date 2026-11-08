@@ -140,11 +140,11 @@ MonoBehaviour:
     ag_showButtons(false, false);\n  ag_renderText('');\n  $.log('[AvatarGate] block
     ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);\n}\nfunction ag_renderText(note)
     {\n  const daily = $.state.ag_avatar === 'daily';\n  let t;\n  if ($.state.ag_step
-    === 1) {\n    t = daily\n      ? '\u30E1\u30CB\u30E5\u30FC\u304B\u3089\u3001\u666E\u6BB5\u3044\u3061\u3070\u3093\\n\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u306B\\n\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\\n\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002'\n     
-    : '\u30E1\u30CB\u30E5\u30FC\u306E\u30A2\u30D0\u30BF\u30FC\u5909\u66F4\u306B\\n\u8868\u793A\u3055\u308C\u308B\u300CDefault
-    Avatar\u300D\u306B\\n\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\\n\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002';\n 
-    } else {\n    t = daily\n      ? '\u3044\u307E\u7740\u3066\u3044\u308B\u30A2\u30D0\u30BF\u30FC\u306F\u3001\\n\u3042\u306A\u305F\u304C\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\\n\u30A2\u30D0\u30BF\u30FC\u3067\u3059\u304B\uFF1F'\n     
-    : '\u3044\u307E\u7740\u3066\u3044\u308B\u306E\u306F\\n\u300CDefault Avatar\u300D\u3067\u3059\u304B\uFF1F';\n 
+    === 1) {\n    t = daily\n      ? '\u30E1\u30CB\u30E5\u30FC\u304B\u3089\u3001\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u306B\\n\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002'\n     
+    : '\u30E1\u30CB\u30E5\u30FC\u306E\u30A2\u30D0\u30BF\u30FC\u5909\u66F4\u306B\u8868\u793A\u3055\u308C\u308B\\n\u300CDefault
+    Avatar\u300D\u306B\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u7D42\u308F\u3063\u305F\u3089\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002';\n 
+    } else {\n    t = daily\n      ? '\u3044\u307E\u7740\u3066\u3044\u308B\u30A2\u30D0\u30BF\u30FC\u306F\u3001\\n\u3042\u306A\u305F\u304C\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u3067\u3059\u304B\uFF1F'\n     
+    : '\u3044\u307E\u7740\u3066\u3044\u308B\u306E\u306F\u300CDefault Avatar\u300D\u3067\u3059\u304B\uFF1F';\n 
     }\n  if (note) t += '\\n' + note;\n  SetText(t);\n}\nfunction ag_update(dt) {\n 
     if (!$.state.ag_active) return;\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists())
     return;\n  const sig = ag_signature(p);\n  const match = ag_targetMatches(sig);\n 
@@ -162,9 +162,9 @@ MonoBehaviour:
     - ($.state.ag_matchSince || 0)) >= AG_STABLE_MS);\n  if (ok !== $.state.ag_okShown)
     {\n    $.state.ag_okShown = ok;\n    if ($.state.ag_step === 1) {\n      ag_showButtons(ok,
     false);\n      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '\uFF08\u307E\u3060\u300CDefault
-    Avatar\u300D\u306B\\n\u306A\u3063\u3066\u3044\u307E\u305B\u3093\uFF09' : '\uFF08\u307E\u3060\u300CDefault
-    Avatar\u300D\u306E\\n\u307E\u307E\u3067\u3059\uFF09'));\n    }\n  }\n  const
-    b = $.getStateCompat('this', 'gate_btn', 'integer');\n  if (!(b > 0)) return;\n 
+    Avatar\u300D\u306B\u306A\u3063\u3066\u3044\u307E\u305B\u3093\uFF09' : '\uFF08\u307E\u3060\u300CDefault
+    Avatar\u300D\u306E\u307E\u307E\u3067\u3059\uFF09'));\n    }\n  }\n  const b =
+    $.getStateCompat('this', 'gate_btn', 'integer');\n  if (!(b > 0)) return;\n 
     $.setStateCompat('this', 'gate_btn', 0);\n  if (b === 1 && $.state.ag_step ===
     1 && ok) {\n    $.state.ag_step = 2;\n    ag_showButtons(false, true);\n    ag_renderText('');\n 
     } else if (b === 2 && $.state.ag_step === 2) {\n    if (!ok) {\n      $.state.ag_step
@@ -181,6 +181,6 @@ MonoBehaviour:
     ? ag_isDefault(sig) : null);\n  SendDataToCollector('setupSec', (Date.now() -
     ($.state.ag_startTs || Date.now())) / 1000);\n  SendDataToCollector('setupRetry',
     $.state.ag_retry || 0);\n  SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);\n 
-    ProcessAndSaveCollectedData();\n  ag_showButtons(false, false);\n  SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002\\n\u307E\u3082\u306A\u304F\u59CB\u307E\u308A\u307E\u3059\u3002');\n 
+    ProcessAndSaveCollectedData();\n  ag_showButtons(false, false);\n  SetText('\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002\u307E\u3082\u306A\u304F\u59CB\u307E\u308A\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction ag_end() {\n  ag_showButtons(false, false);\n  HideChild('Text');\n 
     $.state.ag_active = false;\n}\n"

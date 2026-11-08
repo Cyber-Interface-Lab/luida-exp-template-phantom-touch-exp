@@ -591,7 +591,9 @@ return {
     // Placement is relative to the participant's standing spot: yaw from the facing direction (deg,
     // + = right), horizontal distance and height. CCK TextView glyph metrics (Noto Sans CJK): a full-width
     // glyph is about 1.85 x size wide and a line 2.74 x size tall (size 0.024 at 1.5 m = ~1.7 deg per glyph).
-    // Lines are kept to about 15 glyphs (22 in the debrief). What is shown together, and where:
+    // Line length depends on the free space around each spot (full-width glyphs): front (above the NPC, next to
+    // the mirror) <= 20, above the questionnaire <= 26, center (nothing else shown) <= 26 / 30 in the debrief,
+    // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
     //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
     //   + one side panel: avatar gate (left, trial start) / device check, report (right)
@@ -665,7 +667,7 @@ return {
 
         // AvatarGate (straight ahead): text grows upwards from just above the buttons; "Changed" and Yes/No are
         // on separate rows so a double click on "Changed" cannot answer the confirmation.
-        var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", FrontPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.29f, -0.16f, 0.58f, 0.60f));
+        var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", FrontPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.45f, -0.16f, 0.90f, 0.52f));
         SetButton(gate, "AG_Changed", new Vector3(0f, 0f, 0f), new Vector3(0.30f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_Yes", new Vector3(-0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_No", new Vector3(0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
@@ -675,7 +677,7 @@ return {
         SetButton(dc, "DC_Force", Vector3.zero, new Vector3(0.36f, 0.10f, 0.04f), 0.016f, DcForceLabel);
 
         // ReportPanel (straight ahead, below the instruction board)
-        var rp = PlacePanel(l, "ReportPanelUI", "ReportPanel", FrontPanelYawDeg, 1.0f, 0.40f, m.rpBg, new Rect(-0.38f, -0.08f, 0.76f, 0.70f));
+        var rp = PlacePanel(l, "ReportPanelUI", "ReportPanel", FrontPanelYawDeg, 1.0f, 0.40f, m.rpBg, new Rect(-0.44f, -0.08f, 0.88f, 0.70f));
         for (int i = 0; i <= 10; i++)
         {
             int r = i / RpCols, c = i % RpCols;
@@ -1548,43 +1550,35 @@ return {
             Listener(S_START,
                 L(Act(T_ShowItem), Custom("ins_okBegin();"), Ins("center",
                     "ようこそ。\\n" +
-                    "この実験では、正面に現れる相手に\\n" +
-                    "挨拶をしたあと、相手の手が\\n" +
-                    "あなたの顔にゆっくり近づく様子を\\n" +
-                    "見ていただきます。\\n" +
-                    "そのたびに、感じたことを\\n" +
+                    "この実験では、正面に現れる相手に挨拶をしたあと、\\n" +
+                    "相手の手があなたの顔にゆっくり近づく様子を\\n" +
+                    "見ていただきます。そのたびに、感じたことを\\n" +
                     "短い質問にお答えください。\\n" +
-                    "途中で機器の確認と、\\n" +
-                    "アバターの着替えをお願いします。\\n" +
-                    "読み終わったら、下の「OK」を\\n" +
-                    "押してください。")),
+                    "途中で機器の確認と、アバターの着替えをお願いします。\\n" +
+                    "読み終わったら、下の「OK」を押してください。")),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
                 L(Custom("ins_okButton(false);"))),
             Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
-            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
-            Listener(S_TOUCH, L(Ins("front", "正面の相手の手が\\nゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
-            Listener(S_REPORT, L(Ins("front", "下のパネルで\\n質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターに\\nついてのアンケートです。\\n問題文の「仮想身体」は、\\nそのアバターのことです。');"))),
+            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\\n手を振って挨拶してください。');"))),
+            Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
+            Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターについてのアンケートです。\\n問題文の「仮想身体」は、そのアバターのことです。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
-            Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた\\n相手についてのアンケートです。"))),
+            Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた相手についてのアンケートです。"))),
             Listener(S_PERSONAL, L(Ins("above", "最後のアンケートです。"))),
             // Debrief: thanks, what was studied and under which conditions, a request not to talk about it this
             // month, then the "OK" button -> End
             Listener(S_DEBRIEF,
                 L(Custom("ins_okBegin();"), Ins("center",
                     "ご参加いただき、ありがとうございました。\\n" +
-                    "この実験では「ファントムタッチ」という、\\n" +
-                    "VR で相手のアバターの手が顔に近づいたり\\n" +
-                    "触れたりしたときに、実際には触れられて\\n" +
-                    "いないのに顔に感覚が生じる現象を\\n" +
-                    "調べていました。\\n" +
-                    "相手が目を合わせたり手を振ったりする\\n" +
-                    "反応があるかどうかと、\\n" +
-                    "普段使いのアバターか初期アバター\\n" +
-                    "（Default Avatar）かによって、\\n" +
+                    "この実験では「ファントムタッチ」という現象を調べていました。\\n" +
+                    "VR で相手のアバターの手が顔に近づいたり触れたりしたときに、\\n" +
+                    "実際には触れられていないのに、顔に感覚が生じる現象です。\\n" +
+                    "相手が目を合わせたり手を振ったりする反応があるかどうかと、\\n" +
+                    "普段使いのアバターか初期アバター（Default Avatar）かで、\\n" +
                     "感じ方がどう変わるかを比べています。\\n" +
-                    "今月中は、この実験の内容や条件を\\n" +
+                    "今月中は、この実験の内容や条件について、\\n" +
                     "ほかの方に話さないようお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。", InsDebriefSize)),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
@@ -1656,12 +1650,12 @@ return {
                "function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick(); }\n" +
                "function ins_endText() {\n" +
                "  const rs = $.groupState.luida_resetStatus;\n" +
-               "  if (rs && rs.error) return 'エラー：実験の初期化に\\n失敗しました。\\n実験者にご連絡ください。';\n" +
+               "  if (rs && rs.error) return 'エラー：実験の初期化に失敗しました。\\n実験者にご連絡ください。';\n" +
                "  const p = PARTICIPANTS[1];\n" +
                "  if (!p || !p.exists()) return 'しばらくお待ちください…';\n" +
                "  const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs || Date.now())) / 1000));\n" +
                "  return left > 0\n" +
-               "    ? 'ご参加ありがとうございました。\\nあと ' + left + ' 秒で募集ワールドへ\\n移動します。'\n" +
+               "    ? 'ご参加ありがとうございました。\\nあと ' + left + ' 秒で募集ワールドへ移動します。'\n" +
                "    : 'ご参加ありがとうございました。\\n募集ワールドへ移動します。';\n" +
                "}\n" +
                "function ins_endTick() {\n" +
@@ -1872,12 +1866,12 @@ function ag_renderText(note) {
   let t;
   if ($.state.ag_step === 1) {
     t = daily
-      ? 'メニューから、普段いちばん\nよく使うアバターに\n着替えてください。\n終わったら「着替えました」\nを押してください。'
-      : 'メニューのアバター変更に\n表示される「Default Avatar」に\n着替えてください。\n終わったら「着替えました」\nを押してください。';
+      ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n終わったら「着替えました」を押してください。'
+      : 'メニューのアバター変更に表示される\n「Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
   } else {
     t = daily
-      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使う\nアバターですか？'
-      : 'いま着ているのは\n「Default Avatar」ですか？';
+      ? 'いま着ているアバターは、\nあなたが普段いちばんよく使うアバターですか？'
+      : 'いま着ているのは「Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -1905,7 +1899,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」に\nなっていません）' : '（まだ「Default Avatar」の\nままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」になっていません）' : '（まだ「Default Avatar」のままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
@@ -1945,7 +1939,7 @@ function ag_confirm(sig) {
   SendDataToCollector('avatarCheckFallback', !!$.state.ag_fallback);
   ProcessAndSaveCollectedData();
   ag_showButtons(false, false);
-  SetText('ありがとうございます。\nまもなく始まります。');
+  SetText('ありがとうございます。まもなく始まります。');
   ToNextState();
 }
 function ag_end() {
@@ -2094,16 +2088,16 @@ function rp_begin() {
 function rp_render() {
   const s = $.state.rp_step;
   if (s === 1) {
-    SetText('相手の手が近づいたとき、\n顔に何か感じましたか？\n0：まったく感じなかった\n10：非常に強く感じた');
+    SetText('相手の手が近づいたとき、顔に何か感じましたか？\n0：まったく感じなかった　10：非常に強く感じた');
     rp_showOptions(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], false);
   } else if (s === 2) {
-    SetText('相手はあなたに注意を\n向けていると感じましたか？\n1：まったく感じなかった\n7：強く感じた');
+    SetText('相手はあなたに注意を向けていると感じましたか？\n1：まったく感じなかった　7：強く感じた');
     rp_showOptions(['1', '2', '3', '4', '5', '6', '7'], false);
   } else if (s === 3) {
-    SetText('どんな感覚でしたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
+    SetText('どんな感覚でしたか？当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_TYPES, true);
   } else if (s === 4) {
-    SetText('どこに感じましたか？\n当てはまるものをすべて選び、\n「決定」を押してください。');
+    SetText('どこに感じましたか？当てはまるものをすべて選び、\n「決定」を押してください。');
     rp_showOptions(RP_LOCS, true);
   }
 }

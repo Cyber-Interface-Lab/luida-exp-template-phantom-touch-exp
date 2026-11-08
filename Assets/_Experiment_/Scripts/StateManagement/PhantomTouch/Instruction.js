@@ -7,7 +7,7 @@ const stateEnterActions = {
             ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('center', 'ようこそ。\nこの実験では、正面に現れる相手に\n挨拶をしたあと、相手の手が\nあなたの顔にゆっくり近づく様子を\n見ていただきます。\nそのたびに、感じたことを\n短い質問にお答えください。\n途中で機器の確認と、\nアバターの着替えをお願いします。\n読み終わったら、下の「OK」を\n押してください。');
+            ins_show('center', 'ようこそ。\nこの実験では、正面に現れる相手に挨拶をしたあと、\n相手の手があなたの顔にゆっくり近づく様子を\n見ていただきます。そのたびに、感じたことを\n短い質問にお答えください。\n途中で機器の確認と、アバターの着替えをお願いします。\n読み終わったら、下の「OK」を押してください。');
         } }
     ],
     1: [
@@ -22,22 +22,22 @@ const stateEnterActions = {
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\nアバターを見て、\n手を振って挨拶してください。');
+            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\n手を振って挨拶してください。');
         } }
     ],
     4: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '正面の相手の手が\nゆっくり近づきます。\n顔を正面に向けたまま、\n楽な姿勢で見ていてください。');
+            ins_show('front', '正面の相手の手がゆっくり近づきます。\n顔を正面に向けたまま、\n楽な姿勢で見ていてください。');
         } }
     ],
     5: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '下のパネルで\n質問に答えてください。');
+            ins_show('front', '下のパネルで質問に答えてください。');
         } }
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターに\nついてのアンケートです。\n問題文の「仮想身体」は、\nそのアバターのことです。');
+            if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターについてのアンケートです。\n問題文の「仮想身体」は、そのアバターのことです。');
         } }
     ],
     7: [
@@ -47,7 +47,7 @@ const stateEnterActions = {
     ],
     8: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('above', 'あなたの顔に触れてきた\n相手についてのアンケートです。');
+            ins_show('above', 'あなたの顔に触れてきた相手についてのアンケートです。');
         } }
     ],
     9: [
@@ -60,7 +60,7 @@ const stateEnterActions = {
             ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('center', 'ご参加いただき、ありがとうございました。\nこの実験では「ファントムタッチ」という、\nVR で相手のアバターの手が顔に近づいたり\n触れたりしたときに、実際には触れられて\nいないのに顔に感覚が生じる現象を\n調べていました。\n相手が目を合わせたり手を振ったりする\n反応があるかどうかと、\n普段使いのアバターか初期アバター\n（Default Avatar）かによって、\n感じ方がどう変わるかを比べています。\n今月中は、この実験の内容や条件を\nほかの方に話さないようお願いします。\n読み終わったら、下の「OK」を押してください。', 0.022);
+            ins_show('center', 'ご参加いただき、ありがとうございました。\nこの実験では「ファントムタッチ」という現象を調べていました。\nVR で相手のアバターの手が顔に近づいたり触れたりしたときに、\n実際には触れられていないのに、顔に感覚が生じる現象です。\n相手が目を合わせたり手を振ったりする反応があるかどうかと、\n普段使いのアバターか初期アバター（Default Avatar）かで、\n感じ方がどう変わるかを比べています。\n今月中は、この実験の内容や条件について、\nほかの方に話さないようお願いします。\n読み終わったら、下の「OK」を押してください。', 0.022);
         } }
     ],
     11: [
@@ -152,12 +152,12 @@ const INS_END_SEC = 10;
 function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick(); }
 function ins_endText() {
   const rs = $.groupState.luida_resetStatus;
-  if (rs && rs.error) return 'エラー：実験の初期化に\n失敗しました。\n実験者にご連絡ください。';
+  if (rs && rs.error) return 'エラー：実験の初期化に失敗しました。\n実験者にご連絡ください。';
   const p = PARTICIPANTS[1];
   if (!p || !p.exists()) return 'しばらくお待ちください…';
   const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs || Date.now())) / 1000));
   return left > 0
-    ? 'ご参加ありがとうございました。\nあと ' + left + ' 秒で募集ワールドへ\n移動します。'
+    ? 'ご参加ありがとうございました。\nあと ' + left + ' 秒で募集ワールドへ移動します。'
     : 'ご参加ありがとうございました。\n募集ワールドへ移動します。';
 }
 function ins_endTick() {
