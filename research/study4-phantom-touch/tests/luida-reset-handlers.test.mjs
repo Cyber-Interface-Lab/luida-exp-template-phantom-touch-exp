@@ -189,3 +189,61 @@ test("FormController: reset and assignment in the same frame when the item wakes
   assert.equal(form.state.participant, p2);
   assert.equal(form.state.isSubmitted, false);
 });
+
+test("FormController: answered once per state visit; no reload from the waiting screen", () => {
+  const world = newWorld();
+  world.global.state_entered = new Date(1_000);           // the state with this form was entered
+  const p1 = makePlayer("p1");
+  const group = { participants: [p1], isParticipantsEnough: true, sessionID: "s1" };
+  const refs = { PrevButton: makeHandle("PrevButton"), NextButton: makeHandle("NextButton"), ConditionManager: makeHandle("CM") };
+  const form = loadItem([FORM_JS], { world, groupState: group, refs, name: "Form" });
+  form.itemState.pID = 1;
+  form.itemState.qID = 2;
+  form.cb.start();
+  form.update(0.02);                                      // p1 assigned
+  form.cb.interact();                                     // click: opens
+  assert.equal(form.itemState.form_set_content_active, true);
+  form.update(0.02);                                      // initiated, questions requested
+  assert.equal(form.state.isInitiated, true);
+  form.state.answers = [3];
+  form.ctx.submitAnswers();                               // answers sent; waiting screen
+  assert.equal(form.state.isSubmitted, true);
+  assert.equal(form.itemState.form_set_content_active, false);
+  form.itemState.form_show_start_hint = false;
+
+  // waiting for the response: a click must not reopen the form
+  form.cb.interact();
+  form.update(0.02);
+  assert.equal(form.itemState.form_set_content_active, false);
+  assert.equal(form.state.isInitiated, true);
+  assert.equal(world.external.filter((c) => c.meta === "postQuestionAnswers").length, 1);
+
+  // response: all participants done -> transition requested; the form is still closed until the state changes
+  form.cb.external("{}", "postQuestionAnswers");
+  assert.ok(form.signals.includes("form_allPlayersCompleted"));
+  form.cb.interact();
+  form.update(0.02);
+  assert.equal(form.itemState.form_set_content_active, false);
+  assert.equal(form.state.isSubmitted, true);
+
+  // the state machine enters the next state (container deactivated); the form becomes ready for the next visit
+  world.global.state_entered = new Date(5_000);
+  form.update(0.02);
+  assert.equal(form.state.isSubmitted, false);
+  assert.equal(form.state.isInitiated, false);
+  assert.equal(form.itemState.form_show_start_hint, true);
+  assert.equal(form.state.participant, p1, "same participant");
+  assert.deepEqual(plain(p1.sent.at(-1).arg), { n: "WaitingText", e: false });
+
+  // second visit of the same state: click opens, answer, send again
+  form.cb.interact();
+  form.update(0.02);
+  assert.equal(form.state.isInitiated, true);
+  form.state.answers = [5];
+  form.ctx.submitAnswers();
+  assert.equal(world.external.filter((c) => c.meta === "postQuestionAnswers").length, 2);
+  assert.equal(form.state.isSubmitted, true);
+  form.cb.interact();
+  form.update(0.02);
+  assert.equal(form.itemState.form_set_content_active, false, "locked again on the waiting screen");
+});

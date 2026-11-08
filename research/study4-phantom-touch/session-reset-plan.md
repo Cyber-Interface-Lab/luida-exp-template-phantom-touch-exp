@@ -62,7 +62,7 @@
 - `$.onUpdate` は `$.state.trialID !== Global exp_trialID` のときだけ `updateCondition()`。End の時点で `exp_trialID` は 0 なので、`reset()` で `trialID = 0` にしても余計な `updateCondition()` は走らない。
 
 ### 1.5 質問紙 FormController.js（`Runtime/Scripts/Form/`, `Questionnaire.prefab`）
-- 参加者の割当は `!isParticipantAssigned && $.groupState.isParticipantsEnough` のとき 1 回だけ（L10–20）。送信後は `reset(false)` で `isInitiated = isSubmitted = true` となり二度と開かない。`form_show_start_hint` も false のまま。
+- 参加者の割当は `!isParticipantAssigned && $.groupState.isParticipantsEnough` のとき 1 回だけ（L10–20）。送信後は `reset(false)` で `isInitiated = isSubmitted = true` となり二度と開かない。`form_show_start_hint` も false のまま。（2026-11-08 に変更: Global `state_entered` が送信時より新しくなったら `reopenForm()` で開き直す。同じステートの訪問につき 1 回答えられる。`IMPLEMENTATION_NOTES.md` §9）
 - `onReceive` は先頭で `if (!isInitiated || isSubmitted) return;`。→ `$.groupState.sessionID` の変化を自分で検知して初期化する（§3.1.3）。
 - 開くたびに `questions = []` にしてから取得する（L25）ので、再初期化で設問が重複することはない。
 - 回答送信は応答（null 以外）を受けてから次のステートへ進む（L354–360）。応答の中身は見ていない（`upload-reliability-plan.md` §1.4）。
