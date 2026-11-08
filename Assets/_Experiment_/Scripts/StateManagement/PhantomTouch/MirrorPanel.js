@@ -2,6 +2,12 @@ const stateEnterActions = {
     0: [
         { type: "exec", action: (deltaTime) => {
             $.setStateCompat('this', 'exp_showItem', true);
+        } },
+        { type: "exec", action: (deltaTime) => {
+            $.subNode('Mirror').setEnabled(false)
+        } },
+        { type: "exec", action: (deltaTime) => {
+            $.subNode('MirrorFront').setEnabled(false)
         } }
     ],
     2: [

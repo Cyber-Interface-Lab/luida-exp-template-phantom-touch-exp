@@ -5,6 +5,7 @@ const stateEnterActions = {
         } },
         { type: "exec", action: (deltaTime) => {
             nd_setMove(0);
+            $.worldItemReference('NPC').send('npc_hide', {});
         } }
     ],
     1: [

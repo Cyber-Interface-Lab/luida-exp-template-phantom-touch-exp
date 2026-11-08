@@ -371,7 +371,10 @@ $.onReceive((messageType, arg, sender) => {
 function participant() {
   try {
     const ps = $.groupState ? $.groupState.participants : null;
-    if (ps && ps.length > 0 && ps[0] && ps[0].exists()) return ps[0];
+    // An enrolled participant who left is not replaced by a bystander (for example the next person, who is
+    // being asked by LUIDA whether they are a new participant): the trial stalls until the director's timeout
+    // or the session reset. The nearby-player fallback is only for a world without enrolled participants.
+    if (ps && ps.length > 0) return (ps[0] && ps[0].exists()) ? ps[0] : null;
   } catch (e) { /* not a group member */ }
   const near = $.getPlayersNear($.getPosition(), 50);
   return near && near.length > 0 ? near[0] : null;

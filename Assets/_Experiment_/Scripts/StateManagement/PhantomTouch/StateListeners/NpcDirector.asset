@@ -33,7 +33,10 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: nd_setMove(0);
+      customAction: 'nd_setMove(0);
+
+        $.worldItemReference(''NPC'').send(''npc_hide'',
+        {});'
       isConditional: 0
       conditionVariable: 
       conditionValue: 

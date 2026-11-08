@@ -335,14 +335,13 @@ MonoBehaviour:
     0); ins_okButton(true); }\nfunction ins_okPressed() {\n  const b = $.getStateCompat('this',
     'ins_btn', 'integer');\n  if (!(b > 0)) return false;\n  $.setStateCompat('this',
     'ins_btn', 0);\n  return true;\n}\n// End: countdown to the exit gate (ExitPortal
-    uses the same delay). After the participant has left, the next\n// participant
-    who joins the same space sees a waiting text until the session reset brings the
-    world back to\n// Start, or an error text when the reset cannot be confirmed
-    (SessionReset publishes luida_resetStatus).\nconst INS_END_SEC = 10;\nfunction
-    ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endText = null;
-    ins_endTick(); }\nfunction ins_endText() {\n  const rs = $.groupState.luida_resetStatus;\n 
-    if (rs && rs.error) return '\u30A8\u30E9\u30FC\uFF1A\u5B9F\u9A13\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\\n\u5B9F\u9A13\u8005\u306B\u3054\u9023\u7D61\u304F\u3060\u3055\u3044\u3002';\n 
-    const p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return '\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026';\n 
+    uses the same delay). After the participant has left, the next\n// person who
+    joins the same space sees a waiting text; the LUIDA ParticipantManager asks them,
+    in front of\n// them, whether they are a new participant and brings the world
+    back to Start when they confirm.\nconst INS_END_SEC = 10;\nfunction ins_endBegin()
+    { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick();
+    }\nfunction ins_endText() {\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists())
+    return '\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026';\n 
     const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs
     || Date.now())) / 1000));\n  return left > 0\n    ? '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u3042\u3068
     ' + left + ' \u79D2\u3067\u52DF\u96C6\u30EF\u30FC\u30EB\u30C9\u3078\u79FB\u52D5\u3057\u307E\u3059\u3002'\n   

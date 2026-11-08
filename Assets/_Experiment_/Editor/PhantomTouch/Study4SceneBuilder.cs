@@ -63,7 +63,6 @@ public static class Study4SceneBuilder
     const string DataCollectorPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/CustomDataCollection/LUIDA-DataCollector.prefab";
     const string ExpManagersPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/LUIDA-ExpManagers.prefab";
     const string ConditionManagerPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/ConditionManagement/ConditionManager.prefab";
-    const string ParticipantManagerPrefabPath = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/ParticipantManager.prefab";
     const string ResetLogicResourcePath = "ClusterMetaverseLab/LuidaExpTemplate/FakeGimmickSources/ResetGlobalBool";
 
     const string NpcVrmPath = "Assets/_Experiment_/Avatars/ProteusSample/Source/YoungAvatar.vrm";
@@ -147,7 +146,6 @@ public static class Study4SceneBuilder
                 ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
                 ("MirrorPanel", MirrorPanelListeners, null, ""),
                 ("ExitPortal", ExitPortalListeners, null, ExitPortalLegacy()),
-                (SessionResetName, SessionResetListeners, SessionResetHandlers, SessionResetLegacy()),
             };
             foreach (var d in defs)
             {
@@ -185,43 +183,6 @@ public static class Study4SceneBuilder
                   " (scene objects untouched; save the scene to keep the combined scripts)");
     }
 
-    /// <summary>
-    /// Installs the session reset into the open scene without rebuilding it: creates the SessionReset item if
-    /// missing, sets its references and Global writes, parks the exit gate far from the spawn point, and rewrites
-    /// only SessionReset, ExitPortal and Instruction (the items whose behaviour changes). Safe to run again.
-    /// </summary>
-    [MenuItem("LUIDA/Study4/Add session reset item (keep scene)")]
-    public static void AddSessionResetItem()
-    {
-        if (EditorSceneManager.GetActiveScene().name != SceneName)
-            throw new Exception("Open the " + SceneName + " scene first.");
-        var l = ComputeLayout();
-        var npcRoot = FindRoot("NPC");
-        if (npcRoot == null) throw new Exception("NPC not found in the scene");
-        var tab = ScriptableObject.CreateInstance<ItemsManagerConfigTab>();
-        try
-        {
-            tab.OnEnable();
-            InstallSessionReset(tab, l, npcRoot.gameObject);
-        }
-        finally
-        {
-            tab.OnDisable();
-            Object.DestroyImmediate(tab);
-        }
-        ParkExitGate();
-        RewriteItemBehaviours(new[] { SessionResetName, "ExitPortal", "Instruction" }, false);
-        Debug.Log("[Study4] session reset installed (save the scene)");
-    }
-
-    // Batch: Unity.exe -batchmode -quit -projectPath <proj> -executeMethod Study4SceneBuilder.AddSessionResetItemFromBatch
-    public static void AddSessionResetItemFromBatch()
-    {
-        EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-        AddSessionResetItem();
-        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
-        AssetDatabase.SaveAssets();
-    }
 
     /// <summary>
     /// Re-applies the UI layout (instruction board, side panels, buttons, coloured backings, mirror) to the
@@ -1390,33 +1351,6 @@ return {
         EditorUtility.SetDirty(relay);
     }
 
-    // Removes the GlobalLogics this builder added for <triggerKey> (prefab-owned ones are kept), so installs can be repeated.
-    static void RemoveGlobalWrites(GameObject go, string triggerKey)
-    {
-        foreach (var gl in go.GetComponents<GlobalLogic>())
-        {
-            if (!PrefabUtility.IsAddedComponentOverride(gl)) continue;
-            var key = new SerializedObject(gl).FindProperty("globalGimmickKey.key.key");
-            if (key != null && key.stringValue == triggerKey) Object.DestroyImmediate(gl);
-        }
-    }
-
-    // An item of a LUIDA manager prefab (ConditionManager, ParticipantManager) inside the LUIDA-ExpManagers instance.
-    static Item FindExpManagerItem(string prefabPath)
-    {
-        foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
-        {
-            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root) != ExpManagersPrefabPath) continue;
-            foreach (var t in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(t.gameObject) != prefabPath) continue;
-                var item = t.GetComponent<Item>();
-                if (item != null) return item;
-            }
-        }
-        return null;
-    }
-
     static void AddItemGroupMember(GameObject go)
     {
         var member = go.GetComponent<ItemGroupMember>();
@@ -1575,9 +1509,6 @@ return {
             }
             else Debug.LogWarning("[Study4] WorldGateToLuidaBar instance not found in the template scene");
             WriteItemData(exitPortal, ExitPortalListeners(), null, ExitPortalLegacy());
-
-            // -- SessionReset (lets the next participant start in the same space after End) --
-            InstallSessionReset(tab, l, npc);
 
             // -- final placement, sizes and backings of all UI (also used by "Update layout ...") --
             ApplyLayout(l, m);
@@ -1855,13 +1786,11 @@ return {
                "  return true;\n" +
                "}\n" +
                "// End: countdown to the exit gate (ExitPortal uses the same delay). After the participant has left, the next\n" +
-               "// participant who joins the same space sees a waiting text until the session reset brings the world back to\n" +
-               "// Start, or an error text when the reset cannot be confirmed (SessionReset publishes luida_resetStatus).\n" +
+               "// person who joins the same space sees a waiting text; the LUIDA ParticipantManager asks them, in front of\n" +
+               "// them, whether they are a new participant and brings the world back to Start when they confirm.\n" +
                "const INS_END_SEC = " + EndGateDelaySec + ";\n" +
                "function ins_endBegin() { $.state.ins_endTs = Date.now(); $.state.ins_endText = null; ins_endTick(); }\n" +
                "function ins_endText() {\n" +
-               "  const rs = $.groupState.luida_resetStatus;\n" +
-               "  if (rs && rs.error) return 'エラー：実験の初期化に失敗しました。\\n実験者にご連絡ください。';\n" +
                "  const p = PARTICIPANTS[1];\n" +
                "  if (!p || !p.exists()) return 'しばらくお待ちください…';\n" +
                "  const left = Math.max(0, Math.ceil(INS_END_SEC - (Date.now() - ($.state.ins_endTs || Date.now())) / 1000));\n" +
@@ -1888,8 +1817,10 @@ return {
         StateListenerAction ResetRot() => Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0"));
         return new List<StateListener>
         {
-            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period.
-            Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);"))),
+            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period. The NPC is
+            // hidden here too (and the height platform lowered): after a session reset from the middle of a trial it
+            // would otherwise stand there until Trial - Start.
+            Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_hide', {});"))),
             // Setup first: it also lowers the previous block's height platform (the participant's avatar, and so
             // their height, changes in this state); then the participant is put on the marker at floor level.
             Listener(S_TSTART, L(
@@ -2453,7 +2384,8 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem))),
+            // both mirrors hidden at Start (also after a session reset from the middle of a trial)
+            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")))),
             // pose check (1st trial of each block): the mirror straight ahead
             Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1")), null,
                 L(Act(T_HideChild, ("childName", "MirrorFront")))),
@@ -2510,158 +2442,5 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
         EditorUtility.SetDirty(gateNode);
     }
 
-    // ------------------------------------------------------------------ SessionReset
-    // Lets the next participant start from the beginning in the same space after End. Item scripts run only while
-    // someone is in the space, so the reset runs when the NEXT player joins and finds End with the previous
-    // participant gone. Design: research/study4-phantom-touch/session-reset-plan.md
-    const string SessionResetName = "SessionReset";
-    const string SessionResetSignal = "exp_sessionReset";
-
-    static GameObject InstallSessionReset(ItemsManagerConfigTab tab, Layout l, GameObject npc)
-    {
-        ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
-        var go = tab.stateListeningItems.FirstOrDefault(g => g != null && g.name == SessionResetName);
-        if (go == null)
-        {
-            go = CreateSli(tab, SessionResetName);
-            go.transform.position = l.P(0f, -1f, 0f);   // no visuals; below the standing spot
-        }
-        AddItemGroupMember(go);   // ConditionManager group: reads luida_resetAck, writes participants / collectedData
-
-        var npcItem = npc != null ? npc.GetComponent<Item>() : null;
-        var cm = FindExpManagerItem(ConditionManagerPrefabPath);
-        var pm = FindExpManagerItem(ParticipantManagerPrefabPath);
-        if (npcItem == null || cm == null || pm == null)
-            throw new Exception("SessionReset: the NPC, ConditionManager or ParticipantManager item was not found");
-        AddWorldItemReference(go, "NPC", npcItem);
-        AddWorldItemReference(go, "ConditionManager", cm);
-        AddWorldItemReference(go, "ParticipantManager", pm);
-
-        // exp_sessionReset (this item) -> Globals back to their values before the first Start. state_entered is
-        // not sent here: ParticipantManager starts the state machine for the next participant as for the first.
-        var item = go.GetComponent<Item>();
-        RemoveGlobalWrites(go, SessionResetSignal);
-        AddGlobalWrite(go, item, SessionResetSignal, "state_exited", 0, null);
-        AddGlobalWrite(go, item, SessionResetSignal, "state_currentID", 3, 0);
-        AddGlobalWrite(go, item, SessionResetSignal, "exp_trialID", 3, 0);
-        AddGlobalWrite(go, item, SessionResetSignal, "exp_readyToLeaveTrials", 1, false);
-        AddGlobalWrite(go, item, SessionResetSignal, "exp_arePlayersEnough", 1, false);
-
-        WriteItemData(go, SessionResetListeners(), SessionResetHandlers(), SessionResetLegacy());
-        EditorUtility.SetDirty(go);
-        return go;
-    }
-
-    static List<StateListener> SessionResetListeners()
-    {
-        return new List<StateListener>
-        {
-            Listener(S_START, L(Act(T_ShowItem), Custom("sr_idle();"))),
-            Listener(S_END, L(Custom("sr_endBegin();"))),
-        };
-    }
-
-    static List<EventHandlerData> SessionResetHandlers()
-    {
-        var update = new EventHandlerData("Update");
-        update.actions.Add(Custom("sr_tick(deltaTime);"));
-        return new List<EventHandlerData> { update };
-    }
-
-    static string SessionResetLegacy() => SessionResetLegacyTemplate.Replace("__S_END__", S_END.ToString(CultureInfo.InvariantCulture));
-
-    const string SessionResetLegacyTemplate = @"// ---- Study 4: SessionReset (next participant in the same space) ----
-// Scripts run only while someone is in the space, so the reset runs when the NEXT player joins and finds End
-// with the previous participant gone. Phases: idle -> end -> (reset) -> settle -> pm -> idle.
-// Each step waits for confirmation and never advances on a timeout. Enrollment stays blocked by construction
-// until ParticipantManager has finished its own reset (the last step: ParticipantManager enrolls only while
-// isParticipantsEnough is false, and its reset clears that flag last). 'luida_reset_ack' is a completion notice;
-// Start (sr_idle) also ends the wait, because Start can only follow a completed ParticipantManager reset.
-// Upload success is not verified (decision 2026-11-06): SR_MIN_END_SEC only lets the existing uploader issue
-// End's request under the old sessionID before anything is reset.
-const SR_END_ID = __S_END__;
-const SR_POLL_SEC = 0.5;
-const SR_MIN_END_SEC = 5;     // script time since End began (End's upload is issued 1 s after End begins)
-const SR_RESEND_SEC = 2;      // re-send while unconfirmed (the handlers are idempotent per token)
-const SR_ALERT_SEC = 15;      // show an error on the instruction board after this long without confirmation
-
-function sr_status(extra) {   // read by Instruction (same group) for the waiting / error texts
-  $.groupState.luida_resetStatus = Object.assign({ phase: $.state.sr_phase || 'idle', token: $.state.sr_token || null }, extra || {});
-}
-function sr_phase(p) { $.state.sr_phase = p; $.state.sr_phaseSec = 0; $.state.sr_lastSend = -1e9; sr_status(); }
-function sr_idle() { sr_phase('idle'); $.state.sr_pmAck = false; }
-function sr_endBegin() { sr_phase('end'); $.state.sr_pollIn = 0; }
-function sr_prevGone() { const p = PARTICIPANTS[1]; return !!p && !p.exists(); }
-function sr_someoneHere() { return $.getPlayersNear($.getPosition(), Infinity).length > 0; }
-function sr_globalsReset() {
-  return $.getStateCompat('global', 'state_currentID', 'integer') === 0
-      && $.getStateCompat('global', 'exp_trialID', 'integer') === 0
-      && $.getStateCompat('global', 'exp_readyToLeaveTrials', 'boolean') === false
-      && $.getStateCompat('global', 'exp_arePlayersEnough', 'boolean') === false;
-}
-function sr_send(id, msg, arg) {
-  try {
-    const h = $.worldItemReference(id);
-    if (!h) { $.log('[SessionReset] missing world item reference: ' + id); return false; }
-    h.send(msg, arg || {});
-    return true;
-  } catch (e) { $.log('[SessionReset] send ' + id + '/' + msg + ': ' + e); return false; }
-}
-function sr_due() {           // rate-limits the re-sends
-  if ($.state.sr_phaseSec - $.state.sr_lastSend < SR_RESEND_SEC) return false;
-  $.state.sr_lastSend = $.state.sr_phaseSec;
-  return true;
-}
-function sr_startReset() {
-  $.state.sr_token = ($.groupState.sessionID || 'none') + ':' + Date.now();
-  $.state.sr_pmAck = false;
-  $.log('[SessionReset] previous participant left after End; resetting for the next participant, token=' + $.state.sr_token);
-  $.sendSignalCompat('this', 'exp_sessionReset');   // GlobalLogic x5 (see the builder)
-  $.groupState.participants = [];
-  $.groupState.collectedData = {};
-  sr_send('NPC', 'npc_hide');
-  sr_send('ConditionManager', 'luida_reset', { token: $.state.sr_token });
-  sr_phase('settle');
-  $.state.sr_lastSend = 0;    // the first re-send comes SR_RESEND_SEC after the first send
-}
-function sr_tick(dt) {
-  const phase = $.state.sr_phase || 'idle';
-  if (phase === 'idle') return;
-  $.state.sr_phaseSec = ($.state.sr_phaseSec || 0) + dt;
-  $.state.sr_pollIn = ($.state.sr_pollIn || 0) - dt;
-  if ($.state.sr_pollIn > 0) return;
-  $.state.sr_pollIn = SR_POLL_SEC;
-  if (phase === 'end') {
-    if ($.getStateCompat('global', 'state_currentID', 'integer') !== SR_END_ID) return;
-    if ($.state.sr_phaseSec < SR_MIN_END_SEC) return;
-    if (!sr_prevGone() || !sr_someoneHere()) return;
-    sr_startReset();
-  } else if (phase === 'settle') {
-    const acked = $.groupState.luida_resetAck === $.state.sr_token;
-    if (acked && sr_globalsReset()) {
-      $.log('[SessionReset] Globals and ConditionManager reset; resetting ParticipantManager');
-      sr_phase('pm');
-      sr_send('ParticipantManager', 'luida_reset', { token: $.state.sr_token });
-      $.state.sr_lastSend = 0;
-      return;
-    }
-    if (sr_due()) {
-      if (!sr_globalsReset()) { $.log('[SessionReset] Globals not reset yet; re-sending'); $.sendSignalCompat('this', 'exp_sessionReset'); }
-      if (!acked) { $.log('[SessionReset] ConditionManager not reset yet; re-sending'); sr_send('ConditionManager', 'luida_reset', { token: $.state.sr_token }); }
-    }
-    if ($.state.sr_phaseSec >= SR_ALERT_SEC) sr_status({ error: 'reset' });
-  } else if (phase === 'pm') {
-    if ($.state.sr_pmAck) { $.log('[SessionReset] done; ParticipantManager reset acknowledged'); sr_idle(); return; }
-    if (sr_due()) { $.log('[SessionReset] ParticipantManager not reset yet; re-sending'); sr_send('ParticipantManager', 'luida_reset', { token: $.state.sr_token }); }
-    if ($.state.sr_phaseSec >= SR_ALERT_SEC) sr_status({ error: 'reset' });
-  }
-}
-$.onReceive((messageType, arg) => {
-  if (messageType === 'luida_reset_ack' && arg && arg.token === $.state.sr_token) {
-    $.state.sr_pmAck = true;
-    $.log('[SessionReset] ParticipantManager reset acknowledged, new sID=' + arg.sessionID);
-  }
-});
-";
 }
 #endif
