@@ -1,5 +1,5 @@
 // ===== Study 4: generic button item =====
-// Attached to each button Item (RP_*, AG_*, DC_*). The click itself is handled by
+// Attached to each button Item (RP_*, RPW_*, AG_*, DC_*, DB_*). The click itself is handled by
 // CCK's Interact Item Trigger on the same GameObject (writes an Integer state on the
 // owner item). This script only handles appearance, driven by "btn_cfg" messages
 // sent by the owner state-listening item:
