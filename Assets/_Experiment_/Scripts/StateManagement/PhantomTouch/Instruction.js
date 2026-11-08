@@ -37,7 +37,7 @@ const stateEnterActions = {
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバターについて伺います。\n問題文の「仮想身体」は、あなたのアバターのことです。');
+            if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\n「仮想身体」と表現されていることがあります）\nについて伺います。');
         } }
     ],
     7: [

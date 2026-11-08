@@ -1771,7 +1771,7 @@ return {
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\\n手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバターについて伺います。\\n問題文の「仮想身体」は、あなたのアバターのことです。');"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
             Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた相手についてのアンケートです。"))),
             Listener(S_PERSONAL, L(Ins("above", "最後のアンケートです。"))),
@@ -2085,11 +2085,11 @@ function ag_renderText(note) {
   if ($.state.ag_step === 1) {
     t = daily
       ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n終わったら「着替えました」を押してください。'
-      : 'メニューのアバター変更に表示される\n「Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
+      : 'メニューのアバター変更に表示される\n「LUIDA Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
   } else {
     t = daily
       ? 'いま着ているアバターは、\nあなたが普段いちばんよく使うアバターですか？'
-      : 'いま着ているのは「Default Avatar」ですか？';
+      : 'いま着ているのは\n「LUIDA Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -2117,7 +2117,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」になっていません）' : '（まだ「Default Avatar」のままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「LUIDA Default Avatar」に\nなっていません）' : '（まだ「LUIDA Default Avatar」の\nままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');

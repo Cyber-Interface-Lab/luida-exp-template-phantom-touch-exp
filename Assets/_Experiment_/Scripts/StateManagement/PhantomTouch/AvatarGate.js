@@ -119,11 +119,11 @@ function ag_renderText(note) {
   if ($.state.ag_step === 1) {
     t = daily
       ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n終わったら「着替えました」を押してください。'
-      : 'メニューのアバター変更に表示される\n「Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
+      : 'メニューのアバター変更に表示される\n「LUIDA Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
   } else {
     t = daily
       ? 'いま着ているアバターは、\nあなたが普段いちばんよく使うアバターですか？'
-      : 'いま着ているのは「Default Avatar」ですか？';
+      : 'いま着ているのは\n「LUIDA Default Avatar」ですか？';
   }
   if (note) t += '\n' + note;
   SetText(t);
@@ -151,7 +151,7 @@ function ag_update(dt) {
     $.state.ag_okShown = ok;
     if ($.state.ag_step === 1) {
       ag_showButtons(ok, false);
-      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「Default Avatar」になっていません）' : '（まだ「Default Avatar」のままです）'));
+      ag_renderText(ok ? '' : ($.state.ag_avatar === 'assigned' ? '（まだ「LUIDA Default Avatar」に\nなっていません）' : '（まだ「LUIDA Default Avatar」の\nままです）'));
     }
   }
   const b = $.getStateCompat('this', 'gate_btn', 'integer');
