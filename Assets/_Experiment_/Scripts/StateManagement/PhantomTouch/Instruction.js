@@ -60,7 +60,7 @@ const stateEnterActions = {
             ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('center', 'ご参加いただき、ありがとうございました。\nこの実験では「ファントムタッチ」という現象を調べていました。\nVR で相手のアバターの手が顔に近づいたり触れたりしたときに、\n実際には触れられていないのに、顔に感覚が生じる現象です。\n相手が目を合わせたり手を振ったりする反応があるかどうかと、\n普段使いのアバターか初期アバター（Default Avatar）かで、\n感じ方がどう変わるかを比べています。\n今月中は、この実験の内容や条件について、\nほかの方に話さないようお願いします。\n読み終わったら、下の「OK」を押してください。', 0.022);
+            ins_show('center', 'ご参加いただき、ありがとうございました。\nこの実験では、「ファントムセンス（VR感覚・V感）」のうち、\n誰かに触れられたと感じる「ファントムタッチ錯覚」が、\n相手の反応や自分のアバターに影響されるかを調べていました。\nファントムタッチ錯覚とは、VR で相手のアバターの手が顔に\n近づいたり触れたりしたときに、実際には触れられていないのに、\n顔に感覚が生じる現象です。\n具体的には、相手が目を合わせたり手を振ったりするかどうかと、\n普段使いのアバターか初期アバター（Default Avatar）かで、\n感じ方がどう変わるかを比べました。\n今月中は、この実験の内容や条件について、\nほかの方に話さないようお願いします。\n読み終わったら、下の「OK」を押してください。', 0.022);
         } }
     ],
     11: [
@@ -108,7 +108,7 @@ const stateExitActions = {
 // slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead
 const INS_SLOTS = {
   front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799), size: 0.024 },
-  above: { p: new Vector3(0, 2.75, 1.7), r: new Quaternion(-0.3025, 0, 0, 0.9531), size: 0.03 },
+  above: { p: new Vector3(0, 2.55, 1.7), r: new Quaternion(-0.2627, 0, 0, 0.9649), size: 0.03 },
   center: { p: new Vector3(0, 1.65, 1.5), r: new Quaternion(-0.0333, 0, 0, 0.9994), size: 0.024 },
 };
 // CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size

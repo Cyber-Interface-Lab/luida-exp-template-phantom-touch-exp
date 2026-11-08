@@ -37,7 +37,8 @@ function Update(deltaTime) {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
-// ---- Study 4: ReportPanel (0-10 rating -> manipulation check -> type -> location) ----
+// ---- Study 4: ReportPanel (0-10 rating -> type -> location -> manipulation check) ----
+// rp_step: 1 rating, 3 type, 4 location (both only when the rating is >= 1), 2 manipulation check (always last).
 // Numbers (0-10, 1-7) use the RP_* grid (4 x 3, rp_btn 1..11). The word options (sensation type, location) use the
 // wider RPW_* grid (2 x 4, rp_btn 21..28); RP_Done (rp_btn 12) confirms them. When 'その他' is chosen, '決定' asks
 // for a short text (Cluster text input) saved as ptypeOther / plocOther; closing the input, or pressing '決定'
@@ -122,13 +123,10 @@ function rp_update(dt) {
   const s = $.state.rp_step;
   if (s === 1) {
     const idx = b - 1;            // RP_0..RP_10
-    if (idx >= 0 && idx <= 10) { $.state.rp_rating = idx; $.state.rp_step = 2; rp_render(); }
+    if (idx >= 0 && idx <= 10) { $.state.rp_rating = idx; $.state.rp_step = idx >= 1 ? 3 : 2; rp_render(); }
   } else if (s === 2) {
     const idx = b - 1;
-    if (idx >= 0 && idx <= 6) {
-      $.state.rp_mc = idx + 1;
-      if ($.state.rp_rating >= 1) { $.state.rp_step = 3; rp_render(); } else rp_finish();
-    }
+    if (idx >= 0 && idx <= 6) { $.state.rp_mc = idx + 1; rp_finish(); }
   } else if (s === 3 || s === 4) {
     if ($.state.rp_wait) {        // waiting for the 'その他' text: the options are locked, '決定' skips it
       if (b === RP_DONE_VALUE && Date.now() - ($.state.rp_waitTs || 0) >= RP_SKIP_GUARD_MS) rp_otherDone('');
@@ -153,7 +151,8 @@ function rp_update(dt) {
   }
 }
 function rp_next(s) {
-  if (s === 3) { $.state.rp_step = 4; rp_render(); } else rp_finish();
+  $.state.rp_step = s === 3 ? 4 : 2;   // type -> location -> manipulation check
+  rp_render();
 }
 // ---- 'その他' text ----
 function rp_askOther(s) {

@@ -607,7 +607,7 @@ return {
     const float InsBoardW = 0.74f, InsBoardPad = 0.05f;
     // LUIDA questionnaire form (Questionnaire_p1): centre 2 m ahead at 1.5 m, 2.5 m wide, 2 m tall, 0.16 m deep
     const float QuestFwd = 2.0f, QuestCenterHeight = 1.5f, QuestHeight = 2.0f;
-    const float InsAboveSize = 0.03f, InsAboveGap = 0.25f, InsAboveBack = 0.3f;   // text centre above the form's top edge, in front of it
+    const float InsAboveSize = 0.03f, InsAboveGap = 0.05f, InsAboveBack = 0.3f;   // text centre above the form's top edge, in front of it
     const float InsDebriefSize = 0.022f;
     // The avatar gate (trial start) and the report panel (after each touch) are straight ahead: the NPC is hidden
     // in both states. The device check stays on the right (the participant turns the head left and right there).
@@ -1594,12 +1594,15 @@ return {
             Listener(S_DEBRIEF,
                 L(Custom("ins_okBegin();"), Ins("center",
                     "ご参加いただき、ありがとうございました。\\n" +
-                    "この実験では「ファントムタッチ」という現象を調べていました。\\n" +
-                    "VR で相手のアバターの手が顔に近づいたり触れたりしたときに、\\n" +
-                    "実際には触れられていないのに、顔に感覚が生じる現象です。\\n" +
-                    "相手が目を合わせたり手を振ったりする反応があるかどうかと、\\n" +
+                    "この実験では、「ファントムセンス（VR感覚・V感）」のうち、\\n" +
+                    "誰かに触れられたと感じる「ファントムタッチ錯覚」が、\\n" +
+                    "相手の反応や自分のアバターに影響されるかを調べていました。\\n" +
+                    "ファントムタッチ錯覚とは、VR で相手のアバターの手が顔に\\n" +
+                    "近づいたり触れたりしたときに、実際には触れられていないのに、\\n" +
+                    "顔に感覚が生じる現象です。\\n" +
+                    "具体的には、相手が目を合わせたり手を振ったりするかどうかと、\\n" +
                     "普段使いのアバターか初期アバター（Default Avatar）かで、\\n" +
-                    "感じ方がどう変わるかを比べています。\\n" +
+                    "感じ方がどう変わるかを比べました。\\n" +
                     "今月中は、この実験の内容や条件について、\\n" +
                     "ほかの方に話さないようお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。", InsDebriefSize)),
@@ -2069,7 +2072,8 @@ function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_a
         return new List<EventHandlerData> { update };
     }
 
-    const string ReportPanelLegacy = @"// ---- Study 4: ReportPanel (0-10 rating -> manipulation check -> type -> location) ----
+    const string ReportPanelLegacy = @"// ---- Study 4: ReportPanel (0-10 rating -> type -> location -> manipulation check) ----
+// rp_step: 1 rating, 3 type, 4 location (both only when the rating is >= 1), 2 manipulation check (always last).
 // Numbers (0-10, 1-7) use the RP_* grid (4 x 3, rp_btn 1..11). The word options (sensation type, location) use the
 // wider RPW_* grid (2 x 4, rp_btn 21..28); RP_Done (rp_btn 12) confirms them. When 'その他' is chosen, '決定' asks
 // for a short text (Cluster text input) saved as ptypeOther / plocOther; closing the input, or pressing '決定'
@@ -2154,13 +2158,10 @@ function rp_update(dt) {
   const s = $.state.rp_step;
   if (s === 1) {
     const idx = b - 1;            // RP_0..RP_10
-    if (idx >= 0 && idx <= 10) { $.state.rp_rating = idx; $.state.rp_step = 2; rp_render(); }
+    if (idx >= 0 && idx <= 10) { $.state.rp_rating = idx; $.state.rp_step = idx >= 1 ? 3 : 2; rp_render(); }
   } else if (s === 2) {
     const idx = b - 1;
-    if (idx >= 0 && idx <= 6) {
-      $.state.rp_mc = idx + 1;
-      if ($.state.rp_rating >= 1) { $.state.rp_step = 3; rp_render(); } else rp_finish();
-    }
+    if (idx >= 0 && idx <= 6) { $.state.rp_mc = idx + 1; rp_finish(); }
   } else if (s === 3 || s === 4) {
     if ($.state.rp_wait) {        // waiting for the 'その他' text: the options are locked, '決定' skips it
       if (b === RP_DONE_VALUE && Date.now() - ($.state.rp_waitTs || 0) >= RP_SKIP_GUARD_MS) rp_otherDone('');
@@ -2185,7 +2186,8 @@ function rp_update(dt) {
   }
 }
 function rp_next(s) {
-  if (s === 3) { $.state.rp_step = 4; rp_render(); } else rp_finish();
+  $.state.rp_step = s === 3 ? 4 : 2;   // type -> location -> manipulation check
+  rp_render();
 }
 // ---- 'その他' text ----
 function rp_askOther(s) {
