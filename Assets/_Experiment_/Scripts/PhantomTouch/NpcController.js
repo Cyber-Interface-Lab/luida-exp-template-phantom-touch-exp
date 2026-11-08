@@ -4,16 +4,20 @@
 // by LuidaScriptCombiner (BONE_MAP, BONE_PARENT, AVATAR_* constants).
 //
 // Messages (sent by the NpcDirector state-listening item):
-//   "npc_setup"           { social, fwd }       -> remember the social-cue condition and the marker's facing
-//                                                  direction (the NPC stands along it); NPC stays hidden
+//   "npc_setup"           { social, fwd, origin, floorY } -> remember the social-cue condition and the marker
+//                                                  (standing spot, facing direction, floor height); clear the
+//                                                  height matching of the previous block; NPC stays hidden
 //   "npc_hide"            {}                    -> hide the body (avatar-switch phase)
-//   "npc_show"            { social? }           -> stand at conversation distance in front of the participant and show the body
+//   "npc_show"            { social? }           -> match heights (platform under a shorter participant / riser under a
+//                                                  shorter NPC), stand at conversation distance in front of the marker
+//                                                  and show the body
 //   "npc_greeting_begin"  { social? }           -> greeting period (social condition only): head gaze with body
 //                                                  turn, random reactions (nod / wave / both, sometimes smiling),
 //                                                  surprised face when touched
 //   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
-//   "npc_trial_start"     { block, rep, avatar, social, fwd } -> (reappear at the conversation spot if hidden)
-//                                                  -> turn to the participant and step closer -> prep -> raise hand
+//   "npc_trial_start"     { block, rep, avatar, social, fwd, reset } -> (reset: put the participant back on the
+//                                                  marker, on their platform) -> (reappear at the conversation spot if
+//                                                  hidden) -> turn to the participant and step closer -> prep -> raise hand
 //                                                  -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold
 //                                                  -> retract -> step back to the conversation spot -> hide -> npc_done
 //   "npc_abort"           {}                    -> step back and hide (no npc_done)
@@ -50,6 +54,12 @@ const NPC_CFG = {
   MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)
   GLIDE_SEC: 1.0,          // step closer / step back duration
   REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation spot this long before stepping in
+  RESET_SETTLE_SEC: 1.0,   // touch start: wait this long after putting the participant back on the marker
+  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights differ by at least this (m):
+                           //   participant shorter -> platform under the participant (HeightPlatform item);
+                           //   NPC shorter -> the NPC stands on its Riser sub-node
+  HEIGHT_MEASURE_SEC: 3.0, // keep trying to read the participant's bones this long after npc_show
+  IDLE_REACT_SEC: 5.0,     // greeting: nod + smile once whenever no reaction has happened for this long
   HEAD_MAX_DEG: 50,        // gaze: the head alone turns up to this angle ...
   EYE_EXTRA_DEG: 12,       // ... and the eyes a bit further
   BODY_TURN_START_DEG: 35, // greeting: if the participant is farther than this from the NPC's facing,
@@ -70,6 +80,8 @@ const NPC_CFG = {
   FACE_NODE: "Face",       // sub-node with the face SkinnedMeshRenderer + expression Animator
                            // (Bool "joy": Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;
                            //  Trigger "surprised": Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50 for 1 s)
+  RISER_NODE: "Riser",     // 1 m cube under the NPC's feet (top at the feet); shown while the NPC is lifted
+  PLATFORM_ITEM: "HeightPlatform", // world item reference: the platform under the participant's standing spot
 };
 
 const IDENT = new Quaternion(0, 0, 0, 1);
@@ -244,6 +256,7 @@ function applyVisibility() {
   const node = $.subNode(NPC_CFG.MODEL_NODE);
   if (!node) return;
   try { node.setEnabled(!!$.state.npc_visible); } catch (e) { $.log("[NPC] setEnabled failed: " + e); }
+  applyRiser();
   $.state.npc_visibilityApplied = !!$.state.npc_visible;
 }
 function setVisible(v) {
@@ -278,6 +291,7 @@ function surprise() {
   try { const a = faceAnimator(); if (a) a.setTrigger("surprised"); } catch (e) { $.log("[NPC] surprise: " + e); }
 }
 function clearReaction() {
+  if ($.state.npc_react) $.state.npc_lastReactEnd = nowSec();
   $.state.npc_react = null;
   setJoy(false);
 }
@@ -300,20 +314,25 @@ $.onStart(() => {
 $.onReceive((messageType, arg, sender) => {
   try {
     if (arg && arg.fwd) $.state.npc_fwd = arg.fwd;   // facing direction of the participant's marker
+    if (arg && arg.origin) $.state.npc_origin = arg.origin;   // the marker (participant standing spot, floor)
+    if (arg && typeof arg.floorY === "number") $.state.npc_floorY = arg.floorY;
     if (messageType === "npc_setup") {
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       $.state.npc_phase = "idle";
       $.state.npc_t = 0;
+      resetHeights();            // the participant's avatar (and so their height) changes in this block
       $.log("[NPC] setup social=" + $.state.npc_social);
     } else if (messageType === "npc_hide") {
       $.state.npc_mode = "none";
       $.state.npc_phase = "idle";
       clearReaction();
+      resetHeights();
       setVisible(false);
     } else if (messageType === "npc_show") {
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       $.state.npc_phase = "idle";
       $.state.npc_t = 0;
+      beginHeightMatch();        // the participant wears this block's avatar now; retried in tick() if unreadable
       moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);
       setVisible(true);
       $.log("[NPC] shown social=" + $.state.npc_social);
@@ -327,15 +346,17 @@ $.onReceive((messageType, arg, sender) => {
       $.state.npc_trial = arg || {};
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       if ($.state.npc_mode === "greeting") endGreeting();
+      // put the participant back on the marker (facing along it, on their platform), then wait a moment
+      const reset = !!(arg && arg.reset) && resetParticipant(true);
+      let delay = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;
       if (!$.state.npc_visible) {
         // hidden since the previous trial: reappear at the conversation spot, then step in a moment later
         moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);
         setVisible(true);
-        $.state.npc_startDelay = NPC_CFG.REAPPEAR_SEC;
-        $.state.npc_pendingStart = true;
-      } else {
-        startTrial();
+        delay = Math.max(delay, NPC_CFG.REAPPEAR_SEC);
       }
+      if (delay > 0) { $.state.npc_startDelay = delay; $.state.npc_pendingStart = true; }
+      else startTrial();
     } else if (messageType === "npc_abort") {
       leave(false);
     }
@@ -364,16 +385,20 @@ function facePointWorld(head) {
   return vadd(head.pos, qrot(head.rot, v3(0, NPC_CFG.FACE_UP, NPC_CFG.FACE_FWD)));
 }
 
-// Standing pose in front of the participant. extraDist = 0 -> reach spot (the palm reaches the
+// Standing pose in front of the participant's marker. extraDist = 0 -> reach spot (the palm reaches the
 // face point with a slightly bent arm); extraDist > 0 -> that much farther (conversation distance).
+// Heights: the participant stands on the floor plus their platform, the NPC on the floor plus its riser.
 function standPose(extraDist) {
   const p = participant(); if (!p) return null;
   const head = headOf(p); if (!head) return null;
   const rest = restGeom(); if (!rest) return null;
   const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5, head.pos.z);
   const reach = (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR;
-  const shoulderY = rest.sR.y + root.y;
-  const dy = (head.pos.y + NPC_CFG.FACE_UP) - shoulderY;
+  const platformH = $.state.npc_platformH || 0, lift = $.state.npc_lift || 0;
+  const floorY = (typeof $.state.npc_floorY === "number") ? $.state.npc_floorY : root.y - platformH;
+  const feetY = floorY + lift;
+  const pHeadH = head.pos.y - root.y;      // the participant's own height, wherever they stand now
+  const dy = (floorY + platformH + pHeadH + NPC_CFG.FACE_UP) - (feetY + rest.sR.y);
   const lateral = Math.abs(vdot(rest.sR, rest.right));
   // Bisection on x = forward distance from the right shoulder to the face point, so that the
   // wrist needed at the stop position (palm STOP_MARGIN before the face) is `reach` from the shoulder.
@@ -387,10 +412,12 @@ function standPose(extraDist) {
   for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (wristDist(mid) < reach) lo = mid; else hi = mid; }
   const shoulderFwd = vdot(rest.sR, rest.fwd);
   const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, lo + shoulderFwd + NPC_CFG.FACE_FWD) + (extraDist || 0);
-  // in front of the participant along the marker's facing direction (falls back to where the head points)
+  // in front of the marker along its facing direction (falls back to the participant's head and facing)
+  const o = $.state.npc_origin;
+  const bx = o ? o.x : head.pos.x, bz = o ? o.z : head.pos.z;
   const pfwd = $.state.npc_fwd ? vhoriz($.state.npc_fwd) : vhoriz(head.fwd);
-  const pos = v3(head.pos.x + pfwd.x * horiz, root.y, head.pos.z + pfwd.z * horiz);
-  const faceDir = vhoriz(vsub(head.pos, pos));
+  const pos = v3(bx + pfwd.x * horiz, feetY, bz + pfwd.z * horiz);
+  const faceDir = vhoriz(vsub(v3(bx, 0, bz), v3(pos.x, 0, pos.z)));
   const rot = qfromTo(rest.fwd, faceDir);
   return { pos: pos, rot: rot, horiz: horiz, dy: dy };
 }
@@ -409,6 +436,76 @@ function moveToStand(extraDist, glide) {
   return true;
 }
 
+// ---------------------------------------------------------------- height matching
+// Head-bone heights are compared once the participant wears this block's avatar (npc_show). A participant
+// shorter by HEIGHT_MATCH_MIN or more gets a platform under the marker (HeightPlatform item, message
+// "platform_set" { h }); an NPC shorter by that much stands on its Riser sub-node. Cleared at the next setup.
+function resetHeights() {
+  $.state.npc_platformH = 0;
+  $.state.npc_lift = 0;
+  $.state.npc_heightPending = false;
+  sendPlatform(0);
+  applyRiser();
+}
+function sendPlatform(h) {
+  try { const it = $.worldItemReference(NPC_CFG.PLATFORM_ITEM); if (it) it.send("platform_set", { h: h }); }
+  catch (e) { $.log("[NPC] platform_set failed: " + e); }
+}
+function applyRiser() {
+  const r = $.subNode(NPC_CFG.RISER_NODE);
+  if (!r) return;
+  try { r.setEnabled(!!$.state.npc_visible && ($.state.npc_lift || 0) > 0); } catch (e) { $.log("[NPC] riser: " + e); }
+}
+// Head-bone height above the feet, or null while the avatar's bones are not readable.
+function participantHeight(p) {
+  const head = p.getHumanoidBonePosition(HumanoidBone.Head);
+  const root = p.getPosition();
+  if (!head || !root) return null;
+  const h = head.y - root.y;
+  return h > 0.5 ? h : null;
+}
+function beginHeightMatch() {
+  $.state.npc_heightPending = true;
+  $.state.npc_heightDeadline = nowSec() + NPC_CFG.HEIGHT_MEASURE_SEC;
+  tryHeightMatch();
+}
+function tryHeightMatch() {
+  if (!$.state.npc_heightPending) return;
+  const rest = restGeom();
+  const p = participant();
+  const pHeadH = (rest && p) ? participantHeight(p) : null;
+  if (pHeadH === null) {
+    if (nowSec() < ($.state.npc_heightDeadline || 0)) return;
+    $.state.npc_heightPending = false;
+    $.log("[NPC] height match skipped: participant bones not readable");
+    return;
+  }
+  $.state.npc_heightPending = false;
+  const diff = rest.head.y - pHeadH;          // > 0: the participant is shorter
+  const platformH = diff >= NPC_CFG.HEIGHT_MATCH_MIN ? diff : 0;
+  const lift = -diff >= NPC_CFG.HEIGHT_MATCH_MIN ? -diff : 0;
+  $.state.npc_platformH = platformH;
+  $.state.npc_lift = lift;
+  sendPlatform(platformH);
+  applyRiser();
+  if (platformH > 0) resetParticipant(false);   // lift the participant onto the platform (keeps their facing)
+  if ($.state.npc_visible) moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);
+  pushData({ participantHeadH: pHeadH, npcHeadH: rest.head.y, heightPlatform: platformH, npcLift: lift });
+  $.log("[NPC] height match: participant head " + f3(pHeadH) + " m, NPC head " + f3(rest.head.y) +
+        " m -> platform " + f3(platformH) + ", riser " + f3(lift));
+}
+// Put the participant on the marker (on their platform); withRotation also turns them to face along it.
+function resetParticipant(withRotation) {
+  const p = participant();
+  const o = $.state.npc_origin;
+  if (!p || !o) return false;
+  try {
+    p.setPosition(v3(o.x, o.y + ($.state.npc_platformH || 0), o.z));
+    if (withRotation && $.state.npc_fwd) p.setRotation(qaxis(UP, Math.atan2($.state.npc_fwd.x, $.state.npc_fwd.z) * 180 / Math.PI));
+    return true;
+  } catch (e) { $.log("[NPC] resetParticipant failed: " + e); return false; }
+}
+
 // ---------------------------------------------------------------- greeting period
 function beginGreeting() {
   $.state.npc_mode = "greeting";
@@ -420,6 +517,8 @@ function beginGreeting() {
   $.state.npc_touching = false;
   $.state.npc_reacted = false;          // the first reaction of the greeting period is nod + wave + smile
   $.state.npc_lastReact = 0;
+  $.state.npc_lastReactEnd = nowSec();  // idle nod + smile after IDLE_REACT_SEC without any reaction
+  $.state.npc_gIdle = 0;
   $.state.npc_bodyTurning = false;
   clearReaction();
   $.log("[NPC] greeting begin social=" + $.state.npc_social);
@@ -437,27 +536,33 @@ function endGreeting() {
     greetNpcWaves: $.state.npc_gWaves || 0,
     greetNpcSmiles: $.state.npc_smiles || 0,
     greetTouches: $.state.npc_gTouch || 0,
+    greetNpcIdleReactions: $.state.npc_gIdle || 0,
   });
   $.log("[NPC] greeting end: gaze=" + ($.state.npc_gGaze || 0) + " hands=" + ($.state.npc_gHand || 0) +
         " reactions=" + ($.state.npc_gReact || 0) + " touches=" + ($.state.npc_gTouch || 0));
 }
-// Start a reaction to the participant. source: "gaze" | "hand" | "prep".
+// Start a reaction to the participant. source: "gaze" | "hand" | "prep" | "idle".
 //   first reaction of the greeting period (and "prep"): nod + wave, smiling;
 //   gaze: nod only / wave only / both at random; hand raise: wave, with or without a nod;
 //   smiling with probability JOY_PROB. The face returns to neutral when the reaction ends.
+//   idle (no reaction for IDLE_REACT_SEC): nod + smile, no wave; does not count as the first reaction.
 function startReaction(source, force) {
   const now = nowSec();
   if ($.state.npc_react) return false;
-  if (!force && now - ($.state.npc_lastReact || 0) < NPC_CFG.REACT_COOLDOWN_SEC) return false;
-  const first = force || !$.state.npc_reacted;
+  const idle = source === "idle";
+  if (!force && !idle && now - ($.state.npc_lastReact || 0) < NPC_CFG.REACT_COOLDOWN_SEC) return false;
+  const first = !idle && (force || !$.state.npc_reacted);
   let nod, wave;
-  if (first) { nod = true; wave = true; }
+  if (idle) { nod = true; wave = false; }
+  else if (first) { nod = true; wave = true; }
   else if (source === "hand") { wave = true; nod = Math.random() < 0.5; }
   else { const r = Math.floor(Math.random() * 3); nod = r !== 1; wave = r !== 0; }   // 0 nod, 1 wave, 2 both
-  const joy = first || Math.random() < NPC_CFG.JOY_PROB;
+  const joy = idle || first || Math.random() < NPC_CFG.JOY_PROB;
   $.state.npc_react = { t: 0, nod: nod, wave: wave, joy: joy, dur: wave ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC };
-  $.state.npc_reacted = true;
-  $.state.npc_lastReact = now;
+  // the idle nod neither counts as the first reaction nor starts the cooldown, so a greeting right after it
+  // is still answered
+  if (idle) $.state.npc_gIdle = ($.state.npc_gIdle || 0) + 1;
+  else { $.state.npc_reacted = true; $.state.npc_lastReact = now; }
   $.state.npc_gReact = ($.state.npc_gReact || 0) + 1;
   if (nod) $.state.npc_gNods = ($.state.npc_gNods || 0) + 1;
   if (wave) $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;
@@ -603,6 +708,8 @@ function finishTrial() {
     strokeEndTs: $.state.npc_strokeEndTs || 0,
     strokeAmp: NPC_CFG.STROKE_AMP,
     strokeCycles: NPC_CFG.STROKE_CYCLES,
+    heightPlatform: $.state.npc_platformH || 0,
+    npcLift: $.state.npc_lift || 0,
     retractEndTs: Date.now(),
     pathLen: $.state.npc_L || 0,
     reachDur: ($.state.npc_contactTs && $.state.npc_reachStartTs) ? ($.state.npc_contactTs - $.state.npc_reachStartTs) / 1000 : 0,
@@ -770,6 +877,8 @@ function tick(dt) {
   // Visibility: hidden until shown (also re-applied after a script reload).
   if ($.state.npc_visibilityApplied !== !!$.state.npc_visible) applyVisibility();
 
+  if ($.state.npc_heightPending) tryHeightMatch();
+
   if ($.state.npc_pendingStart) {
     $.state.npc_startDelay = ($.state.npc_startDelay || 0) - dt;
     if ($.state.npc_startDelay <= 0) startTrial();
@@ -845,6 +954,9 @@ function tick(dt) {
       if (social && phase === "prep" && !$.state.npc_react) { startReaction("prep", true); $.state.npc_greeted = true; }
     }
   }
+  // greeting, social: nothing has triggered a reaction for a while -> nod and smile once
+  if (greeting && social && !$.state.npc_react &&
+      nowSec() - ($.state.npc_lastReactEnd || 0) >= NPC_CFG.IDLE_REACT_SEC) startReaction("idle");
 
   // --- arms (bone rotations incl. twist, so the palms face the right way) ---
   const idleR = armRots(rest, "R", idleArm(rest, "R"));

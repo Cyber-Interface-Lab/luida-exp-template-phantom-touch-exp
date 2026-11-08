@@ -69,11 +69,13 @@ public static class Study4SceneBuilder
     const string NpcVrmPath = "Assets/_Experiment_/Avatars/ProteusSample/Source/YoungAvatar.vrm";
     const string NpcControllerJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/NpcController.js";
     const string ButtonJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Button.js";
+    const string PlatformJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Platform.js";
+    const string HeightPlatformName = "HeightPlatform";   // item under the standing spot (NpcController raises its Cube)
 
     // ------------------------------------------------------------------ state ids
     const int S_START = 0, S_DEVICE = 1, S_TSTART = 2, S_GREET = 3, S_TOUCH = 4, S_REPORT = 5,
               S_VEQ = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
-    const float GreetingSeconds = 15f;
+    const float GreetingSeconds = 30f;
 
     // ------------------------------------------------------------------ entry points
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene")]
@@ -225,6 +227,7 @@ public static class Study4SceneBuilder
         if (EditorSceneManager.GetActiveScene().name != SceneName)
             throw new Exception("Open the " + SceneName + " scene first.");
         ApplyLayout(ComputeLayout(), CreateMaterials());
+        SetStateExitTime("Trial - Greeting", GreetingSeconds);
         UpdateItemBehaviours();
     }
 
@@ -458,6 +461,12 @@ return {
     social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
+    // greeting period (written on both trials of the block)
+    greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
+    greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],
+    greetNpcSmiles: CD['greetNpcSmiles'], greetNpcIdleReactions: CD['greetNpcIdleReactions'], greetTouches: CD['greetTouches'],
+    // height matching (head-bone heights, m; platform under the participant / riser under the NPC)
+    participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
@@ -507,7 +516,7 @@ return {
         return l;
     }
 
-    class Materials { public Material btn, btnOn, marker, panel, insBg, gateBg, dcBg, rpBg; }
+    class Materials { public Material btn, btnOn, marker, panel, riser, insBg, gateBg, dcBg, rpBg; }
 
     static Materials CreateMaterials()
     {
@@ -518,6 +527,7 @@ return {
             btnOn = MakeMaterial("BtnOn", new Color(0.95f, 0.55f, 0.15f)),
             marker = MakeMaterial("FloorMarker", new Color(0.35f, 0.60f, 0.90f)),
             panel = MakeMaterial("Panel", new Color(0.10f, 0.10f, 0.12f)),
+            riser = MakeMaterial("Riser", new Color(0.42f, 0.44f, 0.48f)),   // height platform / NPC riser
             // semi-transparent backings, one hue per text group so texts shown together are easy to tell apart
             insBg = MakeTransparentMaterial("BgInstruction", new Color(0.06f, 0.12f, 0.30f, 0.70f)),
             gateBg = MakeTransparentMaterial("BgAvatarGate", new Color(0.26f, 0.08f, 0.30f, 0.70f)),
@@ -682,7 +692,103 @@ return {
                 mir.localScale = new Vector3(MirrorW, MirrorH, 1f);
             }
         }
+
+        EnsureHeightObjects(l, m);
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+    }
+
+    // Height matching (NpcController.js, npc_show): head-bone heights are compared per block. A shorter
+    // participant stands on the HeightPlatform item's "Cube" (raised by the message "platform_set" { h },
+    // Study4Platform.js); a shorter NPC stands on its "Riser" sub-node. Both cubes are 1 m tall with the top at
+    // the feet when not raised (fully underground), so only the raised part ever shows.
+    static readonly Vector3 PlatformSize = new Vector3(1.6f, 1f, 1.6f);
+    static readonly Vector3 RiserSize = new Vector3(0.8f, 1f, 0.8f);
+
+    static void EnsureHeightObjects(Layout l, Materials m)
+    {
+        var platform = FindRoot(HeightPlatformName, false);
+        if (platform == null)
+        {
+            var go = new GameObject(HeightPlatformName);
+            platform = go.transform;
+            SetItemName(go.AddComponent<Item>(), HeightPlatformName);
+            var js = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(PlatformJsPath);
+            if (js == null) throw new Exception("Study4Platform.js not importable: " + PlatformJsPath);
+            var scriptable = go.AddComponent<ScriptableItem>();
+            var so = new SerializedObject(scriptable);
+            so.FindProperty("sourceCodeAsset").objectReferenceValue = js;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        platform.SetPositionAndRotation(l.origin, l.Frame);
+        EnsureCube(platform, "Cube", PlatformSize, m.riser, true);
+
+        var npc = FindRoot("NPC");
+        if (npc != null)
+        {
+            EnsureCube(npc, "Riser", RiserSize, m.riser, false);
+            AddWorldItemReference(npc.gameObject, HeightPlatformName, platform.GetComponent<Item>());
+        }
+    }
+
+    // A cube whose top is at the parent's origin (local y from -height to 0); inactive until a script raises it.
+    static void EnsureCube(Transform parent, string name, Vector3 size, Material mat, bool collider)
+    {
+        var t = parent.Find(name);
+        if (t == null)
+        {
+            var c = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            c.name = name;
+            t = c.transform;
+            t.SetParent(parent, false);
+        }
+        var col = t.GetComponent<Collider>();
+        if (!collider && col != null) Object.DestroyImmediate(col);
+        if (collider && col == null) t.gameObject.AddComponent<BoxCollider>();
+        t.localPosition = new Vector3(0f, -size.y * 0.5f, 0f);
+        t.localRotation = Quaternion.identity;
+        t.localScale = size;
+        var r = t.GetComponent<MeshRenderer>();
+        r.sharedMaterial = mat;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        t.gameObject.SetActive(false);
+    }
+
+    // Sets one state's exit time in the state list asset and in the generated state object (the Transition's
+    // ItemTimer, as LUIDA's state machine tab writes it), without regenerating the state machine.
+    static void SetStateExitTime(string stateName, float seconds)
+    {
+        var sl = AssetDatabase.LoadAssetAtPath<StateList>(StateListPath);
+        if (sl == null) { Debug.LogWarning("[Study4] state list not found: " + StateListPath); return; }
+        var so = new SerializedObject(sl);
+        var states = so.FindProperty("States");
+        bool found = false;
+        for (int i = 0; i < states.arraySize; i++)
+        {
+            var st = states.GetArrayElementAtIndex(i);
+            if (st.FindPropertyRelative("StateName").stringValue != stateName) continue;
+            st.FindPropertyRelative("HasExitTime").boolValue = true;
+            st.FindPropertyRelative("ExitTime").floatValue = seconds;
+            found = true;
+        }
+        if (!found) { Debug.LogWarning("[Study4] state not in the state list: " + stateName); return; }
+        so.ApplyModifiedPropertiesWithoutUndo();
+        AssetDatabase.SaveAssets();
+
+        var statesRoot = FindRoot("States", false);
+        var transition = statesRoot != null ? statesRoot.Find(stateName + "/Transition") : null;
+        if (transition == null) { Debug.LogWarning("[Study4] state object not found in the scene: " + stateName); return; }
+        foreach (var timer in transition.GetComponents<ItemTimer>())
+        {
+            var tso = new SerializedObject(timer);
+            var key = tso.FindProperty("key.key");
+            if (key == null || (key.stringValue != "state_enter" && key.stringValue != "state_enter(disabled)")) continue;
+            key.stringValue = "state_enter";
+            tso.FindProperty("delayTimeSeconds").floatValue = seconds;
+            tso.ApplyModifiedPropertiesWithoutUndo();
+            break;
+        }
+        Debug.Log("[Study4] exit time of '" + stateName + "' set to " + seconds + " s");
     }
 
     static Transform FindRoot(string name, bool warn = true)
@@ -1364,7 +1470,7 @@ return {
             Listener(S_START, L(Act(T_ShowItem), Custom("ins_okButton(false);"), Ins("side", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
             Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
-            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '15秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
+            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手が\\nゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "右側のパネルで\\n質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('side', '質問紙に\\n答えてください。');"))),
@@ -1450,17 +1556,21 @@ return {
         var yaw = Quaternion.LookRotation(l.fwd, Vector3.up).eulerAngles.y;
         // the NPC stands along the marker's facing direction (not wherever the participant happens to look)
         string fwd = "new Vector3(" + F(l.fwd.x) + ", 0, " + F(l.fwd.z) + ")";
+        string origin = "new Vector3(" + F(l.origin.x) + ", " + F(l.origin.y) + ", " + F(l.origin.z) + ")";
         StateListenerAction ResetPos() => Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z)));
         StateListenerAction ResetRot() => Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0"));
         return new List<StateListener>
         {
             // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period.
             Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);"))),
+            // Setup first: it also lowers the previous block's height platform (the participant's avatar, and so
+            // their height, changes in this state); then the participant is put on the marker at floor level.
             Listener(S_TSTART, L(
+                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + ", origin: " + origin + ", floorY: " + F(l.origin.y) + " });"), "rep", "1"),
                 Sleep(0.5f),
                 If(ResetPos(), "rep", "1"),
                 If(ResetRot(), "rep", "1"),
-                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + " });\n$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
+                If(Custom("$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
             )),
             // Greeting period: the NPC appears after the avatar switch (rep == 1) and, in the social-cue
             // condition, reacts to the participant for GreetingSeconds. The participant may walk around here
@@ -1476,22 +1586,18 @@ return {
                     "}")),
                 null,
                 L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
-            // Touch and stroke: freeze, put the participant back on the marker (position and facing), give the
-            // teleport a moment to land, then the NPC turns to the participant there, steps in and touches.
-            // At the end the NPC steps back to the conversation spot and disappears before npc_done.
+            // Touch and stroke: freeze; the NPC puts the participant back on the marker (position and facing, on
+            // their height platform), waits a moment, then turns to them, steps in and touches. At the end the
+            // NPC steps back to the conversation spot and disappears before npc_done.
             Listener(S_TOUCH,
                 L(Custom(
                     "nd_setMove(0);\n" +
                     "nd_arm();\n" +
                     "$.state.nd_touchStartTs = Date.now();\n" +
                     "SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\n" +
-                    "SendDataToCollector('npcTimeout', false);"),
-                  ResetPos(),
-                  ResetRot(),
-                  Sleep(1.0f),
-                  Custom(
+                    "SendDataToCollector('npcTimeout', false);\n" +
                     "$.worldItemReference('NPC').send('npc_trial_start', {\n" +
-                    "  block: CONDITION['block'], rep: CONDITION['rep'], fwd: " + fwd + ",\n" +
+                    "  block: CONDITION['block'], rep: CONDITION['rep'], fwd: " + fwd + ", reset: true,\n" +
                     "  avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });")),
                 L(Custom(
                     "if (nd_donePulse()) { ToNextState(); }\n" +
