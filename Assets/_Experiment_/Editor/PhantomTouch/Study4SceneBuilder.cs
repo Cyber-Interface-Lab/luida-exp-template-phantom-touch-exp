@@ -105,7 +105,13 @@ public static class Study4SceneBuilder
             PrefabUtility.UnloadPrefabContents(contents);
         }
         AssetDatabase.SaveAssets();
-        Debug.Log("[Study4] NPC face animator rebuilt on " + NpcPrefabPath);
+        var sceneNpc = EditorSceneManager.GetActiveScene().name == SceneName ? FindRoot("NPC", false) : null;
+        if (sceneNpc != null)
+        {
+            AttachFaceExpression(sceneNpc.gameObject, EnsureFaceAssets(false));
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        }
+        Debug.Log("[Study4] NPC face animator rebuilt on " + NpcPrefabPath + (sceneNpc != null ? " and on the scene NPC" : ""));
     }
 
     /// <summary>
@@ -461,6 +467,7 @@ return {
     social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
+    strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],
     // greeting period (written on both trials of the block)
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
     greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],
@@ -584,22 +591,27 @@ return {
     // Placement is relative to the participant's standing spot: yaw from the facing direction (deg,
     // + = right), horizontal distance and height. CCK TextView glyph metrics (Noto Sans CJK): a full-width
     // glyph is about 1.85 x size wide and a line 2.74 x size tall (size 0.024 at 1.5 m = ~1.7 deg per glyph).
-    // Lines are kept to about 15 glyphs. What is shown together, and where:
-    //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "side" slot (yaw -50 deg)
+    // Lines are kept to about 15 glyphs (22 in the debrief). What is shown together, and where:
+    //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
     //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
     //   + one side panel: avatar gate (left, trial start) / device check, report (right)
+    //   debrief / end: instruction "center" slot (straight ahead) with the OK button below it
+    // The instruction's backing quad ("Bg") is scaled to the text by ins_show() (Transform.localScale via unityProp).
     const float EyeHeight = 1.55f;
     const float GlyphW = 1.85f, LineH = 2.74f;
-    const float InsSize = 0.024f, InsDist = 1.5f, InsFrontElevDeg = 23f, InsSideYawDeg = -50f, InsSideHeight = 1.65f;
-    const int InsMaxLines = 7;
+    const float InsSize = 0.024f, InsDist = 1.5f, InsFrontElevDeg = 23f;
     const float InsBoardW = 0.74f, InsBoardPad = 0.05f;
+    // LUIDA questionnaire form (Questionnaire_p1): centre 2 m ahead at 1.5 m, 2.5 m wide, 2 m tall, 0.16 m deep
+    const float QuestFwd = 2.0f, QuestCenterHeight = 1.5f, QuestHeight = 2.0f;
+    const float InsAboveSize = 0.03f, InsAboveGap = 0.25f, InsAboveBack = 0.3f;   // text centre above the form's top edge, in front of it
+    const float InsDebriefSize = 0.022f;
     const float PanelTextSize = 0.018f, PanelDist = 1.25f, LeftPanelYawDeg = -40f, RightPanelYawDeg = 40f;
     const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
     const int RpCols = 4;   // report options: 4 x 3 grid (0-10 fill it row by row)
     const float RpBtnW = 0.16f, RpBtnH = 0.10f, RpPitchX = 0.175f, RpPitchY = 0.115f;
 
     // Debrief / End: nothing else is shown, so the text sits straight ahead with the Debrief "OK" button below
-    const float InsCenterHeight = EyeHeight + 0.15f, DebriefOkHeight = EyeHeight - 0.33f;
+    const float InsCenterHeight = EyeHeight + 0.10f, DebriefOkHeight = EyeHeight - 0.47f;
     const int EndGateDelaySec = 10;   // End: countdown, then the participant is teleported into the exit gate
     // The exit gate is parked this far from the ExitPortal (item-local), so no gate is ever left at the spawn point
     // for the next participant who joins the same space (session reset).
@@ -607,7 +619,7 @@ return {
 
     static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
     static Vector3 InsCenterPos(Layout l) => l.Around(0f, InsDist, InsCenterHeight);
-    static Vector3 InsSidePos(Layout l) => l.Around(InsSideYawDeg, InsDist, InsSideHeight);
+    static Vector3 InsAbovePos(Layout l) => l.Around(0f, QuestFwd - InsAboveBack, QuestCenterHeight + QuestHeight * 0.5f + InsAboveGap);
 
     /// <summary>
     /// Places the Study 4 UI on the existing scene objects: instruction board, side panels and their
@@ -628,9 +640,10 @@ return {
                 var front = InsFrontPos(l);
                 text.SetPositionAndRotation(front, l.FaceEye(front));
                 SetTextStyle(text, InsSize, TextAnchor.MiddleCenter);
-                for (int n = 1; n <= InsMaxLines; n++)
-                    Backing(text, "Bg_" + n, m.insBg, Vector2.zero, new Vector2(InsBoardW, n * LineH * InsSize + InsBoardPad), 0.01f)
-                        .gameObject.SetActive(false);
+                // one backing, scaled to the text by ins_show(); the older per-line-count backings are removed
+                Backing(text, "Bg", m.insBg, Vector2.zero, new Vector2(InsBoardW, 3 * LineH * InsSize + InsBoardPad), 0.01f)
+                    .gameObject.SetActive(false);
+                for (int n = 1; n <= 9; n++) { var old = text.Find("Bg_" + n); if (old != null) Object.DestroyImmediate(old.gameObject); }
             }
         }
 
@@ -694,6 +707,10 @@ return {
         }
 
         EnsureHeightObjects(l, m);
+
+        // Face expressions on whatever model the scene's NPC carries now (the prefab's model may have been replaced)
+        var npcRoot = FindRoot("NPC", false);
+        if (npcRoot != null) AttachFaceExpression(npcRoot.gameObject, EnsureFaceAssets(false));
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
     }
 
@@ -961,8 +978,19 @@ return {
     //   Bool "joy"         -> Joy state (Fcl_EYE_Joy = 100, Fcl_MTH_Joy = 50), held while true;
     //   Trigger "surprised" -> Surprised state (Fcl_EYE_Surprised = 50, Fcl_MTH_Surprised = 50) for 1 s,
     //                          then back to Joy or Neutral depending on "joy".
-    // (Cluster Script cannot write blend-shape weights directly, but it can set Animator parameters.)
+    // Cluster Script cannot write blend-shape weights, so NpcController.js drives the Animator through two CCK
+    // Set Animator Value gimmicks on the same GameObject, keyed on the NPC item's state ("npc_joy" Bool,
+    // "npc_surprised" signal). Gimmicks run natively in the editor preview and in Cluster.
     static void AddFaceExpressionAnimator(GameObject npcRoot)
+    {
+        AttachFaceExpression(npcRoot, EnsureFaceAssets(true));
+    }
+
+    const string NpcJoyKey = "npc_joy", NpcSurprisedKey = "npc_surprised";
+
+    // Finds the face mesh (the SkinnedMeshRenderer with the four blend shapes) under npcRoot, names it "Face" and
+    // puts the Animator and the two gimmicks on it. Safe to run again (on the prefab contents or the scene NPC).
+    static void AttachFaceExpression(GameObject npcRoot, RuntimeAnimatorController controller)
     {
         var allShapes = JoyShapes.Concat(SurprisedShapes).Select(x => x.shape).ToArray();
         SkinnedMeshRenderer face = null;
@@ -977,7 +1005,47 @@ return {
             Debug.LogWarning("[Study4] NPC model has no face mesh with " + string.Join(", ", allShapes) + "; expressions disabled.");
             return;
         }
+        if (controller == null) { Debug.LogWarning("[Study4] face animator controller missing; expressions disabled."); return; }
         face.gameObject.name = "Face";
+
+        // Unity returns a "fake null" for missing components, so do not use ?? here.
+        var animator = face.gameObject.GetComponent<Animator>();
+        if (animator == null) animator = face.gameObject.AddComponent<Animator>();
+        animator.runtimeAnimatorController = controller;
+        animator.applyRootMotion = false;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+        var item = npcRoot.GetComponent<Item>();
+        foreach (var old in face.gameObject.GetComponents<SetAnimatorValueGimmick>()) Object.DestroyImmediate(old);
+        AddAnimatorGimmick(face.gameObject, item, animator, NpcJoyKey, ClusterVR.CreatorKit.ParameterType.Bool, "joy");
+        AddAnimatorGimmick(face.gameObject, item, animator, NpcSurprisedKey, ClusterVR.CreatorKit.ParameterType.Signal, "surprised");
+        EditorUtility.SetDirty(face.gameObject);
+        Debug.Log("[Study4] NPC face expressions on '" + face.gameObject.name + "': item state " + NpcJoyKey + " -> joy (" +
+                  string.Join(", ", JoyShapes.Select(x => x.shape + "=" + x.weight)) + "), signal " + NpcSurprisedKey + " -> surprised (" +
+                  string.Join(", ", SurprisedShapes.Select(x => x.shape + "=" + x.weight)) + ")");
+    }
+
+    // CCK Set Animator Value gimmick listening to an item-scoped key (the same wiring LUIDA uses for its GlobalLogics).
+    static void AddAnimatorGimmick(GameObject go, Item item, Animator animator, string key, ClusterVR.CreatorKit.ParameterType type, string parameter)
+    {
+        const BindingFlags F = BindingFlags.NonPublic | BindingFlags.Instance;
+        var g = go.AddComponent<SetAnimatorValueGimmick>();
+        var ggk = Activator.CreateInstance(typeof(GlobalGimmickKey));
+        typeof(GlobalGimmickKey).GetField("key", F)?.SetValue(ggk, new GimmickKey(GimmickTarget.Item, key));
+        typeof(GlobalGimmickKey).GetField("item", F)?.SetValue(ggk, item);
+        var t = typeof(SetAnimatorValueGimmick);
+        t.GetField("globalGimmickKey", F)?.SetValue(g, ggk);
+        t.GetField("parameterType", F)?.SetValue(g, type);
+        t.GetField("animatorParameterName", F)?.SetValue(g, parameter);
+        t.GetField("animator", F)?.SetValue(g, animator);
+    }
+
+    // Creates the face clips and the controller; with force they are recreated even if present.
+    static RuntimeAnimatorController EnsureFaceAssets(bool force)
+    {
+        var allShapes = JoyShapes.Concat(SurprisedShapes).Select(x => x.shape).ToArray();
+        var existing = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(NpcFaceControllerPath);
+        if (existing != null && !force) return existing;
 
         foreach (var path in new[] { NpcFaceNeutralClipPath, NpcFaceJoyClipPath, NpcFaceSurprisedClipPath, NpcFaceControllerPath, NpcSmileClipPathLegacy })
             if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
@@ -1027,15 +1095,8 @@ return {
         T(sSurprised.AddTransition(sJoy), 0.2f, true, 1f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "joy");
         T(sSurprised.AddTransition(sNeutral), 0.2f, true, 1f).AddCondition(UnityEditor.Animations.AnimatorConditionMode.IfNot, 0f, "joy");
         EditorUtility.SetDirty(controller);
-
-        // Unity returns a "fake null" for missing components, so do not use ?? here.
-        var animator = face.gameObject.GetComponent<Animator>();
-        if (animator == null) animator = face.gameObject.AddComponent<Animator>();
-        animator.runtimeAnimatorController = controller;
-        animator.applyRootMotion = false;
-        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-        Debug.Log("[Study4] NPC face animator: joy = " + string.Join(", ", JoyShapes.Select(x => x.shape + "=" + x.weight)) +
-                  "; surprised = " + string.Join(", ", SurprisedShapes.Select(x => x.shape + "=" + x.weight)));
+        AssetDatabase.SaveAssets();
+        return controller;
     }
 
     // Append LeftEye/RightEye to the generated BONE_MAP / BONE_PARENT so the NPC can move its eyes.
@@ -1461,25 +1522,41 @@ return {
     static List<StateListenerAction> L(params StateListenerAction[] a) => a.ToList();
 
     // ------------------------------------------------------------------ Instruction
-    // ins_show(slot, text): 'front' = above the NPC's head, 'side' = left of the questionnaire (used in the
-    // questionnaire states). Lines are kept to about 15 glyphs.
+    // ins_show(slot, text, size?): 'front' = above the NPC's head, 'above' = just above the questionnaire form
+    // (questionnaire states), 'center' = straight ahead (debrief, end). Lines are kept to about 15 glyphs
+    // (22 in the debrief, which uses a smaller size).
     static List<StateListener> InstructionListeners()
     {
         return new List<StateListener>
         {
-            Listener(S_START, L(Act(T_ShowItem), Custom("ins_okButton(false);"), Ins("side", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
+            Listener(S_START, L(Act(T_ShowItem), Custom("ins_okButton(false);"), Ins("above", "ようこそ。\\n正面の質問紙で研究の説明を\\n読み、各項目にチェックを\\n入れて進んでください。"))),
             Listener(S_DEVICE, L(Ins("front", "トラッキングを確認します。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手が\\nゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "右側のパネルで\\n質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('side', '質問紙に\\n答えてください。');"))),
+            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターに\\nついてのアンケートです。\\n問題文の「仮想身体」は、\\nそのアバターのことです。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
-            Listener(S_SOCIAL, L(Ins("side", "さきほどの相手（NPC）\\nについての質問紙に\\n答えてください。"))),
-            Listener(S_PERSONAL, L(Ins("side", "最後に、あなた自身の\\nメタバース利用についての\\n質問紙に答えてください。"))),
-            // Debrief: explanation + "OK" button -> End
+            Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた\\n相手についてのアンケートです。"))),
+            Listener(S_PERSONAL, L(Ins("above", "最後のアンケートです。"))),
+            // Debrief: thanks, what was studied and under which conditions, a request not to talk about it this
+            // month, then the "OK" button -> End
             Listener(S_DEBRIEF,
-                L(Custom("ins_okBegin();"), Ins("center", "ご協力ありがとうございました。\\nこの実験は、他者のアバターの\\n手が近づいたときに生じる感覚\\n（ファントムタッチ）を\\n調べるものでした。\\n読み終わったら、下の\\n「OK」を押してください。")),
+                L(Custom("ins_okBegin();"), Ins("center",
+                    "ご参加いただき、ありがとうございました。\\n" +
+                    "この実験では「ファントムタッチ」という、\\n" +
+                    "VR で相手のアバターの手が顔に近づいたり\\n" +
+                    "触れたりしたときに、実際には触れられて\\n" +
+                    "いないのに顔に感覚が生じる現象を\\n" +
+                    "調べていました。\\n" +
+                    "相手が目を合わせたり手を振ったりする\\n" +
+                    "反応があるかどうかと、\\n" +
+                    "普段使いのアバターか初期アバター\\n" +
+                    "（Default Avatar）かによって、\\n" +
+                    "感じ方がどう変わるかを比べています。\\n" +
+                    "今月中は、この実験の内容や条件を\\n" +
+                    "ほかの方に話さないようお願いします。\\n" +
+                    "読み終わったら、下の「OK」を押してください。", InsDebriefSize)),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
                 L(Custom("ins_okButton(false);"))),
             // End: countdown; the ExitPortal teleports the participant into the exit gate when it reaches 0
@@ -1489,6 +1566,7 @@ return {
         };
     }
     static StateListenerAction Ins(string slot, string text) => Custom("ins_show('" + slot + "', '" + text + "');");
+    static StateListenerAction Ins(string slot, string text, float size) => Custom("ins_show('" + slot + "', '" + text + "', " + F4(size) + ");");
 
     static string F4(float v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
@@ -1496,24 +1574,38 @@ return {
     static string InstructionLegacy(Layout l)
     {
         var inv = Quaternion.Inverse(l.Frame);
-        string Slot(Vector3 wp)
+        string Slot(Vector3 wp, float size)
         {
             var lp = inv * (wp - l.origin);
             var lr = inv * l.FaceEye(wp);
             return "{ p: new Vector3(" + F4(lp.x) + ", " + F4(lp.y) + ", " + F4(lp.z) + "), r: new Quaternion(" +
-                   F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + ") }";
+                   F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + "), size: " + F4(size) + " }";
         }
-        return "// ---- Study 4: Instruction board (placements; coloured backing sized to the line count) ----\n" +
-               "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l)) + ",\n  side: " + Slot(InsSidePos(l)) +
-               ",\n  center: " + Slot(InsCenterPos(l)) + ",\n};\n" +
-               "const INS_BG_MAX = " + InsMaxLines + ";\n" +
-               "function ins_show(slot, text) {\n" +
+        return "// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----\n" +
+               "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead\n" +
+               "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l), InsSize) + ",\n  above: " + Slot(InsAbovePos(l), InsAboveSize) +
+               ",\n  center: " + Slot(InsCenterPos(l), InsSize) + ",\n};\n" +
+               "// CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size\n" +
+               "const INS_GLYPH_W = " + F4(GlyphW) + ", INS_LINE_H = " + F4(LineH) + ", INS_PAD = " + F4(InsBoardPad) + ";\n" +
+               "function ins_show(slot, text, size) {\n" +
                "  const s = INS_SLOTS[slot] || INS_SLOTS.front;\n" +
+               "  const sz = size || s.size;\n" +
                "  const t = $.subNode('Text');\n" +
-               "  if (t) { t.setPosition(s.p); t.setRotation(s.r); }\n" +
+               "  if (t) {\n" +
+               "    t.setPosition(s.p); t.setRotation(s.r);\n" +
+               "    try { t.setTextSize(sz); } catch (e) { $.log('[Instruction] setTextSize: ' + e); }\n" +
+               "  }\n" +
                "  SetText(text);\n" +
-               "  const n = Math.min(INS_BG_MAX, text ? String(text).split('\\n').length : 0);\n" +
-               "  for (let i = 1; i <= INS_BG_MAX; i++) { const bg = $.subNode('Bg_' + i); if (bg) bg.setEnabled(i === n); }\n" +
+               "  const lines = text ? String(text).split('\\n') : [];\n" +
+               "  let w = 0;\n" +
+               "  for (const ln of lines) { let lw = 0; for (let i = 0; i < ln.length; i++) lw += ln.charCodeAt(i) < 0x80 ? 0.56 : 1; if (lw > w) w = lw; }\n" +
+               "  const bg = $.subNode('Bg');\n" +
+               "  if (!bg) return;\n" +
+               "  if (lines.length === 0 || w === 0) { bg.setEnabled(false); return; }\n" +
+               "  try {\n" +
+               "    bg.getUnityComponent('Transform').unityProp.localScale = new Vector3(w * INS_GLYPH_W * sz + INS_PAD * 2, lines.length * INS_LINE_H * sz + INS_PAD, 1);\n" +
+               "    bg.setEnabled(true);\n" +
+               "  } catch (e) { $.log('[Instruction] backing: ' + e); }\n" +
                "}\n" +
                "// Debrief 'OK' button (item DB_Ok; its Interact Item Trigger writes the Integer state 'ins_btn' here)\n" +
                "function ins_okButton(visible) {\n" +

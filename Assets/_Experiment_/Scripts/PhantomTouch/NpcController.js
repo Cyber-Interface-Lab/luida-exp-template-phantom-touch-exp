@@ -36,17 +36,21 @@ const NPC_CFG = {
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
   READY_FRAC: 0.35,        // ready palm point: this fraction of the way from the right shoulder to the face
                            // (the approach then extends the arm along the shoulder->face line)
-  STROKE_AMP: 0.04,        // after contact the palm strokes the face vertically: down by this much and back up (m),
-  STROKE_CYCLES: 2,        //   this many times, at REACH_SPEED (0 disables the stroke)
-  HOLD_SEC: 1.0,           // rest at the face after the stroke
+  STROKE_AMP: 0.04,        // stroke: the fingers slide down the face by this much (m) at REACH_SPEED, then ...
+  STROKE_BACK: 0.03,       //   ... pull back this far from the face, rise, touch again and stroke down ...
+  STROKE_CYCLES: 3,        //   ... this many times in total (0 disables the stroke)
+  STROKE_RETURN_SPEED: 0.04, // speed of the pull-back / rise / re-touch legs (m/s)
+  HOLD_SEC: 1.0,           // rest where the last stroke ended
   RETRACT_SPEED: 0.10,     // m/s
   STOP_MARGIN: 0.03,       // stop this far before the face surface
-  FACE_UP: 0.05,           // face point: head bone + up*FACE_UP + forward*FACE_FWD (head frame)
-  FACE_FWD: 0.10,
-  PALM_LEN: 0.085,         // wrist -> palm contact point along the hand axis (m)
-  PALM_OFF: 0.015,         // palm surface offset along the palm normal (m)
-  HAND_UP: 1.0,            // reaching hand: fingers tilted up by atan(HAND_UP) (= 45 deg) from the approach
-                           // direction (never past vertical), palm turned toward the participant's face
+  // Touch target in the participant's head frame: the cheek on the side the NPC's right hand comes from.
+  CHEEK_BELOW_EYES: 0.045, //   height: the eye bones' midpoint minus this ...
+  FACE_UP: 0.02,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
+  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline of the face)
+  FACE_FWD: 0.09,          //   forward of the head bone (cheek surface)
+  CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
+  PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
+  HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above horizontal; palm turned toward the face
   SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
   STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
   MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)
@@ -77,9 +81,9 @@ const NPC_CFG = {
   TOUCH_HAND_MARGIN: 0.06, // participant hand bone (wrist) -> fingers allowance (m)
   RETREAT_THRESHOLD: 0.02, // m, for the in-world retreat-onset estimate
   MODEL_NODE: "Model",     // sub-node holding the VRM model (toggled for visibility)
-  FACE_NODE: "Face",       // sub-node with the face SkinnedMeshRenderer + expression Animator
-                           // (Bool "joy": Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;
-                           //  Trigger "surprised": Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50 for 1 s)
+  JOY_KEY: "npc_joy",      // item Bool state -> Set Animator Value gimmick on the face mesh -> Animator Bool "joy"
+  SURPRISED_KEY: "npc_surprised", // item signal -> gimmick -> Animator Trigger "surprised" (1 s clip)
+                           // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)
   RISER_NODE: "Riser",     // 1 m cube under the NPC's feet (top at the feet); shown while the NPC is lifted
   PLATFORM_ITEM: "HeightPlatform", // world item reference: the platform under the participant's standing spot
 };
@@ -263,24 +267,16 @@ function setVisible(v) {
   $.state.npc_visible = !!v;
   applyVisibility();
 }
-// Facial expressions through the Animator on the Face sub-node (Cluster Script cannot write
-// blend-shape weights directly). Silently ignored when the model has no face animator.
-function faceAnimator() {
-  try {
-    const face = $.subNode(NPC_CFG.FACE_NODE);
-    return face ? face.getUnityComponent("Animator") : null;
-  } catch (e) {
-    if (!$.state.npc_faceWarned) { $.state.npc_faceWarned = true; $.log("[NPC] face animator unavailable: " + e); }
-    return null;
-  }
-}
+// Facial expressions: Cluster Script cannot write blend-shape weights, so the face mesh carries an Animator
+// (clips NpcFaceNeutral / Joy / Surprised) driven by two CCK Set Animator Value gimmicks that listen to this
+// item's state: Bool JOY_KEY -> Animator "joy", signal SURPRISED_KEY -> Animator trigger "surprised".
 // Joy face on/off (held for the duration of a reaction).
 function setJoy(on) {
   on = !!on;
   if (!!$.state.npc_joy === on) return;
   $.state.npc_joy = on;
   if (on) $.state.npc_smiles = ($.state.npc_smiles || 0) + 1;
-  try { const a = faceAnimator(); if (a) a.setBool("joy", on); } catch (e) { $.log("[NPC] setJoy: " + e); }
+  try { $.setStateCompat("this", NPC_CFG.JOY_KEY, on); } catch (e) { $.log("[NPC] setJoy: " + e); }
 }
 // Surprised face for 1 s (the clip length), then back to the previous face.
 function surprise() {
@@ -288,7 +284,7 @@ function surprise() {
   if (t - ($.state.npc_lastSurprise || 0) < NPC_CFG.TOUCH_COOLDOWN_SEC) return;
   $.state.npc_lastSurprise = t;
   $.state.npc_gTouch = ($.state.npc_gTouch || 0) + 1;
-  try { const a = faceAnimator(); if (a) a.setTrigger("surprised"); } catch (e) { $.log("[NPC] surprise: " + e); }
+  try { $.sendSignalCompat("this", NPC_CFG.SURPRISED_KEY); } catch (e) { $.log("[NPC] surprise: " + e); }
 }
 function clearReaction() {
   if ($.state.npc_react) $.state.npc_lastReactEnd = nowSec();
@@ -307,6 +303,8 @@ $.onStart(() => {
   $.state.npc_rest = null;
   $.state.npc_trace = [];
   $.state.npc_glide = null;
+  $.state.npc_joy = false;
+  try { $.setStateCompat("this", NPC_CFG.JOY_KEY, false); } catch (e) { /* no gimmick yet */ }
   cacheBones();
   $.log("[NPC] started, bones=" + boneNodes.length);
 });
@@ -379,10 +377,20 @@ function headOf(p) {
   const pos = p.getHumanoidBonePosition(HumanoidBone.Head);
   const rot = p.getHumanoidBoneRotation(HumanoidBone.Head);
   if (!pos || !rot) return null;
-  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)) };
+  // eye height in the head frame (null when the avatar has no eye bones or they are implausible)
+  let eyeUp = null;
+  const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re = p.getHumanoidBonePosition(HumanoidBone.RightEye);
+  const eye = (le && re) ? vscale(vadd(le, re), 0.5) : (le || re);
+  if (eye) { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) eyeUp = local.y; }
+  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), eyeUp: eyeUp };
 }
+// Height of the touch target above the head bone (head frame): under the eyes when the avatar has eye bones.
+function faceUp(head) {
+  return (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp - NPC_CFG.CHEEK_BELOW_EYES : NPC_CFG.FACE_UP;
+}
+// Touch target: the participant's cheek, FACE_SIDE toward their left (head local -x), FACE_FWD forward.
 function facePointWorld(head) {
-  return vadd(head.pos, qrot(head.rot, v3(0, NPC_CFG.FACE_UP, NPC_CFG.FACE_FWD)));
+  return vadd(head.pos, qrot(head.rot, v3(-NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));
 }
 
 // Standing pose in front of the participant's marker. extraDist = 0 -> reach spot (the palm reaches the
@@ -398,7 +406,7 @@ function standPose(extraDist) {
   const floorY = (typeof $.state.npc_floorY === "number") ? $.state.npc_floorY : root.y - platformH;
   const feetY = floorY + lift;
   const pHeadH = head.pos.y - root.y;      // the participant's own height, wherever they stand now
-  const dy = (floorY + platformH + pHeadH + NPC_CFG.FACE_UP) - (feetY + rest.sR.y);
+  const dy = (floorY + platformH + pHeadH + faceUp(head)) - (feetY + rest.sR.y);
   const lateral = Math.abs(vdot(rest.sR, rest.right));
   // Bisection on x = forward distance from the right shoulder to the face point, so that the
   // wrist needed at the stop position (palm STOP_MARGIN before the face) is `reach` from the shoulder.
@@ -707,7 +715,9 @@ function finishTrial() {
     contactTs: $.state.npc_contactTs || 0,
     strokeEndTs: $.state.npc_strokeEndTs || 0,
     strokeAmp: NPC_CFG.STROKE_AMP,
+    strokeBack: NPC_CFG.STROKE_BACK,
     strokeCycles: NPC_CFG.STROKE_CYCLES,
+    strokeReturnSpeed: NPC_CFG.STROKE_RETURN_SPEED,
     heightPlatform: $.state.npc_platformH || 0,
     npcLift: $.state.npc_lift || 0,
     retractEndTs: Date.now(),
@@ -793,20 +803,20 @@ function waveArm(rest, gt) {
   lower = qrot(qaxis(F, 25 * Math.sin(2 * Math.PI * 2.5 * gt)), lower);
   return { upper: upper, lower: lower, hand: lower, palm: F };
 }
-// Reaching hand: fingers tilted up from the approach direction d, palm facing along d (the face).
+// Reaching hand: fingers HAND_PITCH_DEG above horizontal, in the vertical plane of the approach direction d;
+// palm facing along d (toward the face). When the fingers point almost along d, the palm faces forward-down.
 function reachHandFrame(d) {
   const dn = vnorm(d);
-  let up = perpTo(UP, dn);
-  if (vlen(up) < 1e-3) up = perpTo(v3(0, 0, 1), dn);
-  let h = vnorm(vadd(dn, vscale(vnorm(up), NPC_CFG.HAND_UP)));
-  const horizD = vhoriz(dn);
-  if (vdot(h, horizD) < 0.05) h = vnorm(vadd(UP, vscale(horizD, 0.05)));   // fingers at most vertical
-  const n = vnorm(perpTo(dn, h));
-  return { h: h, n: n };
+  const horiz = vhoriz(dn);
+  const pitch = NPC_CFG.HAND_PITCH_DEG * Math.PI / 180;
+  const h = vnorm(vadd(vscale(horiz, Math.cos(pitch)), vscale(UP, Math.sin(pitch))));
+  let n = perpTo(dn, h);
+  if (vlen(n) < 0.2) n = perpTo(vsub(horiz, UP), h);
+  return { h: h, n: vnorm(n) };
 }
-// Wrist -> palm contact point.
+// Wrist -> contact point (finger pads).
 function palmOffset(frame) {
-  return vadd(vscale(frame.h, NPC_CFG.PALM_LEN), vscale(frame.n, NPC_CFG.PALM_OFF));
+  return vadd(vscale(frame.h, NPC_CFG.CONTACT_LEN), vscale(frame.n, NPC_CFG.PALM_OFF));
 }
 // Right arm placing the palm contact point at F (local) with the given hand frame.
 function reachArm(rest, F, frame) {
@@ -815,18 +825,39 @@ function reachArm(rest, F, frame) {
   const sol = solveArm(rest.sR, W, rest.L1, rest.L2, hint);
   return { upper: sol.upperDir, lower: sol.lowerDir, hand: frame.h, palm: frame.n, frame: frame };
 }
-// Stroke after contact: the palm slides down the face by STROKE_AMP and back up, STROKE_CYCLES
-// times, at REACH_SPEED (a triangle wave, so the speed matches the approach).
-function strokeDuration() {
-  const amp = NPC_CFG.STROKE_AMP, n = NPC_CFG.STROKE_CYCLES;
-  return (amp > 0 && n > 0 && NPC_CFG.REACH_SPEED > 0) ? 2 * amp * n / NPC_CFG.REACH_SPEED : 0;
+// Stroke after contact (local coordinates). Each cycle: slide down the face by STROKE_AMP at REACH_SPEED,
+// pull back STROKE_BACK from the face, rise while pulled back, touch again at the top (these three legs at
+// STROKE_RETURN_SPEED); the last cycle ends at the bottom of its down-stroke. Returns the waypoints and the
+// time at which each one is reached.
+function strokePath(Fc, dir) {
+  const A = NPC_CFG.STROKE_AMP, B = NPC_CFG.STROKE_BACK, N = NPC_CFG.STROKE_CYCLES;
+  const vs = NPC_CFG.REACH_SPEED, vr = NPC_CFG.STROKE_RETURN_SPEED;
+  const pts = [Fc], times = [0];
+  if (!(A > 0) || !(N > 0) || !(vs > 0)) return { pts: pts, times: times, total: 0 };
+  const down = vscale(UP, -A), back = vscale(vnorm(dir), -B);
+  let p = Fc, t = 0;
+  function go(q, v) { t += vlen(vsub(q, p)) / Math.max(1e-3, v); p = q; pts.push(q); times.push(t); }
+  for (let k = 0; k < N; k++) {
+    go(vadd(p, down), vs);                       // stroke down, in contact
+    if (k < N - 1 && vr > 0) {
+      if (B > 0) go(vadd(p, back), vr);          // pull back a little
+      go(vsub(p, down), vr);                     // rise
+      if (B > 0) go(vsub(p, back), vr);          // touch again at the top
+    }
+  }
+  return { pts: pts, times: times, total: t };
 }
-// Downward offset (m) of the palm t seconds into the stroke.
-function strokeOffset(t) {
-  const half = NPC_CFG.STROKE_AMP / NPC_CFG.REACH_SPEED;   // seconds per half stroke
-  if (!(half > 0) || t <= 0) return 0;
-  const u = (t % (2 * half)) / half;                        // 0..2
-  return NPC_CFG.STROKE_AMP * (u <= 1 ? u : 2 - u);
+// Position on the stroke path t seconds after contact.
+function strokePoint(path, t) {
+  const pts = path.pts, times = path.times;
+  if (t <= 0 || pts.length < 2) return pts[0];
+  for (let i = 1; i < pts.length; i++) {
+    if (t <= times[i]) {
+      const u = (t - times[i - 1]) / Math.max(1e-6, times[i] - times[i - 1]);
+      return vlerp(pts[i - 1], pts[i], u);
+    }
+  }
+  return pts[pts.length - 1];
 }
 // Actual palm contact point of a solved right arm (accounts for IK clamping when out of reach).
 function contactOf(rest, arm) {
@@ -1017,20 +1048,18 @@ function tick(dt) {
       $.state.npc_contactDist = d;
       $.state.npc_contactT = t;
       $.state.npc_Fc = Ft;
-      $.state.npc_strokeSec = strokeDuration();
-      // straight down (parallel to the upright face, not perpendicular to the upward approach, which
-      // would push the palm into the face on the way down)
-      $.state.npc_strokeDown = vscale(UP, -1);
+      $.state.npc_strokeSec = strokePath(Ft, dir).total;
+      $.state.npc_Fhold = Ft;
       $.state.npc_phase = "stroke";
       $.state.npc_t = 0;
       $.log("[NPC] contact: d=" + f3(d) + " early=" + earlyContact + ", stroking for " + f3($.state.npc_strokeSec) + " s");
     }
   } else if (phase === "stroke") {
-    // gently stroke the face: the palm slides down and back up along the face at the approach speed
-    // (same hand orientation, same fixed frame as the approach)
+    // gently stroke the face along strokePath(): down in contact, pull back, rise, touch again (same hand
+    // orientation as the approach)
     const Fc = $.state.npc_Fc || $.state.npc_T;
     const dur = $.state.npc_strokeSec || 0;
-    const Fs = vadd(Fc, vscale($.state.npc_strokeDown || vscale(UP, -1), strokeOffset(Math.min(t, dur))));
+    const Fs = strokePoint(strokePath(Fc, $.state.npc_dir), Math.min(t, dur));
     const arm = reachArm(rest, Fs, $.state.npc_frame || reachHandFrame($.state.npc_dir));
     armR = armRots(rest, "R", arm);
     if (head) {
@@ -1040,11 +1069,12 @@ function tick(dt) {
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
     if (t >= dur) {
       $.state.npc_strokeEndTs = Date.now();
+      $.state.npc_Fhold = Fs;              // rest where the last stroke ended
       $.state.npc_phase = "hold";
       $.state.npc_t = 0;
     }
   } else if (phase === "hold") {
-    const Fc = $.state.npc_Fc || $.state.npc_T;
+    const Fc = $.state.npc_Fhold || $.state.npc_Fc || $.state.npc_T;
     const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));
     armR = armRots(rest, "R", arm);
     const sinceContact = ($.state.npc_strokeSec || 0) + t;
@@ -1061,7 +1091,7 @@ function tick(dt) {
     }
   } else if (phase === "retract") {
     // blend the joint rotations from the hold pose back to the relaxed arm
-    const Fc = $.state.npc_Fc || $.state.npc_T;
+    const Fc = $.state.npc_Fhold || $.state.npc_Fc || $.state.npc_T;
     const holdArm = armRots(rest, "R", reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir)));
     const u = clamp01(t / Math.max(0.5, $.state.npc_retractSec || 2.0));
     armR = slerpArm(holdArm, idleR, easeInOut(u));

@@ -15,7 +15,7 @@
 | 質問紙フォーム | シーン内 `LUIDA-QuestionnaireByState/<State>/Questionnaire_p1` | qID 1–4（Start, VEQ, SocialPresence, PersonalExperience。Web Console 側の登録順と一致させること。Debrief の質問紙は 2026-11-04 に外した）。各コンテナは初期状態で非アクティブ（ステート開始時にギミックが有効化） |
 | Data Collector | `Assets/_Experiment_/Scripts/DataCollectors/PhantomTouch.js`（Code モード、設定は `Settings/DataCollectorConfig/PhantomTouch.asset`） | 1 行のフィールド一覧は設計書 §12 |
 | State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal`, `SessionReset`（§8） |
-| NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（目ボーン追加済み）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`、トリガー `smile` でブレンドシェイプ `Fcl_ALL_Fun` を再生する `NpcSmile.anim`） |
+| NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（目ボーン追加済み）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`: Bool `joy` / Trigger `surprised`、クリップ `NpcFaceNeutral/Joy/Surprised`）と、それを NPC アイテムの状態 `npc_joy`（Bool）・信号 `npc_surprised` から動かす CCK の Set Animator Value Gimmick 2 個（§2-4） |
 | ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force`, `DebriefUI/DB_Ok` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
 | 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab`（1.2 × 1.8 m、初期非アクティブ） | 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。配置は §7 |
 | 身長合わせ | `HeightPlatform`（Item + `Scripts/PhantomTouch/Study4Platform.js`、立ち位置。子 `Cube` 1.6 × 1 × 1.6 m、コライダー付き）と NPC の子 `Riser`（0.8 × 1 × 0.8 m、コライダーなし） | どちらも高さ 1 m の直方体で、上面が足元（床）にあるので通常は床下に隠れ、持ち上げた分だけ床の上に出る。NPC が `platform_set { h }` で台を上げる。§2-4 |
@@ -29,7 +29,7 @@
 
 参加者の移動（スティック／キー操作の移動速度）は入室から 0。動けるのは `Trial - Greeting` の間だけ（End では退出ゲートへテレポートするので、歩く必要はない）。NpcDirector の `nd_tick` が 1 秒ごとに `setMoveSpeedRate` を掛け直す（LUIDA のプレイヤースクリプトが参加者の初期化時に 1 へ戻すため）。部屋の中を実際に歩くことは止められない。
 
-1. `Start`: 同意質問紙（qID 1）。完了で遷移。NPC は非表示。
+1. `Start`: 同意質問紙（qID 1）。指示文は質問紙の上端のすぐ上（above）。完了で遷移。NPC は非表示。
 2. `DeviceCheck`: 頭を左右 25° 以上回す ＋ 両手を頭より上に 1 秒。60 秒経過で救済ボタンが出る。合格で行を保存して遷移。
 3. `Trial - Start`（rep=1 のみ）: NPC に `npc_setup`（マーカーの位置・向き・床の高さを渡す。前のブロックの身長合わせを解除し、足元の台を下げる）を送ってから参加者をマーカー（床の高さ）へテレポートし、NPC を非表示（`npc_hide`）にして AvatarGate が着替え指示（Default Avatar の条件では「メニューのアバター変更に表示される『Default Avatar』に着替えてください」）→「着替えました」→「はい/いいえ」→ 行保存 → 遷移。rep=2 では AvatarGate が即 `ToNextState()`。Default Avatar の骨格値（`AG_D_ARM` / `AG_D_SHOULDER`）は未計測なので、現在は自動判定なしで「着替えました」をすぐ出し、二段階の自己申告で進める（行データ `avatarCheckFallback = true`、`avatarIsDefault = null`）。Cluster 上で Default Avatar を着て `[AvatarGate] signature …` のログ値を 2 つの定数（builder の `AvatarGateLegacy`）に入れると、骨格による一致判定（1 秒安定）が有効になる。
 4. `Trial - Greeting`（30 秒、rep=1 のみ。rep=2 は即遷移）: 参加者は歩いて移動できる（終了時に再び 0）。NpcDirector が `npc_show` → NPC がまず身長を合わせる: 参加者の頭ボーンの高さ（頭ボーン − 足元）と自分の頭ボーンの高さを比べ、差が 5 cm 以上なら、参加者が低いときは立ち位置の台（`HeightPlatform`）を差の分だけ上げて参加者をその上に乗せ（位置だけテレポート、向きはそのまま）、NPC が低いときは自分の足元の `Riser` に乗る（NPC の移動時は一緒に動く）。着替え直後でボーンが読めないときは最大 3 秒待って再試行し、読めなければ合わせない。次にマーカーの正面方向、会話距離（手が届く位置 + 0.45 m ≈ 0.9 m）に現れる。鏡が表示される。指示板は「30 秒間、目の前のアバターを見て、手を振って挨拶してください」。行データに `participantHeadH`, `npcHeadH`, `heightPlatform`, `npcLift`（m）。閾値は `NPC_CFG.HEIGHT_MATCH_MIN`。
@@ -38,20 +38,20 @@
      - 反応: 参加者の視線が NPC に向いた瞬間（30° 以内、45° で解除）と、参加者が手を頭の高さ付近まで上げた瞬間に反応する（2.5 秒のクールダウン）。最初の反応は必ず「頷き＋手振り＋笑顔」。以降、視線への反応は頷きのみ／手振りのみ／両方をランダム、挙手への反応は手振り（頷きは 50%）。笑顔（`Fcl_EYE_Joy`=100, `Fcl_MTH_Joy`=50）は 50% の確率で付き、反応の終了とともに戻る。
      - 無反応が続くとき: 反応が 5 秒間（`IDLE_REACT_SEC`）なければ、頷き＋笑顔（手振りなし）を 1 回する。静かなままなら 5 秒ごとに繰り返す。この頷きは「最初の反応」にもクールダウンにも数えないので、直後の挨拶にはすぐ反応する。回数は `greetNpcIdleReactions`。
      - 触られたとき: 参加者の手が NPC の頭・胴・腕に触れた瞬間に驚き顔（`Fcl_EYE_Surprised`=50, `Fcl_MTH_Surprised`=50）を 1 秒（1.5 秒のクールダウン）。
-     - 表情は顔メッシュ `Model/Face` の Animator（`NpcFace.controller`: Bool `joy`、Trigger `surprised`）で切り替える。再構築はメニュー `LUIDA > Study4 > Rebuild NPC face animator`（シーンは再生成しない）。
+     - 表情は顔メッシュ `Model/Face` の Animator（`NpcFace.controller`: Bool `joy`、Trigger `surprised`）で切り替える。Cluster Script からはブレンドシェイプを直接書けない（`unityProp` で触れる SkinnedMeshRenderer のプロパティに重みは無い）ので、クリップで動かす。Animator のパラメータは、同じオブジェクトに付けた CCK の Set Animator Value Gimmick 2 個（NPC アイテムの状態 `npc_joy`（Bool）→ `joy`、信号 `npc_surprised` → `surprised`）が書き、スクリプトは `$.setStateCompat('this', 'npc_joy', …)` / `$.sendSignalCompat('this', 'npc_surprised')` を呼ぶだけ（LUIDA の「Show item」と同じ仕組みで、エディタのプレビューでも Cluster でも動く）。以前はスクリプトが `getUnityComponent('Animator').setBool` を直接呼んでいたが、NPC のモデルをシーン上で差し替えたあと新しいモデルには Animator が無く、表情が出なかった。keep-scene メニューと `LUIDA > Study4 > Rebuild NPC face animator` は、シーン上の NPC の今のモデルから 4 つのシェイプキーを持つメッシュを探して Animator とギミックを付け直す。
    - social = without: NPC は立っているだけ（注視も反応もなし）。
    - 期間終了時に `greetSec / greetGazeEvents / greetHandRaises / greetNpcReactions / greetNpcNods / greetNpcWaves / greetNpcSmiles / greetNpcIdleReactions / greetTouches` を収集データへ書き込む（同じブロックの 2 試行目の行にも残る）。これらの列は 2026-11-08 まで Data Collector の列一覧に入っておらず行に出ていなかった（同日に追加）。
-5. `Trial - Touch`: NpcDirector が `npc_trial_start`（`reset: true`）を送信。NPC は開始の瞬間に参加者の位置と向きをマーカー（初期位置。台があればその上）へ戻し、1 秒待ってから（テレポートの反映待ち）、戻った参加者の方へ向き直りながら、1 秒でマーカーの正面方向の手の届く位置（頭から約 0.5 m）へ前進し（頭の向きではなくマーカーの向きを使うので、参加者が鏡を見ていても正面に立つ）、 prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と顔を結ぶ線上の 35% 地点へ。手のひらは参加者の顔側、指は上向き) → approach(その線に沿って 2 cm/s で、手のひらが顔の 3 cm 手前に来るまで。約 15 秒) → stroke(顔を縦に撫でる: 手のひらを真下へ 4 cm、また上へ戻す、を 2 往復。速さは接近と同じ 2 cm/s、計 8 秒。手の向きは接近時のまま) → hold(1 s) → retract → 元の位置（会話距離）へ後退してから消える。撫でる量・回数は `NPC_CFG.STROKE_AMP` / `STROKE_CYCLES`（0 で撫でない）。行データに `strokeEndTs`, `strokeAmp`, `strokeCycles`（撫で始め = `contactTs`）と、そのときの `heightPlatform`, `npcLift`。消えた後に `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移するので、報告パネルや質問紙の間 NPC はいない。各ブロックの 2 試行目は、消えていた NPC が会話距離に現れて 0.5 秒後に前進する。120 秒の安全タイムアウトあり（このときも NPC は後退して消える）。鏡はこのステートの終了で非表示。
+5. `Trial - Touch`: NpcDirector が `npc_trial_start`（`reset: true`）を送信。NPC は開始の瞬間に参加者の位置と向きをマーカー（初期位置。台があればその上）へ戻し、1 秒待ってから（テレポートの反映待ち）、戻った参加者の方へ向き直りながら、1 秒でマーカーの正面方向の手の届く位置（頭から約 0.5 m）へ前進し（頭の向きではなくマーカーの向きを使うので、参加者が鏡を見ていても正面に立つ）、 prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と目標を結ぶ線上の 35% 地点へ。指は水平から 45° 上向き、手のひらは目標の方向) → approach(その線に沿って 2 cm/s で、指の腹が目標の 3 cm 手前に来るまで。約 15 秒) → stroke(撫でる: 指の腹を顔に沿って真下へ 4 cm（2 cm/s）→ 顔から 3 cm 引く → 引いたまま上へ戻る → 再び触れる、を 3 回。戻りの 3 区間は 4 cm/s。計 11 秒。手の向きは接近時のまま) → hold(最後の撫で終わりの位置で 1 s) → retract → 元の位置（会話距離）へ後退してから消える。目標点は参加者の頬: 目ボーンの中点の 4.5 cm 下（目ボーンが無いアバターでは Head ボーンの 2 cm 上）、参加者から見て左へ 4 cm、前へ 9 cm（`CHEEK_BELOW_EYES`, `FACE_UP`, `FACE_SIDE`, `FACE_FWD`。以前は Head ボーンの 5 cm 上＝目のすぐ下で、高すぎた）。撫で方は `STROKE_AMP` / `STROKE_BACK` / `STROKE_CYCLES` / `STROKE_RETURN_SPEED`（`STROKE_CYCLES` 0 で撫でない）。行データに `strokeEndTs`, `strokeAmp`, `strokeBack`, `strokeCycles`, `strokeReturnSpeed`（撫で始め = `contactTs`）と、そのときの `heightPlatform`, `npcLift`。消えた後に `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移するので、報告パネルや質問紙の間 NPC はいない。各ブロックの 2 試行目は、消えていた NPC が会話距離に現れて 0.5 秒後に前進する。120 秒の安全タイムアウトあり（このときも NPC は後退して消える）。鏡はこのステートの終了で非表示。
 6. `Trial - Report`: 0–10 → 操作チェック 1–7 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 行保存 → 遷移。
-7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
-8. `SocialPresence`(qID 3) → `PersonalExperience`(qID 4) → `Debrief`: 正面の指示板にデブリーフ文、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
+7. `Trial - VEQ`: NpcDirector が `rep` を見て、各ブロックの 2 試行目以外は即 `ToNextState()`。該当時は質問紙の上に「いま使っているアバターについてのアンケートです。問題文の「仮想身体」は、そのアバターのことです。」を出し、質問紙（VEQ, qID 2）の完了で遷移（NPC は触る段階の終わりに消えている）。ブロック 1・2 の回答は同じ qID に保存されるので、時刻順で区別する。
+8. `SocialPresence`(qID 3、質問紙の上に「あなたの顔に触れてきた相手についてのアンケートです。」) → `PersonalExperience`(qID 4、「最後のアンケートです。」) → `Debrief`: 正面の指示板にデブリーフ文（感謝 → 調べていた現象（ファントムタッチ）の説明 → 条件（相手の社会的な反応の有無 × 普段使い／初期アバター）→ 今月中は内容と条件を他言しないお願い → OK の案内。14 行、文字 0.022）、その下に「OK」ボタン（`DebriefUI/DB_Ok`、Instruction アイテムの Integer 状態 `ins_btn` に書く）。押すと `End` へ。
 9. `End`: データを 1 回アップロード。指示板に「あと N 秒で募集ワールドへ移動します」（10 秒のカウントダウン）を出し、0 になった時点で ExitPortal が退出ゲート（CCK World Gate）を有効にして、参加者をそのゲートへテレポートする。ゲートはスポーン地点から遠い位置（ExitPortal のローカル座標 (100, 100, 100)）にあり、ParticipantManager が参加拒否のときに使う方式と同じ。World Gate は触れた瞬間に移動させるので、カウントダウンの後に有効にしている（秒数は builder の `EndGateDelaySec`）。以前は参加者の足元に出していたが、それだとゲートがスポーン地点に残り、同じスペースに次に入った人がすぐ送り返されていた。参加者が退室した後の流れは §8。
 
 ## 3. 残作業・確認事項（優先順）
 
 1. Web Console（手動）: 実験作成（定員 1、Allowed platforms = VR、Participant Avatar = DEFAULT）、質問紙 qID 1–4（Start の同意、VEQ、SocialPresence、PersonalExperience）をこの順に登録、実験 ID を `LUIDA > Configure experiment identifiers` に設定、ワールド ID 登録。
 2. テスト（設計書 §16）: T2（Default Avatar の骨格値 `AG_D_ARM`/`AG_D_SHOULDER` を実測して設定。未設定の間は自己申告のみ）、T3、T4（2 cm/s・停止位置・身長差）、T5、T6、T7（Custom Log 7 行・100 kB 未満）、T8、T10。
-3. 文言・レイアウト調整: 文言は `Study4SceneBuilder.cs` の `InstructionListeners` と各 Legacy code（`AvatarGateLegacy`, `DeviceCheckLegacy`, `ReportPanelLegacy`）、配置・文字サイズ・背景色は §3b の定数と `ApplyLayout`（§7）。変更後はメニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`（UI の配置のほか、`HeightPlatform` と NPC の `Riser` が無ければ作り、`Trial - Greeting` の Exit Time を builder の `GreetingSeconds` に合わせ、アイテムの動作と JS を書き直す）。NPC の距離・反応の閾値は `NpcController.js` 冒頭の `NPC_CFG`（`IDLE_EXTRA_DIST`, `LOOK_AT_DEG`, `HAND_RAISE_OFFSET`, `JOY_PROB`, `IDLE_REACT_SEC`, `HEIGHT_MATCH_MIN` など）。
+3. 文言・レイアウト調整: 文言は `Study4SceneBuilder.cs` の `InstructionListeners` と各 Legacy code（`AvatarGateLegacy`, `DeviceCheckLegacy`, `ReportPanelLegacy`）、配置・文字サイズ・背景色は §3b の定数と `ApplyLayout`（§7）。変更後はメニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`（UI の配置のほか、`HeightPlatform` と NPC の `Riser` が無ければ作り、`Trial - Greeting` の Exit Time を builder の `GreetingSeconds` に合わせ、アイテムの動作と JS を書き直す）。NPC の距離・反応の閾値は `NpcController.js` 冒頭の `NPC_CFG`（`IDLE_EXTRA_DIST`, `LOOK_AT_DEG`, `HAND_RAISE_OFFSET`, `JOY_PROB`, `IDLE_REACT_SEC`, `HEIGHT_MATCH_MIN`、目標点の `CHEEK_BELOW_EYES` / `FACE_SIDE` / `FACE_FWD`、手の `HAND_PITCH_DEG` / `CONTACT_LEN`、撫で方の `STROKE_*` など）。
 4. 既知の軽微な点: ボタンは Study4Button.js の `btn_cfg` を受け取るまで非表示。`$.worldItemReference` の送信は 10 回/秒の制限があるため ReportPanel は 1 フレーム 4 件ずつ送っている。
 
 ## 4. 再生成
@@ -66,9 +66,9 @@
 |---|---|---|
 | 待機 | 体側（太もも側） | 下 |
 | 手を振る（左手） | 参加者側（正面） | 上（左右に振る） |
-| 手を伸ばす（右手） | 参加者の顔側（接近方向から 45° 上に傾く） | ほぼ真上（後ろには倒さない） |
+| 手を伸ばす（右手） | 目標（頬）の方向のうち、指に直交する成分 | 水平から 45° 上（`HAND_PITCH_DEG`。接近線の傾きによらず一定） |
 
-接触判定に使う点は指先ではなく手のひらの中心（手首から指方向 8.5 cm、手のひら側へ 1.5 cm）。手首の反りは 35〜40°、前腕の回内は 60〜80° に収まる（オフライン検証）。値は `NPC_CFG` の `READY_FRAC`, `HAND_UP`, `PALM_LEN`, `PALM_OFF` で調整できる。
+接触判定に使う点は指の腹（手首から指方向 12 cm（`CONTACT_LEN`）、手のひら側へ 1.5 cm（`PALM_OFF`））。指先はそこから約 3 cm 先で、目標点の約 1 cm 手前で止まる。手首の反りは約 21°、肘の曲がりは約 49°（オフライン検証 `sim_stroke.js`）。値は `NPC_CFG` の `READY_FRAC`, `HAND_PITCH_DEG`, `CONTACT_LEN`, `PALM_OFF` で調整できる。
 
 ## 6. 修正履歴: テキストやボタンが表示されない不具合（2026-11-04）
 
@@ -85,8 +85,8 @@
 | 表示されるステート | 物 | 方位角 / 仰角 / 距離 |
 |---|---|---|
 | Start, VEQ, SocialPresence, PersonalExperience | 質問紙（LUIDA） | ±34° / −25〜+23° / 2 m |
-| 同上 | 指示板「side」位置 | −36〜−64° / 目の高さ付近 / 1.5 m |
-| Debrief, End | 指示板「center」位置（正面、目の高さ）と OK ボタン（Debrief、その下） | ±15° / −4〜+15°（7 行時）、ボタン −13° / 1.5 m |
+| 同上 | 指示板「above」位置（質問紙の上端のすぐ上、文字 0.03） | ±14° / +31〜+39°（4 行時） / 1.7 m |
+| Debrief, End | 指示板「center」位置（正面）と OK ボタン（Debrief、その下） | デブリーフ（14 行、文字 0.022）±17° / −12〜+19°、ボタン −17° / 1.5 m |
 | 上記以外 | 指示板「front」位置（NPC の頭の上） | ±14° / +17〜+28°（4 行時） / 1.5 m |
 | Trial - Start | AvatarGate（紫） | −27〜−53° / −22〜+3° / 1.25 m |
 | DeviceCheck | DeviceCheck（緑） | +27〜+53° / −16〜−2° / 1.25 m |
@@ -94,8 +94,8 @@
 | Trial - Greeting, Trial - Touch | 鏡 | −20〜−70° / −41〜+21° / 1.3 m |
 
 - **文字**: CCK の TextView では全角 1 文字の幅が size × 1.85、行の高さが size × 2.74（実測）。指示板 0.024（1.5 m で 1 文字約 1.7°）、パネル 0.018（1.25 m で約 1.5°）。1 行は全角 15 文字程度までに改行した。パネルの文字は下端を基準に上へ伸びるので、行数が増えてもボタンに重ならない。
-- **背景**: 文字ごとに半透明の色板（Standard / Fade、文字より先に描画する render queue 2990、コライダーなし）。指示板は紺、AvatarGate は紫、DeviceCheck は緑、ReportPanel は茶。背景は各 `Text` の子なので、文字と一緒に表示・非表示になる。指示板は行数に合わせて `Bg_1`〜`Bg_7` のうち 1 枚を表示する（`ins_show`）。
-- **指示板の移動**: Instruction アイテムは立ち位置に置き、`ins_show(slot, text)` が `Text` サブノードを front / side に移す（Cluster Script の `SubNode.setPosition/setRotation`）。
+- **背景**: 文字ごとに半透明の色板（Standard / Fade、文字より先に描画する render queue 2990、コライダーなし）。指示板は紺、AvatarGate は紫、DeviceCheck は緑、ReportPanel は茶。背景は各 `Text` の子なので、文字と一緒に表示・非表示になる。指示板の背景は 1 枚（`Bg`）で、`ins_show` が行数と最長行の文字数から大きさを計算し、`getUnityComponent('Transform').unityProp.localScale` で合わせる。
+- **指示板の移動**: Instruction アイテムは立ち位置に置き、`ins_show(slot, text, size?)` が `Text` サブノードを front（NPC の頭上）/ above（質問紙の上）/ center（正面）に移し、文字サイズも切り替える（`SubNode.setPosition/setRotation/setTextSize`）。質問紙のあるステートの文言: Start「ようこそ。正面の質問紙で研究の説明を読み、各項目にチェックを入れて進んでください。」、VEQ「いま使っているアバターについてのアンケートです。問題文の「仮想身体」は、そのアバターのことです。」、SocialPresence「あなたの顔に触れてきた相手についてのアンケートです。」、PersonalExperience「最後のアンケートです。」。
 - **ボタン**: 報告パネルは 4 列 × 3 行（0〜10 を左上から順に）と下に「決定」。語の選択肢は 2 行に折り返し、ラベルの文字サイズは `Study4Button.js` がボタンに収まるように決める（`btn_cfg` の `fit`）。AvatarGate の「着替えました」と「はい/いいえ」は別の行（連打で確認を飛ばさないように）。
 - **NPC と質問紙**: 会話距離の NPC は質問紙の手前に立ってしまうので、毎回の触る段階の終わりに元の位置へ戻ってから消える（§2-5）。
 - **反映方法**: メニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`。上記の 5 つのルート（Instruction, AvatarGateUI, DeviceCheckUI, ReportPanelUI, MirrorPanel）の配置・文字サイズ・背景だけを変え、続けてアイテムの動作を書き直す。ステートリストなど他の設定には触れない。フルビルドも同じ `ApplyLayout` を使う。
