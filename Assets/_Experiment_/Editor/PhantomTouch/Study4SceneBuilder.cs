@@ -605,7 +605,9 @@ return {
     const float QuestFwd = 2.0f, QuestCenterHeight = 1.5f, QuestHeight = 2.0f;
     const float InsAboveSize = 0.03f, InsAboveGap = 0.25f, InsAboveBack = 0.3f;   // text centre above the form's top edge, in front of it
     const float InsDebriefSize = 0.022f;
-    const float PanelTextSize = 0.018f, PanelDist = 1.25f, LeftPanelYawDeg = -40f, RightPanelYawDeg = 40f;
+    // The avatar gate (trial start) and the report panel (after each touch) are straight ahead: the NPC is hidden
+    // in both states. The device check stays on the right (the participant turns the head left and right there).
+    const float PanelTextSize = 0.018f, PanelDist = 1.25f, FrontPanelYawDeg = 0f, RightPanelYawDeg = 40f;
     const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
     const int RpCols = 4;   // report options: 4 x 3 grid (0-10 fill it row by row)
     const float RpBtnW = 0.16f, RpBtnH = 0.10f, RpPitchX = 0.175f, RpPitchY = 0.115f;
@@ -661,9 +663,9 @@ return {
             SetButton(dbGroup, "DB_Ok", Vector3.zero, okSize, 0.03f, "OK");
         }
 
-        // AvatarGate (left): text grows upwards from just above the buttons; "Changed" and Yes/No are on
-        // separate rows so a double click on "Changed" cannot answer the confirmation.
-        var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", LeftPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.29f, -0.16f, 0.58f, 0.60f));
+        // AvatarGate (straight ahead): text grows upwards from just above the buttons; "Changed" and Yes/No are
+        // on separate rows so a double click on "Changed" cannot answer the confirmation.
+        var gate = PlacePanel(l, "AvatarGateUI", "AvatarGate", FrontPanelYawDeg, 1.2f, 0.065f, m.gateBg, new Rect(-0.29f, -0.16f, 0.58f, 0.60f));
         SetButton(gate, "AG_Changed", new Vector3(0f, 0f, 0f), new Vector3(0.30f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_Yes", new Vector3(-0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
         SetButton(gate, "AG_No", new Vector3(0.10f, -0.10f, 0f), new Vector3(0.17f, 0.08f, 0.04f), 0.02f);
@@ -672,8 +674,8 @@ return {
         var dc = PlacePanel(l, "DeviceCheckUI", "DeviceCheck", RightPanelYawDeg, 1.25f, 0.075f, m.dcBg, new Rect(-0.29f, -0.07f, 0.58f, 0.33f));
         SetButton(dc, "DC_Force", Vector3.zero, new Vector3(0.36f, 0.10f, 0.04f), 0.016f, DcForceLabel);
 
-        // ReportPanel (right, same place as DeviceCheck; never shown together)
-        var rp = PlacePanel(l, "ReportPanelUI", "ReportPanel", RightPanelYawDeg, 1.0f, 0.40f, m.rpBg, new Rect(-0.38f, -0.08f, 0.76f, 0.70f));
+        // ReportPanel (straight ahead, below the instruction board)
+        var rp = PlacePanel(l, "ReportPanelUI", "ReportPanel", FrontPanelYawDeg, 1.0f, 0.40f, m.rpBg, new Rect(-0.38f, -0.08f, 0.76f, 0.70f));
         for (int i = 0; i <= 10; i++)
         {
             int r = i / RpCols, c = i % RpCols;
@@ -792,7 +794,10 @@ return {
         so.ApplyModifiedPropertiesWithoutUndo();
         AssetDatabase.SaveAssets();
 
-        var statesRoot = FindRoot("States", false);
+        // the state objects live under LUIDA-ExpManagers/States (older scenes: a root "States")
+        var managers = FindRoot("LUIDA-ExpManagers", false);
+        var statesRoot = managers != null ? managers.Find("States") : null;
+        if (statesRoot == null) statesRoot = FindRoot("States", false);
         var transition = statesRoot != null ? statesRoot.Find(stateName + "/Transition") : null;
         if (transition == null) { Debug.LogWarning("[Study4] state object not found in the scene: " + stateName); return; }
         foreach (var timer in transition.GetComponents<ItemTimer>())
@@ -1020,6 +1025,15 @@ return {
         AddAnimatorGimmick(face.gameObject, item, animator, NpcJoyKey, ClusterVR.CreatorKit.ParameterType.Bool, "joy");
         AddAnimatorGimmick(face.gameObject, item, animator, NpcSurprisedKey, ClusterVR.CreatorKit.ParameterType.Signal, "surprised");
         EditorUtility.SetDirty(face.gameObject);
+        // The face mesh belongs to a prefab instance in the scene (the NPC, or the model placed under it): record
+        // the rename and the component changes as overrides so they survive saving and reloading the scene.
+        foreach (Object o in new Object[] { face.gameObject, animator })
+            if (PrefabUtility.IsPartOfPrefabInstance(o)) PrefabUtility.RecordPrefabInstancePropertyModifications(o);
+        foreach (var g in face.gameObject.GetComponents<SetAnimatorValueGimmick>())
+        {
+            EditorUtility.SetDirty(g);
+            if (PrefabUtility.IsPartOfPrefabInstance(g)) PrefabUtility.RecordPrefabInstancePropertyModifications(g);
+        }
         Debug.Log("[Study4] NPC face expressions on '" + face.gameObject.name + "': item state " + NpcJoyKey + " -> joy (" +
                   string.Join(", ", JoyShapes.Select(x => x.shape + "=" + x.weight)) + "), signal " + NpcSurprisedKey + " -> surprised (" +
                   string.Join(", ", SurprisedShapes.Select(x => x.shape + "=" + x.weight)) + ")");
@@ -1550,7 +1564,7 @@ return {
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\\nアバターを見て、\\n手を振って挨拶してください。');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手が\\nゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
-            Listener(S_REPORT, L(Ins("front", "右側のパネルで\\n質問に答えてください。"))),
+            Listener(S_REPORT, L(Ins("front", "下のパネルで\\n質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターに\\nついてのアンケートです。\\n問題文の「仮想身体」は、\\nそのアバターのことです。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
             Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた\\n相手についてのアンケートです。"))),

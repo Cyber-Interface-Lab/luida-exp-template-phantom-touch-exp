@@ -4,10 +4,10 @@ const stateEnterActions = {
             $.setStateCompat('this', 'exp_showItem', true);
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_okButton(false);
+            ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('side', 'ようこそ。\n正面の質問紙で研究の説明を\n読み、各項目にチェックを\n入れて進んでください。');
+            ins_show('center', 'ようこそ。\nこの実験では、正面に現れる相手に\n挨拶をしたあと、相手の手が\nあなたの顔にゆっくり近づく様子を\n見ていただきます。\nそのたびに、感じたことを\n短い質問にお答えください。\n途中で機器の確認と、\nアバターの着替えをお願いします。\n読み終わったら、下の「OK」を\n押してください。');
         } }
     ],
     1: [
@@ -22,7 +22,7 @@ const stateEnterActions = {
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') ins_show('front', '15秒間、目の前の\nアバターを見て、\n手を振って挨拶してください。');
+            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前の\nアバターを見て、\n手を振って挨拶してください。');
         } }
     ],
     4: [
@@ -32,12 +32,12 @@ const stateEnterActions = {
     ],
     5: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '右側のパネルで\n質問に答えてください。');
+            ins_show('front', '下のパネルで\n質問に答えてください。');
         } }
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '2') ins_show('side', '質問紙に\n答えてください。');
+            if (CONDITION['rep'] === '2') ins_show('above', 'いま使っているアバターに\nついてのアンケートです。\n問題文の「仮想身体」は、\nそのアバターのことです。');
         } }
     ],
     7: [
@@ -47,12 +47,12 @@ const stateEnterActions = {
     ],
     8: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('side', 'さきほどの相手（NPC）\nについての質問紙に\n答えてください。');
+            ins_show('above', 'あなたの顔に触れてきた\n相手についてのアンケートです。');
         } }
     ],
     9: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('side', '最後に、あなた自身の\nメタバース利用についての\n質問紙に答えてください。');
+            ins_show('above', '最後のアンケートです。');
         } }
     ],
     10: [
@@ -60,7 +60,7 @@ const stateEnterActions = {
             ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('center', 'ご協力ありがとうございました。\nこの実験は、他者のアバターの\n手が近づいたときに生じる感覚\n（ファントムタッチ）を\n調べるものでした。\n読み終わったら、下の\n「OK」を押してください。');
+            ins_show('center', 'ご参加いただき、ありがとうございました。\nこの実験では「ファントムタッチ」という、\nVR で相手のアバターの手が顔に近づいたり\n触れたりしたときに、実際には触れられて\nいないのに顔に感覚が生じる現象を\n調べていました。\n相手が目を合わせたり手を振ったりする\n反応があるかどうかと、\n普段使いのアバターか初期アバター\n（Default Avatar）かによって、\n感じ方がどう変わるかを比べています。\n今月中は、この実験の内容や条件を\nほかの方に話さないようお願いします。\n読み終わったら、下の「OK」を押してください。', 0.022);
         } }
     ],
     11: [
@@ -71,6 +71,11 @@ const stateEnterActions = {
 };
 
 const duringStateActions = {
+    0: [
+        { type: "exec", action: (deltaTime) => {
+            if (ins_okPressed()) { ins_okButton(false); ToNextState(); }
+        } }
+    ],
     10: [
         { type: "exec", action: (deltaTime) => {
             if (ins_okPressed()) { ins_okButton(false); ToNextState(); }
@@ -84,6 +89,11 @@ const duringStateActions = {
 };
 
 const stateExitActions = {
+    0: [
+        { type: "exec", action: (deltaTime) => {
+            ins_okButton(false);
+        } }
+    ],
     10: [
         { type: "exec", action: (deltaTime) => {
             ins_okButton(false);
@@ -94,20 +104,34 @@ const stateExitActions = {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
-// ---- Study 4: Instruction board (placements; coloured backing sized to the line count) ----
+// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----
+// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead
 const INS_SLOTS = {
-  front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799) },
-  side: { p: new Vector3(-1.1491, 1.65, 0.9642), r: new Quaternion(-0.0302, -0.4224, -0.0141, 0.9058) },
-  center: { p: new Vector3(0, 1.7, 1.5), r: new Quaternion(-0.0498, 0, 0, 0.9988) },
+  front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799), size: 0.024 },
+  above: { p: new Vector3(0, 2.75, 1.7), r: new Quaternion(-0.3025, 0, 0, 0.9531), size: 0.03 },
+  center: { p: new Vector3(0, 1.65, 1.5), r: new Quaternion(-0.0333, 0, 0, 0.9994), size: 0.024 },
 };
-const INS_BG_MAX = 7;
-function ins_show(slot, text) {
+// CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size
+const INS_GLYPH_W = 1.85, INS_LINE_H = 2.74, INS_PAD = 0.05;
+function ins_show(slot, text, size) {
   const s = INS_SLOTS[slot] || INS_SLOTS.front;
+  const sz = size || s.size;
   const t = $.subNode('Text');
-  if (t) { t.setPosition(s.p); t.setRotation(s.r); }
+  if (t) {
+    t.setPosition(s.p); t.setRotation(s.r);
+    try { t.setTextSize(sz); } catch (e) { $.log('[Instruction] setTextSize: ' + e); }
+  }
   SetText(text);
-  const n = Math.min(INS_BG_MAX, text ? String(text).split('\n').length : 0);
-  for (let i = 1; i <= INS_BG_MAX; i++) { const bg = $.subNode('Bg_' + i); if (bg) bg.setEnabled(i === n); }
+  const lines = text ? String(text).split('\n') : [];
+  let w = 0;
+  for (const ln of lines) { let lw = 0; for (let i = 0; i < ln.length; i++) lw += ln.charCodeAt(i) < 0x80 ? 0.56 : 1; if (lw > w) w = lw; }
+  const bg = $.subNode('Bg');
+  if (!bg) return;
+  if (lines.length === 0 || w === 0) { bg.setEnabled(false); return; }
+  try {
+    bg.getUnityComponent('Transform').unityProp.localScale = new Vector3(w * INS_GLYPH_W * sz + INS_PAD * 2, lines.length * INS_LINE_H * sz + INS_PAD, 1);
+    bg.setEnabled(true);
+  } catch (e) { $.log('[Instruction] backing: ' + e); }
 }
 // Debrief 'OK' button (item DB_Ok; its Interact Item Trigger writes the Integer state 'ins_btn' here)
 function ins_okButton(visible) {

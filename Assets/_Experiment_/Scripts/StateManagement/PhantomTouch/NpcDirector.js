@@ -8,6 +8,11 @@ const stateEnterActions = {
         } }
     ],
     2: [
+        { type: "exec", action: (deltaTime) => {
+            if (CONDITION['rep'] === '1') {
+              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1), origin: new Vector3(0, 0, -2), floorY: 0, eyes: nd_useEyeBones() });
+            }
+        } },
         { type: "sleep", value: 0.5 },
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
@@ -21,7 +26,6 @@ const stateEnterActions = {
         } },
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
-              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1) });
               $.worldItemReference('NPC').send('npc_hide', {});
             }
         } }
@@ -44,17 +48,8 @@ const stateEnterActions = {
             $.state.nd_touchStartTs = Date.now();
             SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);
             SendDataToCollector('npcTimeout', false);
-        } },
-        { type: "exec", action: (deltaTime) => {
-            PARTICIPANTS[1].setPosition(new Vector3(0, 0, -2));
-        } },
-        { type: "exec", action: (deltaTime) => {
-            PARTICIPANTS[1].setRotation(new Quaternion().setFromEulerAngles(new Vector3(0, 0, 0)));
-        } },
-        { type: "sleep", value: 1 },
-        { type: "exec", action: (deltaTime) => {
             $.worldItemReference('NPC').send('npc_trial_start', {
-              block: CONDITION['block'], rep: CONDITION['rep'], fwd: new Vector3(0, 0, 1),
+              block: CONDITION['block'], rep: CONDITION['rep'], fwd: new Vector3(0, 0, 1), reset: true,
               avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });
         } }
     ],
@@ -118,6 +113,10 @@ function nd_donePulse() {
   if (t !== ($.state.nd_lastDone || 0)) { $.state.nd_lastDone = t; return t !== 0; }
   return false;
 }
+// The NPC aims under the participant's eye bones only in a real deployment: the editor emulator (CSEmulator)
+// throws for avatars without eye bones instead of returning null, which would abort the NPC's handlers.
+// isTestMode comes from LUIDA's ExpIdentifiers.js (flipped to false by the pre-upload step); unknown -> off.
+function nd_useEyeBones() { return (typeof isTestMode !== 'undefined') ? !isTestMode : false; }
 // Participant locomotion (stick / keyboard move speed): 0 unless set otherwise; walking in the room is
 // not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
 // to 1 when the participant is (re)initialized.

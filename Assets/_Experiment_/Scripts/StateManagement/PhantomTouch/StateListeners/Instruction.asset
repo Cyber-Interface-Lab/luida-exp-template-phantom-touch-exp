@@ -33,7 +33,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: ins_okButton(false);
+      customAction: ins_okBegin();
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -45,14 +45,38 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "ins_show('side', '\u3088\u3046\u3053\u305D\u3002\\n\u6B63\u9762\u306E\u8CEA\u554F\u7D19\u3067\u7814\u7A76\u306E\u8AAC\u660E\u3092\\n\u8AAD\u307F\u3001\u5404\u9805\u76EE\u306B\u30C1\u30A7\u30C3\u30AF\u3092\\n\u5165\u308C\u3066\u9032\u3093\u3067\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "ins_show('center', '\u3088\u3046\u3053\u305D\u3002\\n\u3053\u306E\u5B9F\u9A13\u3067\u306F\u3001\u6B63\u9762\u306B\u73FE\u308C\u308B\u76F8\u624B\u306B\\n\u6328\u62F6\u3092\u3057\u305F\u3042\u3068\u3001\u76F8\u624B\u306E\u624B\u304C\\n\u3042\u306A\u305F\u306E\u9854\u306B\u3086\u3063\u304F\u308A\u8FD1\u3065\u304F\u69D8\u5B50\u3092\\n\u898B\u3066\u3044\u305F\u3060\u304D\u307E\u3059\u3002\\n\u305D\u306E\u305F\u3073\u306B\u3001\u611F\u3058\u305F\u3053\u3068\u3092\\n\u77ED\u3044\u8CEA\u554F\u306B\u304A\u7B54\u3048\u304F\u3060\u3055\u3044\u3002\\n\u9014\u4E2D\u3067\u6A5F\u5668\u306E\u78BA\u8A8D\u3068\u3001\\n\u30A2\u30D0\u30BF\u30FC\u306E\u7740\u66FF\u3048\u3092\u304A\u9858\u3044\u3057\u307E\u3059\u3002\\n\u8AAD\u307F\u7D42\u308F\u3063\u305F\u3089\u3001\u4E0B\u306E\u300COK\u300D\u3092\\n\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
-    duringStateActions: []
-    onStateExitedActions: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (ins_okPressed()) { ins_okButton(false); ToNextState(); }
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: ins_okButton(false);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
   - stateID: 1
     onStateStartedActions:
     - predefinedActionTemplate:
@@ -96,7 +120,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "if (CONDITION['rep'] === '1') ins_show('front', '15\u79D2\u9593\u3001\u76EE\u306E\u524D\u306E\\n\u30A2\u30D0\u30BF\u30FC\u3092\u898B\u3066\u3001\\n\u624B\u3092\u632F\u3063\u3066\u6328\u62F6\u3057\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "if (CONDITION['rep'] === '1') ins_show('front', '30\u79D2\u9593\u3001\u76EE\u306E\u524D\u306E\\n\u30A2\u30D0\u30BF\u30FC\u3092\u898B\u3066\u3001\\n\u624B\u3092\u632F\u3063\u3066\u6328\u62F6\u3057\u3066\u304F\u3060\u3055\u3044\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -128,7 +152,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "ins_show('front', '\u53F3\u5074\u306E\u30D1\u30CD\u30EB\u3067\\n\u8CEA\u554F\u306B\u7B54\u3048\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "ins_show('front', '\u4E0B\u306E\u30D1\u30CD\u30EB\u3067\\n\u8CEA\u554F\u306B\u7B54\u3048\u3066\u304F\u3060\u3055\u3044\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -144,7 +168,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "if (CONDITION['rep'] === '2') ins_show('side', '\u8CEA\u554F\u7D19\u306B\\n\u7B54\u3048\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "if (CONDITION['rep'] === '2') ins_show('above', '\u3044\u307E\u4F7F\u3063\u3066\u3044\u308B\u30A2\u30D0\u30BF\u30FC\u306B\\n\u3064\u3044\u3066\u306E\u30A2\u30F3\u30B1\u30FC\u30C8\u3067\u3059\u3002\\n\u554F\u984C\u6587\u306E\u300C\u4EEE\u60F3\u8EAB\u4F53\u300D\u306F\u3001\\n\u305D\u306E\u30A2\u30D0\u30BF\u30FC\u306E\u3053\u3068\u3067\u3059\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -176,7 +200,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "ins_show('side', '\u3055\u304D\u307B\u3069\u306E\u76F8\u624B\uFF08NPC\uFF09\\n\u306B\u3064\u3044\u3066\u306E\u8CEA\u554F\u7D19\u306B\\n\u7B54\u3048\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "ins_show('above', '\u3042\u306A\u305F\u306E\u9854\u306B\u89E6\u308C\u3066\u304D\u305F\\n\u76F8\u624B\u306B\u3064\u3044\u3066\u306E\u30A2\u30F3\u30B1\u30FC\u30C8\u3067\u3059\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -192,7 +216,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "ins_show('side', '\u6700\u5F8C\u306B\u3001\u3042\u306A\u305F\u81EA\u8EAB\u306E\\n\u30E1\u30BF\u30D0\u30FC\u30B9\u5229\u7528\u306B\u3064\u3044\u3066\u306E\\n\u8CEA\u554F\u7D19\u306B\u7B54\u3048\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "ins_show('above', '\u6700\u5F8C\u306E\u30A2\u30F3\u30B1\u30FC\u30C8\u3067\u3059\u3002');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -220,7 +244,10 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "ins_show('center', '\u3054\u5354\u529B\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u3053\u306E\u5B9F\u9A13\u306F\u3001\u4ED6\u8005\u306E\u30A2\u30D0\u30BF\u30FC\u306E\\n\u624B\u304C\u8FD1\u3065\u3044\u305F\u3068\u304D\u306B\u751F\u3058\u308B\u611F\u899A\\n\uFF08\u30D5\u30A1\u30F3\u30C8\u30E0\u30BF\u30C3\u30C1\uFF09\u3092\\n\u8ABF\u3079\u308B\u3082\u306E\u3067\u3057\u305F\u3002\\n\u8AAD\u307F\u7D42\u308F\u3063\u305F\u3089\u3001\u4E0B\u306E\\n\u300COK\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "ins_show('center', '\u3054\u53C2\u52A0\u3044\u305F\u3060\u304D\u3001\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u3053\u306E\u5B9F\u9A13\u3067\u306F\u300C\u30D5\u30A1\u30F3\u30C8\u30E0\u30BF\u30C3\u30C1\u300D\u3068\u3044\u3046\u3001\\nVR
+        \u3067\u76F8\u624B\u306E\u30A2\u30D0\u30BF\u30FC\u306E\u624B\u304C\u9854\u306B\u8FD1\u3065\u3044\u305F\u308A\\n\u89E6\u308C\u305F\u308A\u3057\u305F\u3068\u304D\u306B\u3001\u5B9F\u969B\u306B\u306F\u89E6\u308C\u3089\u308C\u3066\\n\u3044\u306A\u3044\u306E\u306B\u9854\u306B\u611F\u899A\u304C\u751F\u3058\u308B\u73FE\u8C61\u3092\\n\u8ABF\u3079\u3066\u3044\u307E\u3057\u305F\u3002\\n\u76F8\u624B\u304C\u76EE\u3092\u5408\u308F\u305B\u305F\u308A\u624B\u3092\u632F\u3063\u305F\u308A\u3059\u308B\\n\u53CD\u5FDC\u304C\u3042\u308B\u304B\u3069\u3046\u304B\u3068\u3001\\n\u666E\u6BB5\u4F7F\u3044\u306E\u30A2\u30D0\u30BF\u30FC\u304B\u521D\u671F\u30A2\u30D0\u30BF\u30FC\\n\uFF08Default
+        Avatar\uFF09\u304B\u306B\u3088\u3063\u3066\u3001\\n\u611F\u3058\u65B9\u304C\u3069\u3046\u5909\u308F\u308B\u304B\u3092\u6BD4\u3079\u3066\u3044\u307E\u3059\u3002\\n\u4ECA\u6708\u4E2D\u306F\u3001\u3053\u306E\u5B9F\u9A13\u306E\u5185\u5BB9\u3084\u6761\u4EF6\u3092\\n\u307B\u304B\u306E\u65B9\u306B\u8A71\u3055\u306A\u3044\u3088\u3046\u304A\u9858\u3044\u3057\u307E\u3059\u3002\\n\u8AAD\u307F\u7D42\u308F\u3063\u305F\u3089\u3001\u4E0B\u306E\u300COK\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
+        0.022);"
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -281,18 +308,27 @@ MonoBehaviour:
       _variableValuesList: []
     onStateExitedActions: []
   eventHandlers: []
-  otherImplementation: "// ---- Study 4: Instruction board (placements; coloured
-    backing sized to the line count) ----\nconst INS_SLOTS = {\n  front: { p: new
-    Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799) },\n  side:
-    { p: new Vector3(-1.1491, 1.65, 0.9642), r: new Quaternion(-0.0302, -0.4224,
-    -0.0141, 0.9058) },\n  center: { p: new Vector3(0, 1.7, 1.5), r: new Quaternion(-0.0498,
-    0, 0, 0.9988) },\n};\nconst INS_BG_MAX = 7;\nfunction ins_show(slot, text) {\n 
-    const s = INS_SLOTS[slot] || INS_SLOTS.front;\n  const t = $.subNode('Text');\n 
-    if (t) { t.setPosition(s.p); t.setRotation(s.r); }\n  SetText(text);\n  const
-    n = Math.min(INS_BG_MAX, text ? String(text).split('\\n').length : 0);\n  for
-    (let i = 1; i <= INS_BG_MAX; i++) { const bg = $.subNode('Bg_' + i); if (bg)
-    bg.setEnabled(i === n); }\n}\n// Debrief 'OK' button (item DB_Ok; its Interact
-    Item Trigger writes the Integer state 'ins_btn' here)\nfunction ins_okButton(visible)
+  otherImplementation: "// ---- Study 4: Instruction board (placements; backing quad
+    scaled to the text) ----\n// slots: front = above the NPC's head, above = just
+    above the questionnaire form, center = straight ahead\nconst INS_SLOTS = {\n 
+    front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799),
+    size: 0.024 },\n  above: { p: new Vector3(0, 2.75, 1.7), r: new Quaternion(-0.3025,
+    0, 0, 0.9531), size: 0.03 },\n  center: { p: new Vector3(0, 1.65, 1.5), r: new
+    Quaternion(-0.0333, 0, 0, 0.9994), size: 0.024 },\n};\n// CCK TextView metrics
+    (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line
+    ~2.74 x size\nconst INS_GLYPH_W = 1.85, INS_LINE_H = 2.74, INS_PAD = 0.05;\nfunction
+    ins_show(slot, text, size) {\n  const s = INS_SLOTS[slot] || INS_SLOTS.front;\n 
+    const sz = size || s.size;\n  const t = $.subNode('Text');\n  if (t) {\n    t.setPosition(s.p);
+    t.setRotation(s.r);\n    try { t.setTextSize(sz); } catch (e) { $.log('[Instruction]
+    setTextSize: ' + e); }\n  }\n  SetText(text);\n  const lines = text ? String(text).split('\\n')
+    : [];\n  let w = 0;\n  for (const ln of lines) { let lw = 0; for (let i = 0;
+    i < ln.length; i++) lw += ln.charCodeAt(i) < 0x80 ? 0.56 : 1; if (lw > w) w =
+    lw; }\n  const bg = $.subNode('Bg');\n  if (!bg) return;\n  if (lines.length
+    === 0 || w === 0) { bg.setEnabled(false); return; }\n  try {\n    bg.getUnityComponent('Transform').unityProp.localScale
+    = new Vector3(w * INS_GLYPH_W * sz + INS_PAD * 2, lines.length * INS_LINE_H *
+    sz + INS_PAD, 1);\n    bg.setEnabled(true);\n  } catch (e) { $.log('[Instruction]
+    backing: ' + e); }\n}\n// Debrief 'OK' button (item DB_Ok; its Interact Item
+    Trigger writes the Integer state 'ins_btn' here)\nfunction ins_okButton(visible)
     {\n  try { const h = $.worldItemReference('DB_Ok'); if (h) h.send('btn_cfg',
     { visible: visible, label: 'OK' }); }\n  catch (e) { $.log('[Instruction] send
     DB_Ok: ' + e); }\n}\nfunction ins_okBegin() { $.setStateCompat('this', 'ins_btn',
