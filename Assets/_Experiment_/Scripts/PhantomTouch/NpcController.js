@@ -54,11 +54,11 @@ const NPC_CFG = {
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
   PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
   HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above horizontal; palm turned toward the face
-  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
+  SAMPLE_INTERVAL: 0.1,    // 10 Hz head sampling for the in-world retreat estimate (not uploaded; the
+                           //   platform room log holds the participant's pose)
   STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
   MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)
   IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach distance + this (m)
-  MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)
   GLIDE_SEC: 1.0,          // step closer / step back duration
   REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation spot this long before stepping in
   RESET_SETTLE_SEC: 1.0,   // touch start: wait this long after putting the participant back on the marker
@@ -304,7 +304,6 @@ $.onStart(() => {
   $.state.npc_visible = false;
   $.state.npc_trial = null;
   $.state.npc_rest = null;
-  $.state.npc_trace = [];
   $.state.npc_glide = null;
   $.state.npc_joy = false;
   try { $.setStateCompat("this", NPC_CFG.JOY_KEY, false); } catch (e) { /* no gimmick yet */ }
@@ -350,6 +349,8 @@ $.onReceive((messageType, arg, sender) => {
       if ($.state.npc_mode === "greeting") endGreeting();
       // put the participant back on the marker (facing along it, on their platform), then wait a moment
       const reset = !!(arg && arg.reset) && resetParticipant(true);
+      // the jump back to the marker shows in the room log: an anchor to align it with Date.now()
+      $.state.npc_resetTs = reset ? Date.now() : 0;
       let delay = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;
       if (!$.state.npc_visible) {
         // hidden since the previous trial: reappear at the conversation spot, then step in a moment later
@@ -662,13 +663,10 @@ function startTrial() {
   $.state.npc_lookedAt = false;
   $.state.npc_lookTs = 0;
   $.state.npc_greeted = false;
-  $.state.npc_trace = [];
-  traceBuf = [];
   $.state.npc_trialStartTs = Date.now();
   $.log("[NPC] trial start " + JSON.stringify($.state.npc_trial || {}) + " social=" + $.state.npc_social);
 }
 
-let traceBuf = [];
 let sampleTimer = 0;
 let baseSamples = [];
 
@@ -699,6 +697,7 @@ function beginApproach(head, rest, ip) {
   $.state.npc_contactDist = -1;
   $.state.npc_contactT = 0;
   $.state.npc_strokeEndTs = 0;
+  $.state.npc_holdEndTs = 0;
   $.state.npc_base = null;
   $.state.npc_away = 0; $.state.npc_latMin = 0; $.state.npc_latMax = 0;
   $.state.npc_onsetDist = -1;
@@ -711,19 +710,24 @@ function beginApproach(head, rest, ip) {
   $.log("[NPC] approach: path=" + f3(L) + " m, duration=" + f3(L / NPC_CFG.REACH_SPEED) + " s, reachable=" + $.state.npc_reachable);
 }
 
+// The participant's head and hand motion is not uploaded as a time series (it made End's upload exceed the
+// 100 kB request limit); it comes from the platform room log. This row keeps what the room log lacks: the
+// timestamps to cut it with, and what is needed to rebuild the NPC's hand path (handStart -> faceTarget at
+// reachSpeed from reachStartTs until contactTs, then the stroke from its parameters until strokeEndTs).
 function finishTrial() {
-  const traces = ($.state.npc_trace || []).concat(traceBuf);
-  traceBuf = [];
   const tr = $.state.npc_trial || {};
   const data = {
     social: $.state.npc_social ? "with" : "without",
     npcBlock: tr.block !== undefined ? String(tr.block) : "",
     npcRep: tr.rep !== undefined ? String(tr.rep) : "",
     npcAvatar: tr.avatar !== undefined ? String(tr.avatar) : "",
+    resetTs: $.state.npc_resetTs || 0,
     trialStartTs: $.state.npc_trialStartTs || 0,
     reachStartTs: $.state.npc_reachStartTs || 0,
     contactTs: $.state.npc_contactTs || 0,
     strokeEndTs: $.state.npc_strokeEndTs || 0,
+    holdEndTs: $.state.npc_holdEndTs || 0,
+    reachSpeed: NPC_CFG.REACH_SPEED,
     strokeAmp: NPC_CFG.STROKE_AMP,
     strokeBack: NPC_CFG.STROKE_BACK,
     strokeCycles: NPC_CFG.STROKE_CYCLES,
@@ -739,18 +743,15 @@ function finishTrial() {
     headRot0: $.state.npc_headRot0 || "",
     handStart: $.state.npc_H0w || "",   // fingertip world position at approach start
     faceTarget: $.state.npc_Tw || "",   // face target world position (fixed at approach start)
-    traceFormat: "t,hx,hy,hz,hqx,hqy,hqz,hqw,d",
     retreatOnsetDist: $.state.npc_onsetDist,
     retreatDist: $.state.npc_away || 0,
     oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin || 0),
     lookedAtNpc: !!$.state.npc_lookedAt,
     lookTs: $.state.npc_lookTs || 0,
     greeted: !!$.state.npc_greeted,
-    trace: traces.join(";"),
   };
   pushData(data);
-  $.state.npc_trace = [];
-  $.log("[NPC] trial done: samples=" + traces.length + " contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist));
+  $.log("[NPC] trial done: contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist));
   leave(true);
 }
 
@@ -1049,7 +1050,7 @@ function tick(dt) {
     let d = -1;
     if (head) {
       d = vlen(vsub(Fw, facePointWorld(head)));
-      sampleTrace(dt, t, head, Fw, d);
+      sampleHead(dt, t, head, d);
     }
     const reachedEnd = s >= L;
     const earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;
@@ -1074,7 +1075,7 @@ function tick(dt) {
     armR = armRots(rest, "R", arm);
     if (head) {
       const Fw = toWorld(contactOf(rest, arm), ip);
-      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+      sampleHead(dt, ($.state.npc_contactT || 0) + t, head, vlen(vsub(Fw, facePointWorld(head))));
     }
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
     if (t >= dur) {
@@ -1090,10 +1091,11 @@ function tick(dt) {
     const sinceContact = ($.state.npc_strokeSec || 0) + t;
     if (head) {
       const Fw = toWorld(contactOf(rest, arm), ip);
-      sampleTrace(dt, ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+      sampleHead(dt, ($.state.npc_contactT || 0) + sinceContact, head, vlen(vsub(Fw, facePointWorld(head))));
     }
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(sinceContact / 1.0)));
     if (t >= NPC_CFG.HOLD_SEC) {
+      $.state.npc_holdEndTs = Date.now();
       $.state.npc_phase = "retract";
       $.state.npc_t = 0;
       // duration from the distance back toward the ready point at RETRACT_SPEED (+0.8 s to settle)
@@ -1124,20 +1126,13 @@ function tick(dt) {
   applyPose(Q);
 }
 
-// 10 Hz head trace plus the in-world retreat estimate.
-function sampleTrace(dt, t, head, Fw, d) {
+// 10 Hz head sampling for the in-world retreat / oscillation estimate (t: seconds since approach start,
+// d: hand-to-face distance). Only the resulting values are uploaded, not the samples.
+function sampleHead(dt, t, head, d) {
   sampleTimer += dt;
   if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL) return;
   sampleTimer = 0;
-  const h = head.pos, r = head.rot;
-  const total = ($.state.npc_trace || []).length + traceBuf.length;
-  if (total < NPC_CFG.MAX_SAMPLES) {
-    traceBuf.push([t.toFixed(1), f3(h.x), f3(h.y), f3(h.z), f3(r.x), f3(r.y), f3(r.z), f3(r.w), f3(d)].join(","));
-  }
-  if (traceBuf.length >= 10) {
-    $.state.npc_trace = ($.state.npc_trace || []).concat(traceBuf);
-    traceBuf = [];
-  }
+  const h = head.pos;
   // retreat / oscillation estimate (world frame)
   if (!$.state.npc_base) {
     baseSamples.push(vcopy(h));
