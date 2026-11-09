@@ -224,7 +224,7 @@ MonoBehaviour:
       _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
-  - stateID: 11
+  - stateID: 8
     onStateStartedActions:
     - predefinedActionTemplate:
         actionType: Upload collected data

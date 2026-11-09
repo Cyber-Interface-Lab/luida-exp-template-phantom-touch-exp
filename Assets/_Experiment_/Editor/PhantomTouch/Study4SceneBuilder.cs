@@ -1873,8 +1873,12 @@ return {
             // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
             // (The NPC has already hidden itself at the end of the touch phase.)
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
-            // End: the participant is teleported into the exit gate (ExitPortal), so locomotion stays frozen.
-            Listener(S_END, L(Act(T_Upload))),
+            // The collected rows are uploaded once, when the first state after the trials starts: every row is
+            // saved by then (the last one when the 4th report is done), and the questionnaires and the debrief
+            // leave minutes for the request. Only one upload per session: the uploader empties its buffer after
+            // an upload and a second one would replace the file with what was saved after it (nothing, i.e. []).
+            // End (the participant is teleported into the exit gate after 10 s) no longer uploads.
+            Listener(S_SOCIAL, L(Act(T_Upload))),
         };
     }
 

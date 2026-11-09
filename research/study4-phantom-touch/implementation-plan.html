@@ -104,7 +104,7 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid 
     <div class="card"><h4>ステート</h4><p>標準の試行ループ内に Setup・Touch・Report・VEQ を置き、条件に合わない回は即スキップ。</p><p class="why">設定量が最小で、GUI の If ゲートも使える。</p></div>
     <div class="card"><h4>NPC</h4><p>既存 VRM を LUIDA でラッパー化し、自作スクリプトで 2 ボーン IK のリーチと注視を動かす。</p><p class="why">アイテムには HumanoidAnimation を適用できない。</p></div>
     <div class="card"><h4>自己アバター</h4><p>参加者自身が着替え、骨の長さで自動判定し、ボタン＋二段階確認で開始。1 ワールド内で完結し、ポータルは不要。</p><p class="why">ご指定の手順に、取り違え検出を加えた。</p></div>
-    <div class="card"><h4>データ</h4><p>1 試行 1 行で蓄積し、End で 1 回だけアップロード。頭と手の動きはルームログが一次データ（2026-11-09 に頭部軌跡の送信を廃止）。</p><p class="why">サーバは同名ファイルを上書きするため。</p></div>
+    <div class="card"><h4>データ</h4><p>1 試行 1 行で蓄積し、SocialPresence の開始時に 1 回だけアップロード（当初は End。2026-11-09 に変更）。頭と手の動きはルームログが一次データ（2026-11-09 に頭部軌跡の送信を廃止）。</p><p class="why">サーバは同名ファイルを上書きするため。</p></div>
   </div>
 </section>
 
@@ -135,10 +135,10 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid 
       <div class="step loop">VEQ1 / VEQ2<small>各ブロック2試行目のみ</small></div><span class="arrow">→</span>
       <div class="step loop">Trial - Rest<small>1秒</small></div>
     </div><span class="arrow">→</span>
-    <div class="step">SocialPresence<small>qID4</small></div><span class="arrow">→</span>
+    <div class="step">SocialPresence<small>qID4・開始時にアップロード</small></div><span class="arrow">→</span>
     <div class="step">PersonalExperience<small>qID5</small></div><span class="arrow">→</span>
     <div class="step">Debrief<small>qID6</small></div><span class="arrow">→</span>
-    <div class="step">End<small>アップロード</small></div>
+    <div class="step">End<small>退出</small></div>
   </div>
   <p class="muted">個人経験は期待効果を避けるため最後に聞きます。VEQ は別 qID（2 と 3）にして、回答 DB にセッション ID がない問題を回避します。</p>
   <div class="callout ok"><b class="label">確認済み（2026-10-23）</b>試行ループで同じステートに戻ったとき、質問紙は再び開きます。この構成で進めます。</div>
@@ -249,7 +249,7 @@ const T_ARM = 0.485, T_SHOULDER = 0.332, TOL = 0.015;
   <p class="muted">ドキュメントや論文と食い違う箇所は、実コードの挙動を採用しています。</p>
   <div class="tbl"><table>
     <tr><th>事実</th><th>影響と対処</th></tr>
-    <tr><td>アップロードのたびにサーバが同名ファイルを上書きする</td><td>途中で送ると前の行が消える。End で 1 回だけ送る</td></tr>
+    <tr><td>アップロードのたびにサーバが同名ファイルを上書きする</td><td>途中で送ると前の行が消える。1 回だけ送る（SocialPresence の開始時）</td></tr>
     <tr><td>スクリプトはグローバル状態に書き込めない</td><td>NPC の完了通知は CCK の Global Logic で中継する</td></tr>
     <tr><td>GUI の If ゲートは試行関連ステートにしか出ない</td><td>試行外の分岐は Customized Action に書く</td></tr>
     <tr><td>質問紙の回答にセッション ID がない</td><td>VEQ を別 qID にし、pID と時刻で結合する</td></tr>

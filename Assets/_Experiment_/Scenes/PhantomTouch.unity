@@ -17655,7 +17655,7 @@ PrefabInstance:
         Vector3(0, 0, 1), reset: true,\n              avatar: nd_avatarForBlock(CONDITION['block']),
         social: CONDITION['social'] === 'with' });\n        } }\r\n    ],\r\n   
         6: [\n        { type: \"exec\", action: (deltaTime) => {\n            if
-        (CONDITION['rep'] !== '2') ToNextState();\n        } }\r\n    ],\r\n    11:
+        (CONDITION['rep'] !== '2') ToNextState();\n        } }\r\n    ],\r\n    8:
         [\n        { type: \"exec\", action: (deltaTime) => {\n            $.sendSignalCompat('this',
         'exp_uploadCustomData');\n        } }\r\n    ]\r\n};\n\r\nconst duringStateActions
         = {\r\n    4: [\n        { type: \"exec\", action: (deltaTime) => {\n           

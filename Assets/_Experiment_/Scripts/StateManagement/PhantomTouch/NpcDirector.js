@@ -59,7 +59,7 @@ const stateEnterActions = {
             if (CONDITION['rep'] !== '2') ToNextState();
         } }
     ],
-    11: [
+    8: [
         { type: "exec", action: (deltaTime) => {
             $.sendSignalCompat('this', 'exp_uploadCustomData');
         } }
