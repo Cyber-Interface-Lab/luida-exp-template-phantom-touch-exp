@@ -19,7 +19,7 @@
 | 試行内報告 | 0–10 評定・操作チェック・感覚の種類/部位は **自作ボタンパネル**（State-listening Item ＋ CCK Interact Item Trigger）で取得し、NPC 計測値と同じ 1 行に保存 | 評定 0 のときの分岐（種類/部位をスキップ）が可能。Web Console の回答 DB は sID を持たず試行との対応付けが曖昧になる |
 | NPC | 既存 `YoungAvatar.vrm`（または任意の VRM）を LUIDA のアバター登録でラッパー化し、`AvatarSyncClone.js` の代わりに自作 `NpcController.js`（2 ボーン IK で 2 cm/s のリーチ、注視・反応アニメーション）を載せる | Cluster Script の HumanoidAnimation/HumanoidPose は **プレイヤー専用**でアイテムには適用できない。サブノード回転 API で骨を直接動かすのが唯一の手段（LUIDA のアバター同期と同じ方式） |
 | 自己アバター | Web Console の参加者アバターモード **HIDE**（入室時 `transparent_avatar_0` を割当 ＋ UGC アバター許可）を前提に、ブロック開始時に参加者自身で切替 → 骨格シグネチャで自動判定 → 「着替えました」ボタン → 2 段階目の確認 | ユーザ指定の手順そのまま。自動判定で「変えたつもり」「別アバターのまま」を検出できる。透明アバターの再選択は確認済み。アバター条件は 1 ワールド内で切り替わるため、Study 2 のようなポータルによるワールド間移動は不要 |
-| データ | 試行ごとに 1 行（条件・評定・操作チェック・種類/部位・NPC 手–頭距離・頭部軌跡 10 Hz・アバター身長/腕長）を Data Collector に蓄積し、**End で 1 回だけ**アップロード。ルームログは補完 | `uploadCustomData` は同名ファイルを **上書き**（`luida-frontend/app/api/experiments/[experimentId]/customData/route.ts` L540–559）。複数回アップロードすると前の行が消える |
+| データ | 試行ごとに 1 行（条件・評定・操作チェック・種類/部位・NPC 手–頭距離・頭部軌跡 10 Hz・アバター身長/腕長）を Data Collector に蓄積し、**End で 1 回だけ**アップロード。ルームログは補完（2026-11-09: 頭部軌跡は送信が 100 kB を超えたので廃止し、頭と手の動きはルームログを一次データにした。§8.5） | `uploadCustomData` は同名ファイルを **上書き**（`luida-frontend/app/api/experiments/[experimentId]/customData/route.ts` L540–559）。複数回アップロードすると前の行が消える |
 | 追加アセット | NPC 用 VRM（既存 `YoungAvatar.vrm` で可）、ボタン用プリミティブ、床マーカー、質問紙テキスト（VEQ はテンプレあり。社会的プレゼンス・個人経験・同意・デブリーフは新規登録） | 既存資産で足りる。3D モデルの新規購入は不要 |
 
 ---
@@ -36,7 +36,7 @@
 | アバター特徴の記録 | 普段使いアバターの **身長** と **ヒューマノイドか否か** を記録（p.166） | 身長（頭ボーン高）・腕長・肩幅をスクリプトで自動計測。ヒューマノイドか否かは自動判定不能なので個人経験質問紙で自己申告 |
 | 手続き | ①説明・同意・普段使いアバター確認 ②デバイス・トラッキング確認 ③第 1 アバター条件: 2 試行（各試行後に主観報告＋操作チェック）→ VEQ ④第 2 条件で同じ ⑤社会的プレゼンス質問紙 ⑥個人経験質問紙・デブリーフ（p.166–167）。個人経験は **最後**に聞く（期待効果の回避） | ステート設計 §6 |
 | 測度 | 主観報告 0–10（1 以上なら種類と部位）、操作チェック 1 項目（NPC が注意を向けていたか）、運動反応（手–頭距離 at 後退/振動の開始、後退距離、振動振幅；連続記録）、VEQ（各条件 2 試行目の後）、社会的プレゼンス（全試行後）、個人経験（利用時間・アバター利用時間・既知・経験回数）（p.168） | §10（報告パネル）、§12（データ） |
-| 運動データの出所 | プラットフォームの **ルームログ**のアバター姿勢（p.168, p.89） | ルームログ＋世界内 10 Hz 記録の二重化（§12） |
+| 運動データの出所 | プラットフォームの **ルームログ**のアバター姿勢（p.168, p.89） | ルームログ＋世界内 10 Hz 記録の二重化（§12）。2026-11-09 から世界内の軌跡は送らず、ルームログが一次データ（世界内は後退指標の値だけ） |
 | 規模・期間 | 約 200 名、2 週間、Amazon ギフト 2000 円、公開 2026 年 11 月（p.164, p.183） | `maxSessionCount` と期間管理（§13） |
 | 除外 | 4 試行未完了を除外。運動測度は IQR 外れ値除外。第 1 試行のみの分析も行う（p.171） | 試行番号・ブロック番号を各行に保存 |
 
@@ -304,19 +304,22 @@ $.onUpdate((dt) => {
 - HOLD 後に RETRACT（0.10 m/s で `H0` へ）、完了で `$.sendSignalCompat("this", "npc_done")` → Global Logic → `npc_done`。
 
 ### 8.5 試行中の計測（NPC 側で行う理由: 手の位置を正確に知っているのは NPC だけ）
-10 Hz で以下を配列に蓄積し、試行完了時に 1 回だけ `luida_collect` で送る（`__record` は付けない。行の確定は Report 完了時）。
+> **2026-11-09 変更**: `trace`（10 Hz の頭部軌跡）のアップロードはやめた。1 試行 14 kB 前後になり、End の送信が `callExternal` の 100 kB 上限を超えてカスタムデータが届かなくなったため（上限を超えると `callExternal` が例外を投げ、`CustomDataUploader.js` は同じ段を 1 秒ごとに出し直し続けて何も送らない）。参加者の頭と手の動きはプラットフォームのルームログから得る（論文の記述どおり）。世界内では引き続き 10 Hz で頭を見て `retreatOnsetDist`, `retreatDist`, `oscAmp` だけを計算する。ルームログに無い NPC の手の経路は、`handStart` → `faceTarget` を `reachSpeed` で `reachStartTs` から `contactTs` まで、その後は撫で方の設定どおり、として分析時に復元する。ルームログと時刻を合わせる目印として `resetTs`（マーカーへ戻した瞬間。ルームログでは位置の跳びとして見える）と `holdEndTs` を追加した。下の表は当初の設計。
+
+試行完了時に 1 回だけ `luida_collect` で送る（`__record` は付けない。行の確定は Report 完了時）。
 
 | ラベル | 型 | 内容 |
 |---|---|---|
-| `trace` | String | `t,hx,hy,hz,hqx,hqy,hqz,hqw,fx,fy,fz,d;...`（t: 開始からの秒 0.1 刻み、h: 参加者頭ボーン位置/回転、f: NPC 指先位置、d: 手–頭距離。小数 3 桁、約 20 s × 10 Hz ≈ 6–7 kB） |
-| `reachStartTs`, `contactTs`, `retractEndTs` | Float | `Date.now()`（ms）。ルームログとの同期用 |
+| ~~`trace`~~ | String | （2026-11-09 に廃止）`t,hx,hy,hz,hqx,hqy,hqz,hqw,fx,fy,fz,d;...`（t: 開始からの秒 0.1 刻み、h: 参加者頭ボーン位置/回転、f: NPC 指先位置、d: 手–頭距離。小数 3 桁、約 20 s × 10 Hz ≈ 6–7 kB） |
+| `resetTs`, `reachStartTs`, `contactTs`, `strokeEndTs`, `holdEndTs`, `retractEndTs` | Float | `Date.now()`（ms）。ルームログとの同期用 |
+| `handStart`, `faceTarget`, `reachSpeed` | String / String / Float | 接近開始時の指の腹のワールド位置、顔の目標点（接近開始時に固定）、接近速度（m/s）。NPC の手の経路の復元用 |
 | `pathLen`, `reachDur` | Float | 経路長（m）・接近所要時間（s） |
 | `headPos0`, `headRot0` | Vector3 / String | 接近開始時の頭位置・回転 |
 | `contactDist` | Float | 接触判定時の手–頭距離 |
 | `lookedAtNpc`, `lookTs`, `greeted` | Bool / Float / Bool | 8.3 |
 | `social` | String | NpcDirector から受けた条件（冗長だが行内で自己完結させる） |
 
-後退開始距離・後退距離・振動振幅（論文 Table 6.3）は `trace` から分析時に算出する（基準 = 接近開始後 1 秒の平均頭位置、接近軸 = `dir` の水平成分、後退 = 接近軸と逆向きの変位が 2 cm を超えた最初の時刻、後退距離 = 最大変位、振幅 = 線形トレンド除去後の peak-to-peak）。閾値はパイロットで決める。世界内でも同じ定義で `retreatOnsetDist`, `retreatDist`, `oscAmp` を暫定計算し、Web Console での進捗モニタに使う。
+後退開始距離・後退距離・振動振幅（論文 Table 6.3）は当初 `trace` から分析時に算出する計画だった（2026-11-09 以降はルームログの頭部姿勢から同じ定義で算出する。基準 = 接近開始後 1 秒の平均頭位置、接近軸 = `dir` の水平成分、後退 = 接近軸と逆向きの変位が 2 cm を超えた最初の時刻、後退距離 = 最大変位、振幅 = 線形トレンド除去後の peak-to-peak）。閾値はパイロットで決める。世界内でも同じ定義で `retreatOnsetDist`, `retreatDist`, `oscAmp` を暫定計算し、Web Console での進捗モニタに使う。
 
 ### 8.6 配置
 - `npc_setup` で参加者の頭位置の水平前方 0.9 m、足元 = 参加者の root 高さに NPC を置き、参加者の方を向かせる（MovableItem の `setPosition/setRotation`）。両者の距離は IK の到達範囲（約 0.45 m + 肩オフセット）に対し余裕を持たせ、接近開始時に NPC が半歩前に出る演出（0.3 m を 1 s）を入れると自然。without 条件も同じ移動を行う（刺激の差を手がかりだけにする）。
@@ -411,11 +414,13 @@ return {
 | セットアップ行 ×2 | `Trial - Start`（`rep == 1`）の〈はい〉確定時 | アバター特徴・切替所要時間・やり直し回数 |
 | デバイスチェック行 ×1 | DeviceCheck 合格時 | 合格までの秒数、救済ボタン使用の有無 |
 
-合計 7 行・推定 30–40 kB（trace が主）。100 kB 制限内。**`Upload saved data` は End の On State Start に 1 回だけ**配置する（2.5）。試行行以外では `trace` 等に前試行の値が残るため、Setup/DeviceCheck 行の保存前に不要ラベルを `''` で上書きするか、分析時に `stateLog.name` で行種別を判定する。
+合計 7 行・推定 30–40 kB（trace が主）。100 kB 制限内。（2026-11-09: 実測では 4 試行で約 65 kB になり、撫で方の変更後に 100 kB を超えたので `trace` を廃止。現在は 1 行約 1.5 kB、合計 10 kB 前後）**`Upload saved data` は End の On State Start に 1 回だけ**配置する（2.5）。試行行以外では `trace` 等に前試行の値が残るため、Setup/DeviceCheck 行の保存前に不要ラベルを `''` で上書きするか、分析時に `stateLog.name` で行種別を判定する。
 
 ### 12.3 ルームログとの対応付け
 - 各行の `reachStartTs` 等は `Date.now()`（ワールドサーバ時刻, ms）。ルームログ抽出時はセッションの `idfc2userId` とこの時刻で区間を切り出す。
-- 世界内 `trace` は NPC の手位置を含むため、手–頭距離の時系列はこちらが一次データになる。ルームログは頭部回転の高頻度データ・欠損時のバックアップとして使う。
+- ~~世界内 `trace` は NPC の手位置を含むため、手–頭距離の時系列はこちらが一次データになる。ルームログは頭部回転の高頻度データ・欠損時のバックアップとして使う。~~
+- 2026-11-09 以降: ルームログが参加者の頭と手の一次データ。手–頭距離の時系列は、ルームログの頭部姿勢と、行データから復元した NPC の手の経路（8.5）から算出する。`resetTs` の位置の跳びで、ルームログの時刻と `Date.now()` のずれを確かめる。世界内で算出した `retreatOnsetDist`, `retreatDist`, `oscAmp` は、ルームログが使えないときの代わりになる。
+- 本番前に、テストセッション 1 回分のルームログを取り寄せ、頭と両手の姿勢の記録頻度、時刻の合わせ方、`idfc2userId` による参加者の対応付けを確認する。
 
 ### 12.4 Web Console で確認できるもの
 - Participant Info: sID, pID, 入室時刻, device, os, `social`, `order`（本番セッションのみ）。
@@ -473,10 +478,10 @@ return {
 | T1 | HIDE モードで入室 → 自分のアバターへ切替 → 透明アバターへ再切替 | **確認済み（2026-10-23）** |
 | T2 | AvatarGate の自動判定 | 自分のアバター/透明アバターで `isTransparent` が正しく切り替わる。切替直後 1–2 秒の null を吸収。実機の `armLen`/`shoulder` を記録して定数を更新 |
 | T3 | アバター切替後も PlayerHandle・PlayerScript・ボーン取得が継続 | 切替後に `getHumanoidBonePosition` が non-null に戻る。ParticipantManager が二重登録しない |
-| T4 | NPC のリーチ | 速度 2 cm/s（trace の d の傾きで確認）、顔の 3 cm 手前で停止、身長の異なるアバター（小柄・大柄な VRM）で目標に届く |
+| T4 | NPC のリーチ | 速度 2 cm/s（2026-11-09 以降は `pathLen` / `reachDur` で確認）、顔の 3 cm 手前で停止、身長の異なるアバター（小柄・大柄な VRM）で目標に届く |
 | T5 | with/without の差 | without で頭・目が動かない、挨拶が出ない。with で注視が追従する |
 | T6 | ReportPanel | 評定 0 で種類/部位がスキップされる。連打で二重遷移しない。評定 0 の行で `ptype/ploc` が空 |
-| T7 | データ | End 後に Custom Log に 7 行、trace が欠けていない、合計 < 100 kB。Participant Info（本番のみ）に `social`/`order`。Standard Questions に qID 1–6 |
+| T7 | データ | End 後に Custom Log に 7 行、合計 < 100 kB（2026-11-09 以降は trace なしで 10 kB 前後。スクリプトログの `Data byte length` で確認）。Participant Info（本番のみ）に `social`/`order`。Standard Questions に qID 1–6 |
 | T8 | 均衡割付 | 4 セッション連続で `social × order` の 4 セルが 1 回ずつ |
 | T9 | 非 VR 入室 | 本番アップロード後に PC で入室するとゲートへ送られる |
 | T10 | 所要時間 | 1 セッション 15–20 分以内 |
@@ -493,7 +498,7 @@ return {
 | 高 | Cluster 側 `transparent_avatar_0` の骨格が `transparent-avatar.vrm` と同一か | T2 で実測し `T_ARM`/`T_SHOULDER` を更新 |
 | 高 | アップロードの上書き仕様（2.5。ドキュメントの説明と実装が異なる） | End で 1 回のみ。LUIDA 側の改善案: サーバで追記、またはチャンク番号をファイル名に含める |
 | 中 | HIDE モードの反映が翌日 | テスト日程に 1 日の余裕を取る |
-| 中 | ルームログの頻度・欠損 | 世界内 trace を一次データにし、ルームログは補完 |
+| 中 | ルームログの頻度・欠損 | 世界内 trace を一次データにし、ルームログは補完（2026-11-09 に逆転: trace は送信が 100 kB を超えたので廃止し、ルームログが一次データ。世界内の後退指標の値が代わり。本番前にテストセッションのルームログで頻度と時刻合わせを確認する） |
 | 中 | サブノード回転の補間遅延 | 2 cm/s では問題になりにくいが、T4 で手の実位置（`getGlobalPosition`）と目標の差を記録して確認 |
 | 中 | VR での文字入力負荷（qID 5, 6） | 数値回答は RADIO の区分でも可。メールのみ TEXT_INPUT |
 | 低 | 質問 API の順序（DB 順） | 作成順を守る。回答 CSV の `QnPosition` と突合 |
@@ -542,7 +547,7 @@ function solveElbow(S, T, L1, L2, bendHint) {
 ```
 `bendHint` は右腕なら「下＋外側」を NPC ローカルで指定。
 
-### B.3 trace の圧縮
+### B.3 trace の圧縮（2026-11-09 に trace を廃止。参考として残す）
 ```js
 function pushSample(t, head, headRot, finger, d) {
   const f = (v) => v.toFixed(3);

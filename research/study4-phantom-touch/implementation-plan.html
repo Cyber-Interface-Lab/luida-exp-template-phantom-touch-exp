@@ -104,7 +104,7 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid 
     <div class="card"><h4>ステート</h4><p>標準の試行ループ内に Setup・Touch・Report・VEQ を置き、条件に合わない回は即スキップ。</p><p class="why">設定量が最小で、GUI の If ゲートも使える。</p></div>
     <div class="card"><h4>NPC</h4><p>既存 VRM を LUIDA でラッパー化し、自作スクリプトで 2 ボーン IK のリーチと注視を動かす。</p><p class="why">アイテムには HumanoidAnimation を適用できない。</p></div>
     <div class="card"><h4>自己アバター</h4><p>参加者自身が着替え、骨の長さで自動判定し、ボタン＋二段階確認で開始。1 ワールド内で完結し、ポータルは不要。</p><p class="why">ご指定の手順に、取り違え検出を加えた。</p></div>
-    <div class="card"><h4>データ</h4><p>1 試行 1 行で蓄積し、End で 1 回だけアップロード。ルームログは補完。</p><p class="why">サーバは同名ファイルを上書きするため。</p></div>
+    <div class="card"><h4>データ</h4><p>1 試行 1 行で蓄積し、End で 1 回だけアップロード。頭と手の動きはルームログが一次データ（2026-11-09 に頭部軌跡の送信を廃止）。</p><p class="why">サーバは同名ファイルを上書きするため。</p></div>
   </div>
 </section>
 
@@ -117,7 +117,7 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid 
     <tr><td>刺激</td><td>2 cm/s で顔へ。目標は頭部トラッキング位置から</td><td>IK で頭ボーン位置に合わせる</td></tr>
     <tr><td>参加者</td><td>HMD 利用者、普段使いアバター所有、18 歳以上</td><td>Allowed platforms = VR、同意質問紙</td></tr>
     <tr><td>アバター特徴</td><td>身長と人型か否か</td><td>頭ボーン高・腕長を自動計測、人型かは自己申告</td></tr>
-    <tr><td>測度</td><td>0–10 評定（1 以上で種類・部位）、操作チェック、頭部運動、VEQ、社会的プレゼンス、個人経験</td><td>報告パネル＋質問紙＋10 Hz 軌跡</td></tr>
+    <tr><td>測度</td><td>0–10 評定（1 以上で種類・部位）、操作チェック、頭部運動、VEQ、社会的プレゼンス、個人経験</td><td>報告パネル＋質問紙＋ルームログ（世界内は後退指標の値だけ）</td></tr>
     <tr><td>規模</td><td>約 200 名、2 週間、2026 年 11 月公開</td><td><code>maxSessionCount</code> と手動クローズ</td></tr>
   </table></div>
 </section>
@@ -192,7 +192,7 @@ const T_ARM = 0.485, T_SHOULDER = 0.332, TOL = 0.015;
   <div class="tbl"><table>
     <tr><th>時刻</th><th>動作</th></tr>
     <tr><td>0 秒</td><td>待機。with 条件は注視し、参加者と目が合えば会釈と手振り</td></tr>
-    <tr><td>2 秒</td><td>右手が 2 cm/s で顔へ接近を開始。10 Hz で記録開始</td></tr>
+    <tr><td>2 秒</td><td>右手が 2 cm/s で顔へ接近を開始。世界内で 10 Hz の後退判定を開始</td></tr>
     <tr><td>約 20 秒</td><td>顔の 3 cm 手前で停止し 2 秒保持</td></tr>
     <tr><td>約 26 秒</td><td>手を戻して完了。状態機械が報告へ進む</td></tr>
   </table></div>
@@ -237,11 +237,11 @@ const T_ARM = 0.485, T_SHOULDER = 0.332, TOL = 0.015;
   <h2>データ</h2>
   <div class="tbl"><table>
     <tr><th>行</th><th>件数</th><th>主な内容</th></tr>
-    <tr><td>試行行</td><td>4</td><td>条件、評定、操作チェック、種類・部位、手–頭距離、頭部軌跡（10 Hz）、時刻</td></tr>
+    <tr><td>試行行</td><td>4</td><td>条件、評定、操作チェック、種類・部位、手–頭距離、後退指標、NPC の手の経路の復元に使う値、時刻</td></tr>
     <tr><td>セットアップ行</td><td>2</td><td>アバターの腕長・肩幅・頭の高さ、切替時間、やり直し回数</td></tr>
     <tr><td>デバイスチェック行</td><td>1</td><td>合格までの時間、救済ボタン使用の有無</td></tr>
   </table></div>
-  <p>合計 7 行、30–40 KB の見込みで、上限 100 KB に収まります。後退距離・振動振幅などの運動指標は、頭部軌跡から分析時に算出します。</p>
+  <p>合計 7 行、10 KB 前後で、上限 100 KB に十分収まります（当初は頭部軌跡を含めて 30–40 KB の見込みでしたが、実測で 100 KB を超えたため 2026-11-09 に軌跡を廃止）。後退距離・振動振幅などの運動指標は、ルームログの頭部姿勢から分析時に算出します。世界内で計算した値は、ルームログが使えないときの代わりです。</p>
 </section>
 
 <section id="pitfalls">
