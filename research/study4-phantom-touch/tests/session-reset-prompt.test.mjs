@@ -15,8 +15,8 @@ const UPLOADER_JS = path.join(LUIDA_SCRIPTS, "CustomDataCollection/CustomDataUpl
 const UPLOADER_SUFFIX_JS = path.join(LUIDA_SCRIPTS, "CustomDataCollection/CustomDataUploaderSuffix.js");
 
 const plain = (v) => JSON.parse(JSON.stringify(v));   // values from the vm realm
-const ASK = "中断または終了したセッションに入ったようです。\n「OK」を押すと、実験を最初から始めます。\n" +
-            "It seems you have entered a session that\nwas interrupted or has ended.\nPress OK to restart the experiment\nfrom the beginning.";
+const ASK = "中断または終了したセッションに入ったようです。\n「OK」を押して実験を最初から始めてください。\n" +
+            "It seems you have entered a session that\nwas interrupted or has ended.\nPlease press OK to start the experiment\nfrom the beginning.";
 const ASK_RESUME = "中断したセッションに戻ってきたようです。\n「OK」で最初から、「続きから」で再開します。\n" +
                    "You seem to have returned to an\ninterrupted session.\nPress OK to start over,\nor Resume to continue.";
 const BUSY = "初期化しています。しばらくお待ちください…\nResetting the experiment, please wait…";

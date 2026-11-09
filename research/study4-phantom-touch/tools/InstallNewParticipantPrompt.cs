@@ -3,16 +3,21 @@
 // See session-reset-prompt-plan.md section 3.2. Safe to run again (it also renames the former "Yes" button).
 //
 //   ParticipantManager.prefab
-//     NewParticipantPrompt (inactive)            red panel 0.4 x 0.28 m: background quad, TextView (white, 0.015),
-//                                                "OK" (orange button, the collider of this item) centred below the text
+//     NewParticipantPrompt (inactive)            red panel 0.7 x 0.4 m centred at y +0.03: background quad, TextView
+//                                                (white, 0.015, y +0.075), "OK" (orange button 0.14 x 0.05 m at y -0.1,
+//                                                the collider of this item) centred below the text
 //     GlobalLogic x5 on exp_sessionReset         state_exited, state_currentID = 0, exp_trialID = 0,
 //                                                exp_readyToLeaveTrials = false, exp_arePlayersEnough = false
 //   LUIDA-ExpManagers.prefab
 //     NewParticipantPromptNo (Item + MovableItem + ScriptableItem NewParticipantPromptNo.js, Body inactive):
-//                                                "続きから / Resume" button, parked under the panel's preview pose
+//                                                "続きから / Resume" button 0.3 x 0.05 m under "OK" plus a 0.7 x 0.05 m
+//                                                strip of the panel colour that extends the panel downward while shown,
+//                                                parked under the panel's preview pose
 //     ParticipantManager instance: world item reference "NewParticipantPromptNo"
 //   Materials NewParticipantPromptPanel / NewParticipantPromptButton next to the WaitingMessage material.
-// The ParticipantManager.js constants (NR_DIST 0.5 m, NR_NO_OFFSET (0, -0.105, -0.01)) match this layout.
+// The layout is the one the user set as overrides in LUIDA-ExpManagers on 2026-11-09 (now also the
+// ParticipantManager prefab's own values). The ParticipantManager.js constants (NR_DIST 0.5 m, NR_NO_OFFSET
+// (0, -0.165, -0.01), NR_TEXT_ASK) match it.
 var sb = new System.Text.StringBuilder();
 const string PM_PATH = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/ParticipantManager.prefab";
 const string EM_PATH = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/LUIDA-ExpManagers.prefab";
@@ -20,12 +25,16 @@ const string NO_JS = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Script
 const string TEMPLATE = "ClusterMetaverseLab/LuidaExpTemplate/FakeGimmickSources/ResetGlobalBool";
 const string SIGNAL = "exp_sessionReset";
 const string FALLBACK_MAT_DIR = "Assets/ClusterMetaverseLab/LuidaExpTemplate/Runtime/Prefabs/Materials";
-const string ASK = "中断または終了したセッションに入ったようです。\n「OK」を押すと、実験を最初から始めます。\nIt seems you have entered a session that\nwas interrupted or has ended.\nPress OK to restart the experiment\nfrom the beginning.";
-var PANEL_SIZE = new Vector3(0.4f, 0.28f, 1f);
-var BUTTON_SIZE = new Vector2(0.14f, 0.05f);
-var TEXT_POS = new Vector3(0f, 0.05f, -0.01f);
-var OK_POS = new Vector3(0f, -0.045f, -0.005f);
-var NO_OFFSET = new Vector3(0f, -0.105f, -0.01f);
+const string ASK = "中断または終了したセッションに入ったようです。\n「OK」を押して実験を最初から始めてください。\nIt seems you have entered a session that\nwas interrupted or has ended.\nPlease press OK to start the experiment\nfrom the beginning.";
+var PANEL_SIZE = new Vector3(0.7f, 0.4f, 1f);
+var BACK_POS = new Vector3(0f, 0.03f, 0f);
+var TEXT_POS = new Vector3(0f, 0.075f, -0.01f);
+var OK_POS = new Vector3(0f, -0.1f, -0.005f);
+var OK_SIZE = new Vector2(0.14f, 0.05f);
+var NO_SIZE = new Vector2(0.3f, 0.05f);
+var NO_OFFSET = new Vector3(0f, -0.165f, -0.01f);
+var STRIP_SIZE = new Vector3(0.7f, 0.05f, 1f);
+var STRIP_POS = new Vector3(0f, -0.03f, 0.01f);   // in "Body": on the panel plane, top edge on the panel's bottom edge (y -0.17)
 var PANEL_PREVIEW_POS = new Vector3(0f, 1.4f, 1.2f);   // parked / preview pose in the ParticipantManager's frame
 var PANEL_COLOR = new Color(0.72f, 0.11f, 0.11f, 1f);   // attention red
 var BUTTON_COLOR = new Color(1f, 0.62f, 0.05f, 1f);     // orange
@@ -92,7 +101,7 @@ System.Action<GameObject, ClusterVR.CreatorKit.World.Implements.TextView.TextVie
     go.transform.localScale = Vector3.one;
 };
 // Button: an unscaled GameObject with the collider, a scaled quad and a label (keeps the label unscaled).
-System.Action<GameObject, Material, ClusterVR.CreatorKit.World.Implements.TextView.TextView, string, float, Vector3> Button = (go, mat, src, label, labelSize, localPos) =>
+System.Action<GameObject, Material, ClusterVR.CreatorKit.World.Implements.TextView.TextView, string, float, Vector3, Vector2> Button = (go, mat, src, label, labelSize, localPos, size) =>
 {
     go.transform.localPosition = localPos;
     go.transform.localRotation = Quaternion.identity;
@@ -100,8 +109,8 @@ System.Action<GameObject, Material, ClusterVR.CreatorKit.World.Implements.TextVi
     var bc = (BoxCollider)Ensure(go, typeof(BoxCollider));
     bc.isTrigger = false;
     bc.center = Vector3.zero;
-    bc.size = new Vector3(BUTTON_SIZE.x, BUTTON_SIZE.y, 0.02f);
-    Quad(Child(go, "Quad"), mat, new Vector3(BUTTON_SIZE.x, BUTTON_SIZE.y, 1f));
+    bc.size = new Vector3(size.x, size.y, 0.02f);
+    Quad(Child(go, "Quad"), mat, new Vector3(size.x, size.y, 1f));
     Text(Child(go, "Text"), src, label, labelSize, Color.black, new Vector3(0f, 0f, -0.01f));
 };
 System.Action<ClusterVR.CreatorKit.Item.Implements.WorldItemReferenceList, string, ClusterVR.CreatorKit.Item.Implements.Item> SetWorldItemReference = (list, id, target) =>
@@ -146,11 +155,13 @@ try
     panel.transform.localPosition = PANEL_PREVIEW_POS;
     panel.transform.localRotation = Quaternion.identity;
     panel.transform.localScale = Vector3.one;
-    Quad(Child(panel, "NewParticipantPromptBack"), panelMat, PANEL_SIZE);
+    var back = Child(panel, "NewParticipantPromptBack");
+    Quad(back, panelMat, PANEL_SIZE);
+    back.transform.localPosition = BACK_POS;
     Text(Child(panel, "NewParticipantPromptText"), srcText, ASK, 0.015f, Color.white, TEXT_POS);
     var oldYes = panel.transform.Find("NewParticipantPromptYes");
     if (oldYes != null) oldYes.name = "NewParticipantPromptOk";
-    Button(Child(panel, "NewParticipantPromptOk"), buttonMat, srcText, "OK", 0.02f, OK_POS);
+    Button(Child(panel, "NewParticipantPromptOk"), buttonMat, srcText, "OK", 0.02f, OK_POS, OK_SIZE);
     panel.SetActive(false);
 
     foreach (var gl in pmRoot.GetComponents<ClusterVR.CreatorKit.Operation.Implements.GlobalLogic>())
@@ -217,7 +228,11 @@ try
     siSo.FindProperty("sourceCodeAsset").objectReferenceValue = noJs;
     siSo.ApplyModifiedPropertiesWithoutUndo();
     var body = Child(noGo, "Body");
-    Button(body, buttonMat, srcText2, "続きから / Resume", 0.016f, Vector3.zero);
+    Button(body, buttonMat, srcText2, "続きから / Resume", 0.016f, Vector3.zero, NO_SIZE);
+    var strip = Child(body, "Back");
+    Quad(strip, panelMat, STRIP_SIZE);
+    strip.transform.localPosition = STRIP_POS;
+    strip.transform.SetSiblingIndex(0);
     body.SetActive(false);
 
     SetWorldItemReference(refList, "NewParticipantPromptNo", noItem);

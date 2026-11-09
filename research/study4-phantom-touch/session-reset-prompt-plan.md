@@ -270,20 +270,22 @@ if ($.state.boundSessionID !== $.groupState.sessionID) {
 ### 3.2 `ParticipantManager.prefab` — 確認パネルと GlobalLogic ×5
 
 （2026-11-09 改訂: ユーザの要望でパネルを 0.5 m 先に近づけて小さくし、赤い背景・白い文字、文言を「中断または終了したセッションに入ったようです。「OK」を押すと、実験を最初から始めます。」＋英文、ボタンは中央の「OK」に。「続きから / Resume」はその下。）
+（2026-11-09 再改訂: ユーザが LUIDA-ExpManagers のオーバーライドで決めた値を正にした。パネル 0.7 × 0.4（中心 y +0.03）、文字 y +0.075、「OK」y −0.1、文言「「OK」を押して実験を最初から始めてください。」＋英文。「続きから」が「OK」と重なったので (0, −0.165, −0.01) に下げ、0.3 × 0.05 に広げ、パネル色の帯 0.7 × 0.05 を付けた。下の図はこの値。）
 
 ```
 ParticipantManager（Item）
  ├ WaitingMessage, WorldGateToLuidaBar（既存）
  └ NewParticipantPrompt                 ← 新規。初期状態は非アクティブ。ローカル (0, 1.4, 1.2) に置いておく（駐車位置 = エディタでの見た目確認位置）
-    ├ NewParticipantPromptBack            ← Quad 0.4 × 0.28、マテリアル NewParticipantPromptPanel（赤）
-    ├ NewParticipantPromptText            ← CCK TextView（WaitingMessage/Text の設定を複製、白、size 0.015）、ローカル (0, 0.05, −0.01)、文字列は NR_TEXT_ASK
-    └ NewParticipantPromptOk              ← ローカル (0, −0.045, −0.005)、BoxCollider（非トリガー、0.14 × 0.05 × 0.02）
+    ├ NewParticipantPromptBack            ← Quad 0.7 × 0.4、ローカル (0, 0.03, 0)、マテリアル NewParticipantPromptPanel（赤）
+    ├ NewParticipantPromptText            ← CCK TextView（WaitingMessage/Text の設定を複製、白、size 0.015）、ローカル (0, 0.075, −0.01)、文字列は NR_TEXT_ASK
+    └ NewParticipantPromptOk              ← ローカル (0, −0.1, −0.005)、BoxCollider（非トリガー、0.14 × 0.05 × 0.02）
        ├ Quad 0.14 × 0.05（マテリアル NewParticipantPromptButton、オレンジ）
        └ Text                             ← TextView「OK」（黒、size 0.02）
  + GlobalLogic ×5（トリガ: Item キー exp_sessionReset）: state_exited(signal), state_currentID = 0, exp_trialID = 0,
    exp_readyToLeaveTrials = false, exp_arePlayersEnough = false（旧 SessionReset と同じ 5 個。builder の AddGlobalWrite と同じ作り方）
 LUIDA-ExpManagers
- └ NewParticipantPromptNo（Item + MovableItem + ScriptableItem）← 「続きから / Resume」。PM がパネルの (0, −0.105, −0.01) に置く
+ └ NewParticipantPromptNo（Item + MovableItem + ScriptableItem）← 「続きから / Resume」。PM がパネルの (0, −0.165, −0.01) に置く
+    └ Body                                ← BoxCollider 0.3 × 0.05 × 0.02。Back（パネル色の帯 0.7 × 0.05、ローカル (0, −0.03, 0.01)）、Quad 0.3 × 0.05、Text
 ```
 - 組み込みは **エディタで 1 回だけ実行するスクリプト**（`PrefabUtility.LoadPrefabContents` → ノードと GlobalLogic を足す → `SaveAsPrefabAsset`。冪等。`Assets/Resources/ClusterMetaverseLab/LuidaExpTemplate/FakeGimmickSources/ResetGlobalBool.prefab` と `LuidaFakeGimmick.PatchStatementAt*` を使う）。Unity MCP の `execute_code` で流し、スクリプト本体は記録として `research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs` に置く。LUIDA の Editor メニューにはしない（判断 §7-d）。
 - サブノード名はアイテム内で一意にする（`$.subNode` は名前で探す。`Text` は WaitingMessage にもある）。
