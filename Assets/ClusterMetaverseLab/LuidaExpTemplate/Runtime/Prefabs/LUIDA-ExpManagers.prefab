@@ -802,6 +802,28 @@ PrefabInstance:
       propertyPath: playerLocalObjectReferences.Array.data[0].targetObject
       value: 
       objectReference: {fileID: 7045208590533207111}
+    - target: {fileID: 1100467477985630895, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1100467477985630895, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1100467477985630895, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.03
+      objectReference: {fileID: 0}
+    - target: {fileID: 1991786752229540810, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: text
+      value: "\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\n\u300COK\u300D\u3092\u62BC\u3057\u3066\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u3066\u304F\u3060\u3055\u3044\u3002\nIt
+        seems you have entered a session that\nwas interrupted or has ended.\nPlease
+        press OK to start the experiment\nfrom the beginning."
+      objectReference: {fileID: 0}
     - target: {fileID: 2089283526597471262, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
         type: 3}
       propertyPath: sourceCode
@@ -854,6 +876,11 @@ PrefabInstance:
         // _.log(`OSC message sent to ${address} with ${oscValues.length} value(s).`);\r\n\r\n   
         } catch (e) {\r\n        _.log(`Error sending OSC message: ${e.message}`);\r\n   
         }\r\n}\r\n"
+      objectReference: {fileID: 0}
+    - target: {fileID: 2156336702275513962, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.1
       objectReference: {fileID: 0}
     - target: {fileID: 3933797981565559285, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
         type: 3}
@@ -1168,10 +1195,20 @@ PrefabInstance:
         only collider of this item)\n  if (($.state.nr_phase || \"idle\") !== \"asking\"
         || !$.state.nr_shown) return;\n  nr_startReset(player);\n});\n"
       objectReference: {fileID: 0}
+    - target: {fileID: 5509263874720313408, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.075
+      objectReference: {fileID: 0}
     - target: {fileID: 7807161544533224870, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
         type: 3}
       propertyPath: m_Name
       value: ParticipantManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 7977800261010795904, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
