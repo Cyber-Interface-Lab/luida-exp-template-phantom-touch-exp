@@ -212,7 +212,7 @@ $.onReceive((messageType, arg, sender) => {
             if (arg && arg.token && arg.token === $.state.nr_token) $.state.nr_cmAck = arg.token;
             break;
         case "luida_prompt_no":
-            // "いいえ" on the new-participant prompt (NewParticipantPromptNo item): the player says they are the
+            // "続きから" on the new-participant prompt (NewParticipantPromptNo item): the player says they are the
             // participant who left; put them back into their slot instead of resetting.
             if (($.state.nr_phase || "idle") === "asking" && $.state.nr_shown && arg && arg.player) nr_resume(arg.player);
             break;
@@ -314,41 +314,46 @@ $.onExternalCallEnd((res, meta, err) => {
 // Once a session is in use (isParticipantsEnough is true: running or finished), this item looks once a second
 // for players who are not enrolled while none of the enrolled participants is still here (they finished and
 // left, or left in the middle; scripts only run while someone is in the space, so this happens when the next
-// player joins). Such a player is asked, on a panel placed in front of them, whether they are a new participant.
-//   "はい"   (sub-node NewParticipantPromptYes, a collider of this item, $.onInteract): reset the globals (signal
-//            exp_sessionReset -> GlobalLogics on this prefab) and ConditionManager, confirm both, then this item
-//            (initSession), after which enrollment resumes exactly as at space start.
-//   "いいえ" (item NewParticipantPromptNo, shown only when the player uses the account of an enrolled participant
-//            who left): the player is put back into their participant slot and the session goes on.
+// player joins). Such a player sees a small red panel close in front of them: "you seem to have entered a session
+// that was interrupted or has ended; OK starts the experiment from the beginning".
+//   "OK"      (sub-node NewParticipantPromptOk, the only collider of this item, $.onInteract): reset the globals
+//             (signal exp_sessionReset -> GlobalLogics on this prefab) and ConditionManager, confirm both, then this
+//             item (initSession), after which enrollment resumes exactly as at space start.
+//   "続きから" (item NewParticipantPromptNo, shown under "OK" only when the player uses the account of an enrolled
+//             participant who left): the player is put back into their participant slot and the session goes on.
 // Nothing is reset before an answer. Each reset step is confirmed and never advances on a timeout; after
 // NR_ALERT_SEC without confirmation the panel shows an error (and keeps retrying). Worlds whose
 // ParticipantManager prefab has no NewParticipantPrompt sub-node never show the prompt and never reset.
+// Panel layout (research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs): 0.4 x 0.28 m, text centred at
+// y = +0.05, "OK" at y = -0.045, "続きから" at y = -0.105; text size 0.015 (about 24 Japanese characters per line).
 const NR_POLL_SEC = 1;
 const NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel shown (lets End's upload be issued under the old sessionID; lets the avatar settle)
 const NR_RESEND_SEC = 2;           // re-send unconfirmed reset requests (the handlers are idempotent per token)
 const NR_ALERT_SEC = 15;
-const NR_DIST = 1.2;               // panel distance in front of the player [m]
+const NR_DIST = 0.5;               // panel distance in front of the player [m] (close, so the panel and its text are small)
 const NR_HEIGHT = 1.4;             // panel height when the head bone cannot be read [m]
-const NR_REPLACE_DIST = 2;         // the player walked this far from where they were asked: place the panel again
+const NR_REPLACE_DIST = 1;         // the player walked this far from where they were asked: place the panel again
 const NR_NODE = "NewParticipantPrompt";
 const NR_TEXT = "NewParticipantPromptText";
-const NR_YES = "NewParticipantPromptYes";
+const NR_OK = "NewParticipantPromptOk";
 const NR_NO_ITEM = "NewParticipantPromptNo";                 // world item reference (LUIDA-ExpManagers prefab)
-const NR_NO_OFFSET = new Vector3(0.2, -0.15, -0.01);         // "いいえ" relative to the panel (the "はい" sub-node sits at x = -0.2)
-const NR_TEXT_ASK = "あなたは新しく入った参加者ですか？\n新しい参加者の方は「はい」を押してください。";
-const NR_TEXT_ASK_RESUME = "あなたは新しく入った参加者ですか？\n新しい参加者なら「はい」、\nさっきの続きなら「いいえ」を押してください。";
-const NR_TEXT_BUSY = "初期化しています。\nしばらくお待ちください…";
-const NR_TEXT_ERROR = "エラー：実験の初期化に失敗しました。\n実験者にご連絡ください。";
+const NR_NO_OFFSET = new Vector3(0, -0.105, -0.01);          // "続きから" relative to the panel, under "OK"
+const NR_TEXT_ASK = "中断または終了したセッションに入ったようです。\n「OK」を押すと、実験を最初から始めます。\n" +
+                    "It seems you have entered a session that\nwas interrupted or has ended.\nPress OK to restart the experiment\nfrom the beginning.";
+const NR_TEXT_ASK_RESUME = "中断したセッションに戻ってきたようです。\n「OK」で最初から、「続きから」で続きを再開します。\n" +
+                           "You seem to have returned to an\ninterrupted session.\nPress OK to start over,\nor Resume to continue.";
+const NR_TEXT_BUSY = "初期化しています。しばらくお待ちください…\nResetting the experiment, please wait…";
+const NR_TEXT_ERROR = "エラー：実験の初期化に失敗しました。\n実験者にご連絡ください。\nError: the reset failed.\nPlease contact the experimenter.";
 
 function nr_node(name) { try { return $.subNode(name); } catch (e) { return null; } }
 function nr_noItem() { try { return $.worldItemReference(NR_NO_ITEM); } catch (e) { return null; } }
 function nr_phase(p) { $.state.nr_phase = p; $.state.nr_phaseSec = 0; $.state.nr_lastSend = -1e9; }
 
-function nr_show(text, withYes, withNo) {
+function nr_show(text, withOk, withNo) {
   const panel = nr_node(NR_NODE);
   if (!panel) return;
   const t = nr_node(NR_TEXT); if (t) t.setText(text);
-  const y = nr_node(NR_YES); if (y) y.setEnabled(withYes);
+  const ok = nr_node(NR_OK); if (ok) ok.setEnabled(withOk);
   panel.setEnabled(true);
   const no = nr_noItem(); if (no) no.send(withNo ? "luida_prompt_show" : "luida_prompt_hide", {});
   $.state.nr_shown = true;
@@ -509,7 +514,7 @@ function nr_tick(dt) {
   }
 }
 
-$.onInteract((player) => {   // "はい" (the only collider of this item)
+$.onInteract((player) => {   // "OK" (the only collider of this item)
   if (($.state.nr_phase || "idle") !== "asking" || !$.state.nr_shown) return;
   nr_startReset(player);
 });
