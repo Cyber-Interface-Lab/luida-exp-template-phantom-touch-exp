@@ -1161,27 +1161,28 @@ PrefabInstance:
         and never advances on a timeout; after\n// NR_ALERT_SEC without confirmation
         the panel shows an error (and keeps retrying). Worlds whose\n// ParticipantManager
         prefab has no NewParticipantPrompt sub-node never show the prompt and never
-        reset.\n// Panel layout in LUIDA-ExpManagers (overrides on the ParticipantManager
-        prefab): 0.7 x 0.4 m centred at y = +0.03,\n// text at y = +0.075 (size 0.015,
-        about 24 Japanese characters per line), \"OK\" at y = -0.1. \"\u7D9A\u304D\u304B\u3089\"
-        (0.3 x 0.05 m)\n// sits at NR_NO_OFFSET under \"OK\" and carries a 0.7 x
-        0.05 m strip of the panel colour that extends the panel\n// downward while
-        it is shown.\nconst NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC = 3;    
-        // first seen -> panel shown (lets End's upload be issued under the old sessionID;
-        lets the avatar settle)\nconst NR_RESEND_SEC = 2;           // re-send unconfirmed
-        reset requests (the handlers are idempotent per token)\nconst NR_ALERT_SEC
-        = 15;\nconst NR_DIST = 0.5;               // panel distance in front of the
-        player [m] (close, so the panel and its text are small)\nconst NR_HEIGHT
-        = 1.4;             // panel height when the head bone cannot be read [m]\nconst
-        NR_REPLACE_DIST = 1;         // the player walked this far from where they
-        were asked: place the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst
+        reset.\n// Panel layout (ParticipantManager prefab; LUIDA-ExpManagers overrides
+        the same values): 0.7 x 0.4 m centred at\n// y = +0.03, text at y = +0.075
+        (size 0.015, about 24 Japanese characters per line), \"OK\" at y = -0.1.
+        \"\u7D9A\u304D\u304B\u3089\"\n// (0.3 x 0.05 m) sits at NR_NO_OFFSET under
+        \"OK\" and carries a 0.7 x 0.05 m strip of the panel colour that extends\n//
+        the panel downward while it is shown. NR_NO_OFFSET and the strip must follow
+        any change of the panel or \"OK\".\nconst NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC
+        = 3;     // first seen -> panel shown (lets End's upload be issued under
+        the old sessionID; lets the avatar settle)\nconst NR_RESEND_SEC = 2;          
+        // re-send unconfirmed reset requests (the handlers are idempotent per token)\nconst
+        NR_ALERT_SEC = 15;\nconst NR_DIST = 0.5;               // panel distance
+        in front of the player [m] (close, so the panel and its text are small)\nconst
+        NR_HEIGHT = 1.4;             // panel height when the head bone cannot be
+        read [m]\nconst NR_REPLACE_DIST = 1;         // the player walked this far
+        from where they were asked: place the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst
         NR_TEXT = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
         NR_NO_ITEM = \"NewParticipantPromptNo\";                 // world item reference
         (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.165, -0.01);         
         // \"\u7D9A\u304D\u304B\u3089\" relative to the panel, under \"OK\"\nconst
-        NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3059\u3068\u3001\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u307E\u3059\u3002\\n\"
+        NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3057\u3066\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u3066\u304F\u3060\u3055\u3044\u3002\\n\"
         +\n                    \"It seems you have entered a session that\\nwas interrupted
-        or has ended.\\nPress OK to restart the experiment\\nfrom the beginning.\";\nconst
+        or has ended.\\nPlease press OK to start the experiment\\nfrom the beginning.\";\nconst
         NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
         +\n                           \"You seem to have returned to an\\ninterrupted
         session.\\nPress OK to start over,\\nor Resume to continue.\";\nconst NR_TEXT_BUSY

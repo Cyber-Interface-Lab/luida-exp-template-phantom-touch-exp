@@ -324,10 +324,10 @@ $.onExternalCallEnd((res, meta, err) => {
 // Nothing is reset before an answer. Each reset step is confirmed and never advances on a timeout; after
 // NR_ALERT_SEC without confirmation the panel shows an error (and keeps retrying). Worlds whose
 // ParticipantManager prefab has no NewParticipantPrompt sub-node never show the prompt and never reset.
-// Panel layout in LUIDA-ExpManagers (overrides on the ParticipantManager prefab): 0.7 x 0.4 m centred at y = +0.03,
-// text at y = +0.075 (size 0.015, about 24 Japanese characters per line), "OK" at y = -0.1. "続きから" (0.3 x 0.05 m)
-// sits at NR_NO_OFFSET under "OK" and carries a 0.7 x 0.05 m strip of the panel colour that extends the panel
-// downward while it is shown.
+// Panel layout (ParticipantManager prefab; LUIDA-ExpManagers overrides the same values): 0.7 x 0.4 m centred at
+// y = +0.03, text at y = +0.075 (size 0.015, about 24 Japanese characters per line), "OK" at y = -0.1. "続きから"
+// (0.3 x 0.05 m) sits at NR_NO_OFFSET under "OK" and carries a 0.7 x 0.05 m strip of the panel colour that extends
+// the panel downward while it is shown. NR_NO_OFFSET and the strip must follow any change of the panel or "OK".
 const NR_POLL_SEC = 1;
 const NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel shown (lets End's upload be issued under the old sessionID; lets the avatar settle)
 const NR_RESEND_SEC = 2;           // re-send unconfirmed reset requests (the handlers are idempotent per token)
@@ -340,8 +340,8 @@ const NR_TEXT = "NewParticipantPromptText";
 const NR_OK = "NewParticipantPromptOk";
 const NR_NO_ITEM = "NewParticipantPromptNo";                 // world item reference (LUIDA-ExpManagers prefab)
 const NR_NO_OFFSET = new Vector3(0, -0.165, -0.01);          // "続きから" relative to the panel, under "OK"
-const NR_TEXT_ASK = "中断または終了したセッションに入ったようです。\n「OK」を押すと、実験を最初から始めます。\n" +
-                    "It seems you have entered a session that\nwas interrupted or has ended.\nPress OK to restart the experiment\nfrom the beginning.";
+const NR_TEXT_ASK = "中断または終了したセッションに入ったようです。\n「OK」を押して実験を最初から始めてください。\n" +
+                    "It seems you have entered a session that\nwas interrupted or has ended.\nPlease press OK to start the experiment\nfrom the beginning.";
 const NR_TEXT_ASK_RESUME = "中断したセッションに戻ってきたようです。\n「OK」で最初から、「続きから」で再開します。\n" +
                            "You seem to have returned to an\ninterrupted session.\nPress OK to start over,\nor Resume to continue.";
 const NR_TEXT_BUSY = "初期化しています。しばらくお待ちください…\nResetting the experiment, please wait…";
