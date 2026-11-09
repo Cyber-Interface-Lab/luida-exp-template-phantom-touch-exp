@@ -120,7 +120,7 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "if (CONDITION['rep'] === '1') ins_show('front', '30\u79D2\u9593\u3001\u76EE\u306E\u524D\u306E\u30A2\u30D0\u30BF\u30FC\u3092\u898B\u3066\u3001\\n\u624B\u3092\u632F\u3063\u3066\u6328\u62F6\u3057\u3066\u304F\u3060\u3055\u3044\u3002');"
+      customAction: "if (CONDITION['rep'] === '1') ins_show('front', '30\u79D2\u9593\u3001\u76EE\u306E\u524D\u306E\u30A2\u30D0\u30BF\u30FC\u3092\u898B\u306A\u304C\u3089\\n\u6328\u62F6\u3057\u3066\u304F\u3060\u3055\u3044\u3002\\n\uFF08\u4F8B\uFF1A\u624B\u3092\u632F\u308B\u3001\u5C11\u3057\u6A2A\u306B\u52D5\u304F\uFF09');"
       isConditional: 0
       conditionVariable: 
       conditionValue: 

@@ -191,13 +191,13 @@ MonoBehaviour:
     // raise the hand to the ready position (fast, not part of the stimulus)\n  READY_FRAC:
     0.35,        // ready palm point: this fraction of the way from the right shoulder
     to the face\n                           // (the approach then extends the arm
-    along the shoulder->face line)\n  STROKE_AMP: 0.04,        // stroke: the fingers
+    along the shoulder->face line)\n  STROKE_AMP: 0.06,        // stroke: the fingers
     slide down the face by this much (m) at REACH_SPEED, then ...\n  STROKE_BACK:
     0.03,       //   ... pull back this far from the face, rise, touch again and
     stroke down ...\n  STROKE_CYCLES: 3,        //   ... this many times in total
     (0 disables the stroke)\n  STROKE_RETURN_SPEED: 0.04, // speed of the pull-back
     / rise / re-touch legs (m/s)\n  HOLD_SEC: 1.0,           // rest where the last
-    stroke ended\n  RETRACT_SPEED: 0.10,     // m/s\n  STOP_MARGIN: 0.03,       //
+    stroke ended\n  RETRACT_SPEED: 0.10,     // m/s\n  STOP_MARGIN: 0.02,       //
     stop this far before the face surface\n  // Touch target in the participant's
     head frame: the cheek on the side the NPC's right hand comes from.\n  CHEEK_BELOW_EYES:
     0.045, //   height: the eye bones' midpoint minus this ...\n  FACE_UP: 0.02,          

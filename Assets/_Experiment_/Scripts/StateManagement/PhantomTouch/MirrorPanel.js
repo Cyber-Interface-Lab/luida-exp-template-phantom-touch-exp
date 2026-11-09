@@ -10,10 +10,20 @@ const stateEnterActions = {
             $.subNode('MirrorFront').setEnabled(false)
         } }
     ],
+    1: [
+        { type: "exec", action: (deltaTime) => {
+            $.subNode('Mirror').setEnabled(true)
+        } }
+    ],
     2: [
         { type: "exec", action: (deltaTime) => {
             if (CONDITION['rep'] === '1') {
               $.subNode('MirrorFront').setEnabled(true)
+            }
+        } },
+        { type: "exec", action: (deltaTime) => {
+            if (CONDITION['rep'] === '1') {
+              $.subNode('Mirror').setEnabled(false)
             }
         } }
     ],

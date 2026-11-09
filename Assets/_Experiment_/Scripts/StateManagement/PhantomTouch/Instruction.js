@@ -22,7 +22,7 @@ const stateEnterActions = {
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\n手を振って挨拶してください。');
+            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見ながら\n挨拶してください。\n（例：手を振る、少し横に動く）');
         } }
     ],
     4: [

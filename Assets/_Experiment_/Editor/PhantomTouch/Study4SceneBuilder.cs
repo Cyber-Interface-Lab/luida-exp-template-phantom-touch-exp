@@ -76,6 +76,7 @@ public static class Study4SceneBuilder
               S_VEQ = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
     const string PoseStateName = "Trial - PoseCheck";
     const float GreetingSeconds = 30f;
+    const float RestSeconds = 10f;      // pause between trials ("Trial - Rest")
 
     // ------------------------------------------------------------------ entry points
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene")]
@@ -196,6 +197,7 @@ public static class Study4SceneBuilder
             throw new Exception("Open the " + SceneName + " scene first.");
         ApplyLayout(ComputeLayout(), CreateMaterials());
         SetStateExitTime("Trial - Greeting", GreetingSeconds);
+        SetStateExitTime("Trial - Rest", RestSeconds);
         UpdateItemBehaviours();
     }
 
@@ -390,7 +392,7 @@ public static class Study4SceneBuilder
             S("Trial - Touch"),                 // NPC reaches toward the face
             S("Trial - Report"),                // 0-10 rating, manipulation check, type, location
             S("Trial - VEQ", qID: 2),           // VEQ after the 2nd trial of each block (skipped when rep == 1)
-            S("Trial - Rest", hasExit: true, exit: 1f),
+            S("Trial - Rest", hasExit: true, exit: RestSeconds),
             S("SocialPresence", qID: 3),
             S("PersonalExperience", qID: 4),
             S("Debrief"),                       // explanation + "OK" button on the instruction board (no questionnaire)
@@ -638,7 +640,7 @@ return {
     // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
     //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
-    //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photo (right of it)
+    //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photos (right of it) + mirror (front-left)
     //   pose check: front mirror (straight ahead, below the front slot) + device check panel (right)
     //   report: report panel (straight ahead, NPC hidden)
     //   debrief / end: instruction "center" slot (straight ahead) with the OK button below it
@@ -1699,7 +1701,7 @@ return {
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
             Listener(S_POSE, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
-            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見て、\\n手を振って挨拶してください。');"))),
+            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見ながら\\n挨拶してください。\\n（例：手を振る、少し横に動く）');"))),
             Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
@@ -2015,8 +2017,8 @@ function ag_renderText(note) {
   let t;
   if ($.state.ag_step === 1) {
     t = daily
-      ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n終わったら「着替えました」を押してください。'
-      : 'メニューのアバター変更に表示される\n「LUIDA Default Avatar」に着替えてください。\n終わったら「着替えました」を押してください。';
+      ? 'メニューから、普段いちばんよく使うアバターに\n着替えてください。\n左の鏡に着替えたアバターが映るまで待ってから、\n「着替えました」を押してください。'
+      : 'メニューのアバター変更に表示される\n「LUIDA Default Avatar」に着替えてください。\n左の鏡に着替えたアバターが映るまで待ってから、\n「着替えました」を押してください。';
   } else {
     t = daily
       ? 'いま着ているアバターは、\nあなたが普段いちばんよく使うアバターですか？'
@@ -2386,8 +2388,12 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
         {
             // both mirrors hidden at Start (also after a session reset from the middle of a trial)
             Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")))),
-            // pose check (1st trial of each block): the mirror straight ahead
-            Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1")), null,
+            // avatar switch (trial start): the front-left mirror, so the participant sees the new avatar load (the
+            // gate panel is straight ahead). Unconditional: in the 2nd trial of a block it stays on into the greeting.
+            Listener(S_TSTART, L(Act(T_ShowChild, ("childName", "Mirror")))),
+            // pose check (1st trial of each block): the mirror straight ahead instead
+            Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1"),
+                               If(Act(T_HideChild, ("childName", "Mirror")), "rep", "1")), null,
                 L(Act(T_HideChild, ("childName", "MirrorFront")))),
             Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
             Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
