@@ -688,9 +688,9 @@ MonoBehaviour:
     {\n            $.state.participant = null;\n            $.state.isParticipantAssigned
     = false;\n            reopenForm();\n        }\n    }\n\n    // The participant
     left and rejoined with the same account: the ParticipantManager put the new PlayerHandle\n   
-    // into their slot (\"\u3044\u3044\u3048\" on its new-participant prompt). Follow
-    it. A form that was open is closed and\n    // restarted, because its answer
-    options and texts were only visible to the previous join.\n    if ($.state.isParticipantAssigned
+    // into their slot (\"\u7D9A\u304D\u304B\u3089\" on its new-participant prompt).
+    Follow it. A form that was open is closed and\n    // restarted, because its
+    answer options and texts were only visible to the previous join.\n    if ($.state.isParticipantAssigned
     && $.state.participant && !$.state.participant.exists()) {\n        const fresh
     = $.groupState.participants[($.getStateCompat(\"this\", \"pID\", \"integer\")
     - 1) || 0];\n        if (fresh && fresh.exists() && fresh.id !== $.state.participant.id)

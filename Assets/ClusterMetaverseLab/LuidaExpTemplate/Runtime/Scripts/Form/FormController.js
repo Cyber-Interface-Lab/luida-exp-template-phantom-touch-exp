@@ -20,7 +20,7 @@ $.onUpdate((deltaTime) => {
     }
 
     // The participant left and rejoined with the same account: the ParticipantManager put the new PlayerHandle
-    // into their slot ("いいえ" on its new-participant prompt). Follow it. A form that was open is closed and
+    // into their slot ("続きから" on its new-participant prompt). Follow it. A form that was open is closed and
     // restarted, because its answer options and texts were only visible to the previous join.
     if ($.state.isParticipantAssigned && $.state.participant && !$.state.participant.exists()) {
         const fresh = $.groupState.participants[($.getStateCompat("this", "pID", "integer") - 1) || 0];

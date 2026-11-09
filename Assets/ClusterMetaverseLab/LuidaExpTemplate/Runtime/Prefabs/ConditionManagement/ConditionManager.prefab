@@ -258,7 +258,7 @@ MonoBehaviour:
     = arg.participants;\r\n      $.groupState.sessionID = arg.sessionID;\r\n     
     sender.send(\"betweenSubjectsCondition\", $.state.betweenSubjectsConditions);\r\n     
     break;\r\n    case \"luida_rebind_participant\":\r\n      // A participant who
-    left rejoined with the same account (\"\u3044\u3044\u3048\" on the ParticipantManager's\r\n     
+    left rejoined with the same account (\"\u7D9A\u304D\u304B\u3089\" on the ParticipantManager's\r\n     
     // new-participant prompt): the ParticipantManager put the new PlayerHandle into
     their slot; mirror it here.\r\n      if (arg && typeof arg.index === \"number\"
     && arg.player) {\r\n        const ps = ($.groupState.participants || []).slice();\r\n       

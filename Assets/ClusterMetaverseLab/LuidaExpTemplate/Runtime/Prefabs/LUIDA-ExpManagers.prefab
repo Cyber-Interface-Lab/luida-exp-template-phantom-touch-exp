@@ -203,6 +203,95 @@ MonoBehaviour:
   rectTransform: {fileID: 3184581530073325}
   canvas: {fileID: 8046011951741541388}
   sortingOrderType: 0
+--- !u!1 &1706175962635822403
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2254514834031400845}
+  - component: {fileID: 1473800702701608926}
+  - component: {fileID: 7561972722767123084}
+  m_Layer: 0
+  m_Name: Back
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2254514834031400845
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1706175962635822403}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.03, z: 0.01}
+  m_LocalScale: {x: 0.7, y: 0.05, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2621587108977228798}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1473800702701608926
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1706175962635822403}
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &7561972722767123084
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1706175962635822403}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: e43367f5df5e7a24a98088e2a64bb090, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &2189980972655131748
 GameObject:
   m_ObjectHideFlags: 0
@@ -309,7 +398,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.14, y: 0.05, z: 1}
+  m_LocalScale: {x: 0.3, y: 0.05, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2621587108977228798}
@@ -400,6 +489,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 2254514834031400845}
   - {fileID: 1239051471601964891}
   - {fileID: 4771604745399018766}
   m_Father: {fileID: 4223131583097115649}
@@ -423,7 +513,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.14, y: 0.05, z: 0.02}
+  m_Size: {x: 0.3, y: 0.05, z: 0.02}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5775079480882698412
 GameObject:
@@ -568,7 +658,7 @@ Transform:
   m_GameObject: {fileID: 6895221210647069355}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.295, z: -0.80999994}
+  m_LocalPosition: {x: 0, y: 1.235, z: -0.81}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1071,26 +1161,28 @@ PrefabInstance:
         and never advances on a timeout; after\n// NR_ALERT_SEC without confirmation
         the panel shows an error (and keeps retrying). Worlds whose\n// ParticipantManager
         prefab has no NewParticipantPrompt sub-node never show the prompt and never
-        reset.\n// Panel layout (research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs):
-        0.4 x 0.28 m, text centred at\n// y = +0.05, \"OK\" at y = -0.045, \"\u7D9A\u304D\u304B\u3089\"
-        at y = -0.105; text size 0.015 (about 24 Japanese characters per line).\nconst
-        NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel
-        shown (lets End's upload be issued under the old sessionID; lets the avatar
-        settle)\nconst NR_RESEND_SEC = 2;           // re-send unconfirmed reset
-        requests (the handlers are idempotent per token)\nconst NR_ALERT_SEC = 15;\nconst
-        NR_DIST = 0.5;               // panel distance in front of the player [m]
-        (close, so the panel and its text are small)\nconst NR_HEIGHT = 1.4;            
-        // panel height when the head bone cannot be read [m]\nconst NR_REPLACE_DIST
-        = 1;         // the player walked this far from where they were asked: place
-        the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst NR_TEXT
-        = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
+        reset.\n// Panel layout in LUIDA-ExpManagers (overrides on the ParticipantManager
+        prefab): 0.7 x 0.4 m centred at y = +0.03,\n// text at y = +0.075 (size 0.015,
+        about 24 Japanese characters per line), \"OK\" at y = -0.1. \"\u7D9A\u304D\u304B\u3089\"
+        (0.3 x 0.05 m)\n// sits at NR_NO_OFFSET under \"OK\" and carries a 0.7 x
+        0.05 m strip of the panel colour that extends the panel\n// downward while
+        it is shown.\nconst NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC = 3;    
+        // first seen -> panel shown (lets End's upload be issued under the old sessionID;
+        lets the avatar settle)\nconst NR_RESEND_SEC = 2;           // re-send unconfirmed
+        reset requests (the handlers are idempotent per token)\nconst NR_ALERT_SEC
+        = 15;\nconst NR_DIST = 0.5;               // panel distance in front of the
+        player [m] (close, so the panel and its text are small)\nconst NR_HEIGHT
+        = 1.4;             // panel height when the head bone cannot be read [m]\nconst
+        NR_REPLACE_DIST = 1;         // the player walked this far from where they
+        were asked: place the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst
+        NR_TEXT = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
         NR_NO_ITEM = \"NewParticipantPromptNo\";                 // world item reference
-        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.105, -0.01);         
+        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.165, -0.01);         
         // \"\u7D9A\u304D\u304B\u3089\" relative to the panel, under \"OK\"\nconst
         NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3059\u3068\u3001\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u307E\u3059\u3002\\n\"
         +\n                    \"It seems you have entered a session that\\nwas interrupted
         or has ended.\\nPress OK to restart the experiment\\nfrom the beginning.\";\nconst
-        NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u7D9A\u304D\u3092\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
+        NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
         +\n                           \"You seem to have returned to an\\ninterrupted
         session.\\nPress OK to start over,\\nor Resume to continue.\";\nconst NR_TEXT_BUSY
         = \"\u521D\u671F\u5316\u3057\u3066\u3044\u307E\u3059\u3002\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026\\nResetting
@@ -1108,13 +1200,13 @@ PrefabInstance:
         if (panel) panel.setEnabled(false);\n  const no = nr_noItem(); if (no) no.send(\"luida_prompt_hide\",
         {});\n  $.state.nr_shown = false;\n  $.state.nr_placed = false;\n  $.state.nr_for
         = null;\n}\n\n// Puts the (hidden) panel NR_DIST in front of the player at
-        head height, facing them, and parks the \"\u3044\u3044\u3048\"\n// item next
-        to it. Sub-node positions are item-local; the \"\u3044\u3044\u3048\" item
-        is a separate movable item (world pose).\nfunction nr_place(player) {\n 
-        const panel = nr_node(NR_NODE);\n  if (!panel) return false;\n  const pPos
-        = player.getPosition(), pRot = player.getRotation();\n  if (!pPos || !pRot)
-        return false;\n  let h = NR_HEIGHT;\n  if (!isTestMode) {   // the editor
-        emulator may throw on bone reads; on Cluster a missing bone is null\n   
+        head height, facing them, and parks the \"\u7D9A\u304D\u304B\u3089\"\n//
+        item next to it. Sub-node positions are item-local; the \"\u7D9A\u304D\u304B\u3089\"
+        item is a separate movable item (world pose).\nfunction nr_place(player)
+        {\n  const panel = nr_node(NR_NODE);\n  if (!panel) return false;\n  const
+        pPos = player.getPosition(), pRot = player.getRotation();\n  if (!pPos ||
+        !pRot) return false;\n  let h = NR_HEIGHT;\n  if (!isTestMode) {   // the
+        editor emulator may throw on bone reads; on Cluster a missing bone is null\n   
         try { const head = player.getHumanoidBonePosition(HumanoidBone.Head); if
         (head) h = Math.min(1.8, Math.max(0.9, head.y - pPos.y)); } catch (e) {}\n 
         }\n  let fwd = new Vector3(0, 0, 1).applyQuaternion(pRot); fwd.y = 0;\n 
@@ -1153,7 +1245,7 @@ PrefabInstance:
         // retried at the next poll\n    nr_show(NR_TEXT_ERROR, false, false);\n   
         return;\n  }\n  $.log(\"LUIDA session reset: new sID=\" + $.groupState.sessionID);\n 
         nr_hide();\n  nr_phase(\"idle\");\n}\n\nfunction nr_resume(player) {\n  const
-        i = nr_resumeIndex(player);\n  if (i < 0) {\n    $.log(\"[PM] '\u3044\u3044\u3048'
+        i = nr_resumeIndex(player);\n  if (i < 0) {\n    $.log(\"[PM] '\u7D9A\u304D\u304B\u3089'
         pressed by a player who cannot resume; prompt closed\");\n    nr_hide();
         nr_phase(\"idle\");\n    return;\n  }\n  const ps = $.groupState.participants.slice();\n 
         ps[i] = player;\n  $.groupState.participants = ps;\n  $.setPlayerScript(player);\n 

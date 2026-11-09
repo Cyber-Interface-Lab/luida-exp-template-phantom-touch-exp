@@ -1,4 +1,4 @@
-// "いいえ" button of the ParticipantManager's new-participant prompt (see ParticipantManager.js, nr_*).
+// "続きから" button of the ParticipantManager's new-participant prompt (see ParticipantManager.js, nr_*).
 // The ParticipantManager moves this item next to its panel while hidden ("luida_prompt_place"), shows it only
 // when the player in front of it can resume (same account as an enrolled participant who left) and hides it
 // with the panel. Pressing it reports the player to the ParticipantManager, which puts them back into their

@@ -60,7 +60,7 @@ $.onReceive((messageType, arg, sender) => {
       sender.send("betweenSubjectsCondition", $.state.betweenSubjectsConditions);
       break;
     case "luida_rebind_participant":
-      // A participant who left rejoined with the same account ("いいえ" on the ParticipantManager's
+      // A participant who left rejoined with the same account ("続きから" on the ParticipantManager's
       // new-participant prompt): the ParticipantManager put the new PlayerHandle into their slot; mirror it here.
       if (arg && typeof arg.index === "number" && arg.player) {
         const ps = ($.groupState.participants || []).slice();
