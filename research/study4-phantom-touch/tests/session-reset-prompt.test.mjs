@@ -15,10 +15,12 @@ const UPLOADER_JS = path.join(LUIDA_SCRIPTS, "CustomDataCollection/CustomDataUpl
 const UPLOADER_SUFFIX_JS = path.join(LUIDA_SCRIPTS, "CustomDataCollection/CustomDataUploaderSuffix.js");
 
 const plain = (v) => JSON.parse(JSON.stringify(v));   // values from the vm realm
-const ASK = "あなたは新しく入った参加者ですか？\n新しい参加者の方は「はい」を押してください。";
-const ASK_RESUME = "あなたは新しく入った参加者ですか？\n新しい参加者なら「はい」、\nさっきの続きなら「いいえ」を押してください。";
-const BUSY = "初期化しています。\nしばらくお待ちください…";
-const ERROR = "エラー：実験の初期化に失敗しました。\n実験者にご連絡ください。";
+const ASK = "中断または終了したセッションに入ったようです。\n「OK」を押すと、実験を最初から始めます。\n" +
+            "It seems you have entered a session that\nwas interrupted or has ended.\nPress OK to restart the experiment\nfrom the beginning.";
+const ASK_RESUME = "中断したセッションに戻ってきたようです。\n「OK」で最初から、「続きから」で続きを再開します。\n" +
+                   "You seem to have returned to an\ninterrupted session.\nPress OK to start over,\nor Resume to continue.";
+const BUSY = "初期化しています。しばらくお待ちください…\nResetting the experiment, please wait…";
+const ERROR = "エラー：実験の初期化に失敗しました。\n実験者にご連絡ください。\nError: the reset failed.\nPlease contact the experimenter.";
 
 // Globals of a session in the middle of the trials; the GlobalLogics on the ParticipantManager prefab are
 // emulated by onSignal (immediately, or only when applyGlobals() is called).
@@ -47,7 +49,7 @@ function runningPm(world, { withNoItem = true, subNodes = null } = {}) {
   return { pm, cm, p1, no: refs.NewParticipantPromptNo };
 }
 const panel = (pm) => pm.subNodes.NewParticipantPrompt;
-const yes = (pm) => pm.subNodes.NewParticipantPromptYes;
+const yes = (pm) => pm.subNodes.NewParticipantPromptOk;   // the "OK" button
 const text = (pm) => pm.subNodes.NewParticipantPromptText?.text;
 const tick = (pm, n = 1) => { for (let i = 0; i < n; i++) pm.update(1.0); };
 const sentTypes = (h) => h.sent.map((m) => m.type);

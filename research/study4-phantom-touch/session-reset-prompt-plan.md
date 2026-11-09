@@ -269,16 +269,21 @@ if ($.state.boundSessionID !== $.groupState.sessionID) {
 
 ### 3.2 `ParticipantManager.prefab` — 確認パネルと GlobalLogic ×5
 
+（2026-11-09 改訂: ユーザの要望でパネルを 0.5 m 先に近づけて小さくし、赤い背景・白い文字、文言を「中断または終了したセッションに入ったようです。「OK」を押すと、実験を最初から始めます。」＋英文、ボタンは中央の「OK」に。「続きから / Resume」はその下。）
+
 ```
 ParticipantManager（Item）
  ├ WaitingMessage, WorldGateToLuidaBar（既存）
  └ NewParticipantPrompt                 ← 新規。初期状態は非アクティブ。ローカル (0, 1.4, 1.2) に置いておく（駐車位置 = エディタでの見た目確認位置）
-    ├ Quad 0.9 × 0.45（WaitingMessage と同じマテリアル）          … 背景
-    ├ NewParticipantPromptText            ← CCK TextView（WaitingMessage/Text の設定を複製）、文字列は NR_TEXT_ASK
-    └ NewParticipantPromptYes             ← Quad 0.3 × 0.12、ローカル (0, −0.15, −0.01)、BoxCollider（非トリガー、0.3 × 0.12 × 0.05）
-       └ Text                             ← TextView「はい」
+    ├ NewParticipantPromptBack            ← Quad 0.4 × 0.28、マテリアル NewParticipantPromptPanel（赤）
+    ├ NewParticipantPromptText            ← CCK TextView（WaitingMessage/Text の設定を複製、白、size 0.015）、ローカル (0, 0.05, −0.01)、文字列は NR_TEXT_ASK
+    └ NewParticipantPromptOk              ← ローカル (0, −0.045, −0.005)、BoxCollider（非トリガー、0.14 × 0.05 × 0.02）
+       ├ Quad 0.14 × 0.05（マテリアル NewParticipantPromptButton、オレンジ）
+       └ Text                             ← TextView「OK」（黒、size 0.02）
  + GlobalLogic ×5（トリガ: Item キー exp_sessionReset）: state_exited(signal), state_currentID = 0, exp_trialID = 0,
    exp_readyToLeaveTrials = false, exp_arePlayersEnough = false（旧 SessionReset と同じ 5 個。builder の AddGlobalWrite と同じ作り方）
+LUIDA-ExpManagers
+ └ NewParticipantPromptNo（Item + MovableItem + ScriptableItem）← 「続きから / Resume」。PM がパネルの (0, −0.105, −0.01) に置く
 ```
 - 組み込みは **エディタで 1 回だけ実行するスクリプト**（`PrefabUtility.LoadPrefabContents` → ノードと GlobalLogic を足す → `SaveAsPrefabAsset`。冪等。`Assets/Resources/ClusterMetaverseLab/LuidaExpTemplate/FakeGimmickSources/ResetGlobalBool.prefab` と `LuidaFakeGimmick.PatchStatementAt*` を使う）。Unity MCP の `execute_code` で流し、スクリプト本体は記録として `research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs` に置く。LUIDA の Editor メニューにはしない（判断 §7-d）。
 - サブノード名はアイテム内で一意にする（`$.subNode` は名前で探す。`Text` は WaitingMessage にもある）。
