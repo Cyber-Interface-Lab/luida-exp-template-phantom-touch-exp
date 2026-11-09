@@ -29,9 +29,6 @@ MonoBehaviour:
   - label: ploc
     type: 6
     ignoreOnSave: 0
-  - label: trace
-    type: 6
-    ignoreOnSave: 0
   fields: []
   customJsSuffix: 
   useCustomCodeMode: 1
@@ -49,13 +46,18 @@ MonoBehaviour:
     check\n    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
     // per-trial report\n    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'],
     ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'],
-    plocOther: CD['plocOther'],\n    // NPC measurements\n    social: CD['social'],
-    npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n   
+    plocOther: CD['plocOther'],\n    // NPC measurements. The participant's head
+    and hand motion is not uploaded: it comes from the platform\n    // room log,
+    cut by the *Ts timestamps (Date.now(), ms; resetTs = the jump back to the marker).
+    The NPC\n    // hand path: handStart -> faceTarget at reachSpeed (m/s) from reachStartTs
+    to contactTs, then the stroke.\n    social: CD['social'], npcBlock: CD['npcBlock'],
+    npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    resetTs: CD['resetTs'],
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs:
-    CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs: CD['strokeEndTs'],
-    strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack:
-    CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],\n    // greeting
-    period (written on both trials of the block)\n    greetSec: CD['greetSec'], greetGazeEvents:
+    CD['contactTs'],\n    strokeEndTs: CD['strokeEndTs'], holdEndTs: CD['holdEndTs'],
+    retractEndTs: CD['retractEndTs'],\n    reachSpeed: CD['reachSpeed'], strokeAmp:
+    CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack: CD['strokeBack'],
+    strokeReturnSpeed: CD['strokeReturnSpeed'],\n    // greeting period (written
+    on both trials of the block)\n    greetSec: CD['greetSec'], greetGazeEvents:
     CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],\n    greetNpcReactions:
     CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],\n   
     greetNpcSmiles: CD['greetNpcSmiles'], greetNpcIdleReactions: CD['greetNpcIdleReactions'],
@@ -64,7 +66,7 @@ MonoBehaviour:
     CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'],
     npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur: CD['reachDur'],
     contactDist: CD['contactDist'], reachable: CD['reachable'],\n    headPos0: CD['headPos0'],
-    headRot0: CD['headRot0'],\n    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist:
-    CD['retreatDist'], oscAmp: CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'],
-    lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n   
-    trace: CD['trace'],\n};\n"
+    headRot0: CD['headRot0'], handStart: CD['handStart'], faceTarget: CD['faceTarget'],\n   
+    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:
+    CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted:
+    CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n};\n"

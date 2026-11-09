@@ -476,7 +476,7 @@ public static class Study4SceneBuilder
         foreach (var (label, type) in new (string, CollectedValueType)[]
                  {
                      ("avatar", CollectedValueType.String), ("rating", CollectedValueType.Integer), ("mc", CollectedValueType.Integer),
-                     ("ptype", CollectedValueType.String), ("ploc", CollectedValueType.String), ("trace", CollectedValueType.String),
+                     ("ptype", CollectedValueType.String), ("ploc", CollectedValueType.String),
                      ("ptypeOther", CollectedValueType.String), ("plocOther", CollectedValueType.String),
                  })
         {
@@ -507,10 +507,13 @@ return {
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
-    // NPC measurements
+    // NPC measurements. The participant's head and hand motion is not uploaded: it comes from the platform
+    // room log, cut by the *Ts timestamps (Date.now(), ms; resetTs = the jump back to the marker). The NPC
+    // hand path: handStart -> faceTarget at reachSpeed (m/s) from reachStartTs to contactTs, then the stroke.
     social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
-    trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
-    strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
+    resetTs: CD['resetTs'], trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'],
+    strokeEndTs: CD['strokeEndTs'], holdEndTs: CD['holdEndTs'], retractEndTs: CD['retractEndTs'],
+    reachSpeed: CD['reachSpeed'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
     strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],
     // greeting period (written on both trials of the block)
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
@@ -519,11 +522,10 @@ return {
     // height matching (head-bone heights, m; platform under the participant / riser under the NPC)
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
-    headPos0: CD['headPos0'], headRot0: CD['headRot0'],
+    headPos0: CD['headPos0'], headRot0: CD['headRot0'], handStart: CD['handStart'], faceTarget: CD['faceTarget'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],
     npcTimeout: CD['npcTimeout'],
-    trace: CD['trace'],
 };
 ";
 

@@ -4424,18 +4424,19 @@ PrefabInstance:
         fingers (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side offset
         of the contact point along the palm normal (m)\n  HAND_PITCH_DEG: 45,     
         // reaching hand: fingers this far above horizontal; palm turned toward the
-        face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR: 0.93,     
-        // usable fraction of (upper arm + forearm + finger) when choosing the reach
-        spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance
-        at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation distance
-        = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace cap (10
-        Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back duration\n 
-        REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation
-        spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,   // touch start:
-        wait this long after putting the participant back on the marker\n  HEIGHT_MATCH_MIN:
-        0.05,  // match heights only when the head-bone heights differ by at least
-        this (m):\n                           //   participant shorter -> platform
-        under the participant (HeightPlatform item);\n                          
+        face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz head sampling for the in-world
+        retreat estimate (not uploaded; the\n                           //   platform
+        room log holds the participant's pose)\n  STAND_FACTOR: 0.93,      // usable
+        fraction of (upper arm + forearm + finger) when choosing the reach spot\n 
+        MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the
+        reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach
+        distance + this (m)\n  GLIDE_SEC: 1.0,          // step closer / step back
+        duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the
+        conversation spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,  
+        // touch start: wait this long after putting the participant back on the
+        marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone
+        heights differ by at least this (m):\n                           //   participant
+        shorter -> platform under the participant (HeightPlatform item);\n                          
         //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
         3.0, // keep trying to read the participant's bones this long after npc_show\n 
         IDLE_REACT_SEC: 5.0,     // greeting: nod + smile once whenever no reaction
@@ -4582,10 +4583,10 @@ PrefabInstance:
         $.state.npc_react = null;\n  setJoy(false);\n}\n\n// ----------------------------------------------------------------
         lifecycle\n$.onStart(() => {\n  $.state.npc_phase = \"idle\";\n  $.state.npc_mode
         = \"none\";\n  $.state.npc_t = 0;\n  $.state.npc_social = false;\n  $.state.npc_visible
-        = false;\n  $.state.npc_trial = null;\n  $.state.npc_rest = null;\n  $.state.npc_trace
-        = [];\n  $.state.npc_glide = null;\n  $.state.npc_joy = false;\n  try { $.setStateCompat(\"this\",
-        NPC_CFG.JOY_KEY, false); } catch (e) { /* no gimmick yet */ }\n  cacheBones();\n 
-        $.log(\"[NPC] started, bones=\" + boneNodes.length);\n});\n\n$.onReceive((messageType,
+        = false;\n  $.state.npc_trial = null;\n  $.state.npc_rest = null;\n  $.state.npc_glide
+        = null;\n  $.state.npc_joy = false;\n  try { $.setStateCompat(\"this\", NPC_CFG.JOY_KEY,
+        false); } catch (e) { /* no gimmick yet */ }\n  cacheBones();\n  $.log(\"[NPC]
+        started, bones=\" + boneNodes.length);\n});\n\n$.onReceive((messageType,
         arg, sender) => {\n  try {\n    if (arg && arg.fwd) $.state.npc_fwd = arg.fwd;  
         // facing direction of the participant's marker\n    if (arg && arg.origin)
         $.state.npc_origin = arg.origin;   // the marker (participant standing spot,
@@ -4613,7 +4614,9 @@ PrefabInstance:
         (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n     
         if ($.state.npc_mode === \"greeting\") endGreeting();\n      // put the participant
         back on the marker (facing along it, on their platform), then wait a moment\n     
-        const reset = !!(arg && arg.reset) && resetParticipant(true);\n      let
+        const reset = !!(arg && arg.reset) && resetParticipant(true);\n      // the
+        jump back to the marker shows in the room log: an anchor to align it with
+        Date.now()\n      $.state.npc_resetTs = reset ? Date.now() : 0;\n      let
         delay = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible)
         {\n        // hidden since the previous trial: reappear at the conversation
         spot, then step in a moment later\n        moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
@@ -4814,10 +4817,9 @@ PrefabInstance:
         false;\n  moveToStand(0, true);                     // step closer to the
         reach spot during PREP\n  $.state.npc_phase = \"prep\";\n  $.state.npc_t
         = 0;\n  clearReaction();\n  $.state.npc_bodyTurning = false;\n  $.state.npc_lookedAt
-        = false;\n  $.state.npc_lookTs = 0;\n  $.state.npc_greeted = false;\n  $.state.npc_trace
-        = [];\n  traceBuf = [];\n  $.state.npc_trialStartTs = Date.now();\n  $.log(\"[NPC]
-        trial start \" + JSON.stringify($.state.npc_trial || {}) + \" social=\" +
-        $.state.npc_social);\n}\n\nlet traceBuf = [];\nlet sampleTimer = 0;\nlet
+        = false;\n  $.state.npc_lookTs = 0;\n  $.state.npc_greeted = false;\n  $.state.npc_trialStartTs
+        = Date.now();\n  $.log(\"[NPC] trial start \" + JSON.stringify($.state.npc_trial
+        || {}) + \" social=\" + $.state.npc_social);\n}\n\nlet sampleTimer = 0;\nlet
         baseSamples = [];\n\n// Ready palm point on the shoulder->face line (local).
         T = face target (local).\nfunction readyContact(rest, T) {\n  return vadd(rest.sR,
         vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));\n}\n\nfunction beginApproach(head,
@@ -4834,22 +4836,28 @@ PrefabInstance:
         $.state.npc_headPos0 = vcopy(head.pos);\n  $.state.npc_headRot0 = head.rot.x
         + \",\" + head.rot.y + \",\" + head.rot.z + \",\" + head.rot.w;\n  $.state.npc_contactTs
         = 0;\n  $.state.npc_contactDist = -1;\n  $.state.npc_contactT = 0;\n  $.state.npc_strokeEndTs
-        = 0;\n  $.state.npc_base = null;\n  $.state.npc_away = 0; $.state.npc_latMin
-        = 0; $.state.npc_latMax = 0;\n  $.state.npc_onsetDist = -1;\n  $.state.npc_axisW
-        = vhoriz(qrot(ip.rot, $.state.npc_dir));\n  const H0w = toWorld(H0, ip),
-        Tw = toWorld(T, ip);\n  $.state.npc_H0w = f3(H0w.x) + \",\" + f3(H0w.y) +
-        \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\" + f3(Tw.y) + \",\"
-        + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n  $.log(\"[NPC] approach:
-        path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED) + \" s,
-        reachable=\" + $.state.npc_reachable);\n}\n\nfunction finishTrial() {\n 
-        const traces = ($.state.npc_trace || []).concat(traceBuf);\n  traceBuf =
-        [];\n  const tr = $.state.npc_trial || {};\n  const data = {\n    social:
-        $.state.npc_social ? \"with\" : \"without\",\n    npcBlock: tr.block !==
-        undefined ? String(tr.block) : \"\",\n    npcRep: tr.rep !== undefined ?
-        String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !== undefined ? String(tr.avatar)
-        : \"\",\n    trialStartTs: $.state.npc_trialStartTs || 0,\n    reachStartTs:
+        = 0;\n  $.state.npc_holdEndTs = 0;\n  $.state.npc_base = null;\n  $.state.npc_away
+        = 0; $.state.npc_latMin = 0; $.state.npc_latMax = 0;\n  $.state.npc_onsetDist
+        = -1;\n  $.state.npc_axisW = vhoriz(qrot(ip.rot, $.state.npc_dir));\n  const
+        H0w = toWorld(H0, ip), Tw = toWorld(T, ip);\n  $.state.npc_H0w = f3(H0w.x)
+        + \",\" + f3(H0w.y) + \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\"
+        + f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n 
+        $.log(\"[NPC] approach: path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED)
+        + \" s, reachable=\" + $.state.npc_reachable);\n}\n\n// The participant's
+        head and hand motion is not uploaded as a time series (it made End's upload
+        exceed the\n// 100 kB request limit); it comes from the platform room log.
+        This row keeps what the room log lacks: the\n// timestamps to cut it with,
+        and what is needed to rebuild the NPC's hand path (handStart -> faceTarget
+        at\n// reachSpeed from reachStartTs until contactTs, then the stroke from
+        its parameters until strokeEndTs).\nfunction finishTrial() {\n  const tr
+        = $.state.npc_trial || {};\n  const data = {\n    social: $.state.npc_social
+        ? \"with\" : \"without\",\n    npcBlock: tr.block !== undefined ? String(tr.block)
+        : \"\",\n    npcRep: tr.rep !== undefined ? String(tr.rep) : \"\",\n    npcAvatar:
+        tr.avatar !== undefined ? String(tr.avatar) : \"\",\n    resetTs: $.state.npc_resetTs
+        || 0,\n    trialStartTs: $.state.npc_trialStartTs || 0,\n    reachStartTs:
         $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs || 0,\n   
-        strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
+        strokeEndTs: $.state.npc_strokeEndTs || 0,\n    holdEndTs: $.state.npc_holdEndTs
+        || 0,\n    reachSpeed: NPC_CFG.REACH_SPEED,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
         strokeBack: NPC_CFG.STROKE_BACK,\n    strokeCycles: NPC_CFG.STROKE_CYCLES,\n   
         strokeReturnSpeed: NPC_CFG.STROKE_RETURN_SPEED,\n    heightPlatform: $.state.npc_platformH
         || 0,\n    npcLift: $.state.npc_lift || 0,\n    retractEndTs: Date.now(),\n   
@@ -4860,18 +4868,16 @@ PrefabInstance:
         + \",\" + f3($.state.npc_headPos0.z)) : \"\",\n    headRot0: $.state.npc_headRot0
         || \"\",\n    handStart: $.state.npc_H0w || \"\",   // fingertip world position
         at approach start\n    faceTarget: $.state.npc_Tw || \"\",   // face target
-        world position (fixed at approach start)\n    traceFormat: \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d\",\n   
-        retreatOnsetDist: $.state.npc_onsetDist,\n    retreatDist: $.state.npc_away
-        || 0,\n    oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin || 0),\n   
-        lookedAtNpc: !!$.state.npc_lookedAt,\n    lookTs: $.state.npc_lookTs || 0,\n   
-        greeted: !!$.state.npc_greeted,\n    trace: traces.join(\";\"),\n  };\n 
-        pushData(data);\n  $.state.npc_trace = [];\n  $.log(\"[NPC] trial done: samples=\"
-        + traces.length + \" contactDist=\" + f3(data.contactDist) + \" retreat=\"
-        + f3(data.retreatDist));\n  leave(true);\n}\n\n// Step back to the conversation
-        spot, then disappear (tick); with signalDone, \"npc_done\" is sent once hidden.\nfunction
-        leave(signalDone) {\n  $.state.npc_pendingStart = false;\n  $.state.npc_phase
-        = \"leave\";\n  $.state.npc_t = 0;\n  $.state.npc_leaveSignal = !!signalDone;\n 
-        clearReaction();\n  if (!$.state.npc_visible || !moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
+        world position (fixed at approach start)\n    retreatOnsetDist: $.state.npc_onsetDist,\n   
+        retreatDist: $.state.npc_away || 0,\n    oscAmp: ($.state.npc_latMax || 0)
+        - ($.state.npc_latMin || 0),\n    lookedAtNpc: !!$.state.npc_lookedAt,\n   
+        lookTs: $.state.npc_lookTs || 0,\n    greeted: !!$.state.npc_greeted,\n 
+        };\n  pushData(data);\n  $.log(\"[NPC] trial done: contactDist=\" + f3(data.contactDist)
+        + \" retreat=\" + f3(data.retreatDist));\n  leave(true);\n}\n\n// Step back
+        to the conversation spot, then disappear (tick); with signalDone, \"npc_done\"
+        is sent once hidden.\nfunction leave(signalDone) {\n  $.state.npc_pendingStart
+        = false;\n  $.state.npc_phase = \"leave\";\n  $.state.npc_t = 0;\n  $.state.npc_leaveSignal
+        = !!signalDone;\n  clearReaction();\n  if (!$.state.npc_visible || !moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
         true)) $.state.npc_glide = null;\n}\n\nfunction pushData(obj) {\n  try {\n   
         if ($.groupState) {\n      const cd = $.groupState.collectedData || {};\n     
         for (const k in obj) cd[k] = obj[k];\n      $.groupState.collectedData =
@@ -5042,9 +5048,9 @@ PrefabInstance:
         vscale(dir, s));\n    const arm = reachArm(rest, Ft, frame);\n    armR =
         armRots(rest, \"R\", arm);\n    const Fw = toWorld(contactOf(rest, arm),
         ip);\n    let d = -1;\n    if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n     
-        sampleTrace(dt, t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n   
-        const earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd
-        || earlyContact) {\n      $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist
+        sampleHead(dt, t, head, d);\n    }\n    const reachedEnd = s >= L;\n    const
+        earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd ||
+        earlyContact) {\n      $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist
         = d;\n      $.state.npc_contactT = t;\n      $.state.npc_Fc = Ft;\n     
         $.state.npc_strokeSec = strokePath(Ft, dir).total;\n      $.state.npc_Fhold
         = Ft;\n      $.state.npc_phase = \"stroke\";\n      $.state.npc_t = 0;\n     
@@ -5057,7 +5063,7 @@ PrefabInstance:
         $.state.npc_dir), Math.min(t, dur));\n    const arm = reachArm(rest, Fs,
         $.state.npc_frame || reachHandFrame($.state.npc_dir));\n    armR = armRots(rest,
         \"R\", arm);\n    if (head) {\n      const Fw = toWorld(contactOf(rest, arm),
-        ip);\n      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw, vlen(vsub(Fw,
+        ip);\n      sampleHead(dt, ($.state.npc_contactT || 0) + t, head, vlen(vsub(Fw,
         facePointWorld(head))));\n    }\n    if (social) nodDeg = Math.max(nodDeg,
         10 * Math.sin(Math.PI * clamp01(t / 1.0)));\n    if (t >= dur) {\n      $.state.npc_strokeEndTs
         = Date.now();\n      $.state.npc_Fhold = Fs;              // rest where the
@@ -5066,43 +5072,40 @@ PrefabInstance:
         || $.state.npc_Fc || $.state.npc_T;\n    const arm = reachArm(rest, Fc, $.state.npc_frame
         || reachHandFrame($.state.npc_dir));\n    armR = armRots(rest, \"R\", arm);\n   
         const sinceContact = ($.state.npc_strokeSec || 0) + t;\n    if (head) {\n     
-        const Fw = toWorld(contactOf(rest, arm), ip);\n      sampleTrace(dt, ($.state.npc_contactT
-        || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))));\n   
-        }\n    if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(sinceContact
-        / 1.0)));\n    if (t >= NPC_CFG.HOLD_SEC) {\n      $.state.npc_phase = \"retract\";\n     
-        $.state.npc_t = 0;\n      // duration from the distance back toward the ready
-        point at RETRACT_SPEED (+0.8 s to settle)\n      $.state.npc_retractSec =
-        vlen(vsub(Fc, $.state.npc_H0)) / NPC_CFG.RETRACT_SPEED + 0.8;\n    }\n  }
-        else if (phase === \"retract\") {\n    // blend the joint rotations from
-        the hold pose back to the relaxed arm\n    const Fc = $.state.npc_Fhold ||
-        $.state.npc_Fc || $.state.npc_T;\n    const holdArm = armRots(rest, \"R\",
-        reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir)));\n   
-        const u = clamp01(t / Math.max(0.5, $.state.npc_retractSec || 2.0));\n   
-        armR = slerpArm(holdArm, idleR, easeInOut(u));\n    if (u >= 1) finishTrial();\n 
-        }\n\n  // nod composes with gaze\n  if (nodDeg !== 0) {\n    const qNod =
-        qaxis(R, nodDeg);\n    Q[HumanoidBone.Head] = qmul(Q[HumanoidBone.Head] ||
-        IDENT, qNod);\n  }\n\n  Q[HumanoidBone.RightUpperArm] = armR.u;\n  Q[HumanoidBone.RightLowerArm]
+        const Fw = toWorld(contactOf(rest, arm), ip);\n      sampleHead(dt, ($.state.npc_contactT
+        || 0) + sinceContact, head, vlen(vsub(Fw, facePointWorld(head))));\n    }\n   
+        if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(sinceContact
+        / 1.0)));\n    if (t >= NPC_CFG.HOLD_SEC) {\n      $.state.npc_holdEndTs
+        = Date.now();\n      $.state.npc_phase = \"retract\";\n      $.state.npc_t
+        = 0;\n      // duration from the distance back toward the ready point at
+        RETRACT_SPEED (+0.8 s to settle)\n      $.state.npc_retractSec = vlen(vsub(Fc,
+        $.state.npc_H0)) / NPC_CFG.RETRACT_SPEED + 0.8;\n    }\n  } else if (phase
+        === \"retract\") {\n    // blend the joint rotations from the hold pose back
+        to the relaxed arm\n    const Fc = $.state.npc_Fhold || $.state.npc_Fc ||
+        $.state.npc_T;\n    const holdArm = armRots(rest, \"R\", reachArm(rest, Fc,
+        $.state.npc_frame || reachHandFrame($.state.npc_dir)));\n    const u = clamp01(t
+        / Math.max(0.5, $.state.npc_retractSec || 2.0));\n    armR = slerpArm(holdArm,
+        idleR, easeInOut(u));\n    if (u >= 1) finishTrial();\n  }\n\n  // nod composes
+        with gaze\n  if (nodDeg !== 0) {\n    const qNod = qaxis(R, nodDeg);\n   
+        Q[HumanoidBone.Head] = qmul(Q[HumanoidBone.Head] || IDENT, qNod);\n  }\n\n 
+        Q[HumanoidBone.RightUpperArm] = armR.u;\n  Q[HumanoidBone.RightLowerArm]
         = armR.l;\n  Q[HumanoidBone.RightHand] = armR.h;\n  Q[HumanoidBone.LeftUpperArm]
         = armL.u;\n  Q[HumanoidBone.LeftLowerArm] = armL.l;\n  Q[HumanoidBone.LeftHand]
-        = armL.h;\n\n  applyPose(Q);\n}\n\n// 10 Hz head trace plus the in-world
-        retreat estimate.\nfunction sampleTrace(dt, t, head, Fw, d) {\n  sampleTimer
-        += dt;\n  if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL) return;\n  sampleTimer
-        = 0;\n  const h = head.pos, r = head.rot;\n  const total = ($.state.npc_trace
-        || []).length + traceBuf.length;\n  if (total < NPC_CFG.MAX_SAMPLES) {\n   
-        traceBuf.push([t.toFixed(1), f3(h.x), f3(h.y), f3(h.z), f3(r.x), f3(r.y),
-        f3(r.z), f3(r.w), f3(d)].join(\",\"));\n  }\n  if (traceBuf.length >= 10)
-        {\n    $.state.npc_trace = ($.state.npc_trace || []).concat(traceBuf);\n   
-        traceBuf = [];\n  }\n  // retreat / oscillation estimate (world frame)\n 
-        if (!$.state.npc_base) {\n    baseSamples.push(vcopy(h));\n    if (t >= 1.0)
-        {\n      let sum = v3(0, 0, 0);\n      for (const b of baseSamples) sum =
-        vadd(sum, b);\n      $.state.npc_base = vscale(sum, 1 / Math.max(1, baseSamples.length));\n   
-        }\n    return;\n  }\n  const axis = $.state.npc_axisW || v3(0, 0, 1);\n 
-        const delta = vsub(h, $.state.npc_base);\n  const away = -vdot(delta, axis);\n 
-        const lateral = vdot(delta, vcross(axis, UP));\n  if (away > ($.state.npc_away
-        || 0)) $.state.npc_away = away;\n  if (lateral < ($.state.npc_latMin || 0))
-        $.state.npc_latMin = lateral;\n  if (lateral > ($.state.npc_latMax || 0))
-        $.state.npc_latMax = lateral;\n  if ($.state.npc_onsetDist < 0 && away >
-        NPC_CFG.RETREAT_THRESHOLD) $.state.npc_onsetDist = d;\n}\n"
+        = armL.h;\n\n  applyPose(Q);\n}\n\n// 10 Hz head sampling for the in-world
+        retreat / oscillation estimate (t: seconds since approach start,\n// d: hand-to-face
+        distance). Only the resulting values are uploaded, not the samples.\nfunction
+        sampleHead(dt, t, head, d) {\n  sampleTimer += dt;\n  if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL)
+        return;\n  sampleTimer = 0;\n  const h = head.pos;\n  // retreat / oscillation
+        estimate (world frame)\n  if (!$.state.npc_base) {\n    baseSamples.push(vcopy(h));\n   
+        if (t >= 1.0) {\n      let sum = v3(0, 0, 0);\n      for (const b of baseSamples)
+        sum = vadd(sum, b);\n      $.state.npc_base = vscale(sum, 1 / Math.max(1,
+        baseSamples.length));\n    }\n    return;\n  }\n  const axis = $.state.npc_axisW
+        || v3(0, 0, 1);\n  const delta = vsub(h, $.state.npc_base);\n  const away
+        = -vdot(delta, axis);\n  const lateral = vdot(delta, vcross(axis, UP));\n 
+        if (away > ($.state.npc_away || 0)) $.state.npc_away = away;\n  if (lateral
+        < ($.state.npc_latMin || 0)) $.state.npc_latMin = lateral;\n  if (lateral
+        > ($.state.npc_latMax || 0)) $.state.npc_latMax = lateral;\n  if ($.state.npc_onsetDist
+        < 0 && away > NPC_CFG.RETREAT_THRESHOLD) $.state.npc_onsetDist = d;\n}\n"
       objectReference: {fileID: 0}
     - target: {fileID: 1915572032176121250, guid: 1cd409bec4f100b4a89a785da123e8bf,
         type: 3}
@@ -18424,10 +18427,15 @@ PrefabInstance:
         deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
         // per-trial report\n    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'],
         ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'],
-        plocOther: CD['plocOther'],\n    // NPC measurements\n    social: CD['social'],
+        plocOther: CD['plocOther'],\n    // NPC measurements. The participant's head
+        and hand motion is not uploaded: it comes from the platform\n    // room
+        log, cut by the *Ts timestamps (Date.now(), ms; resetTs = the jump back to
+        the marker). The NPC\n    // hand path: handStart -> faceTarget at reachSpeed
+        (m/s) from reachStartTs to contactTs, then the stroke.\n    social: CD['social'],
         npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n   
-        trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs:
-        CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs: CD['strokeEndTs'],
+        resetTs: CD['resetTs'], trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'],
+        contactTs: CD['contactTs'],\n    strokeEndTs: CD['strokeEndTs'], holdEndTs:
+        CD['holdEndTs'], retractEndTs: CD['retractEndTs'],\n    reachSpeed: CD['reachSpeed'],
         strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack:
         CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],\n    // greeting
         period (written on both trials of the block)\n    greetSec: CD['greetSec'],
@@ -18439,11 +18447,12 @@ PrefabInstance:
         / riser under the NPC)\n    participantHeadH: CD['participantHeadH'], npcHeadH:
         CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],\n   
         pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'],
-        reachable: CD['reachable'],\n    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n   
-        retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'],
-        oscAmp: CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'],
-        greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n\r\n   
-        return {};\r\n  }\r\n  returnData.push(saveData());\r\n  return returnData;\r\n}\r\n"
+        reachable: CD['reachable'],\n    headPos0: CD['headPos0'], headRot0: CD['headRot0'],
+        handStart: CD['handStart'], faceTarget: CD['faceTarget'],\n    retreatOnsetDist:
+        CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
+        lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],\n   
+        npcTimeout: CD['npcTimeout'],\n};\n\r\n    return {};\r\n  }\r\n  returnData.push(saveData());\r\n 
+        return returnData;\r\n}\r\n"
       objectReference: {fileID: 0}
     - target: {fileID: 5964733846762761527, guid: 964d6187f971a8f43b4ee67279f1ef90,
         type: 3}
