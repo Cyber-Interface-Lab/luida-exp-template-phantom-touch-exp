@@ -7333,7 +7333,7 @@ PrefabInstance:
         if (hadParticipant) {\n            $.state.participant = null;\n           
         $.state.isParticipantAssigned = false;\n            reopenForm();\n       
         }\n    }\n\n    // The participant left and rejoined with the same account:
-        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u3044\u3044\u3048\"
+        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u7D9A\u304D\u304B\u3089\"
         on its new-participant prompt). Follow it. A form that was open is closed
         and\n    // restarted, because its answer options and texts were only visible
         to the previous join.\n    if ($.state.isParticipantAssigned && $.state.participant
@@ -8385,26 +8385,29 @@ PrefabInstance:
         and never advances on a timeout; after\n// NR_ALERT_SEC without confirmation
         the panel shows an error (and keeps retrying). Worlds whose\n// ParticipantManager
         prefab has no NewParticipantPrompt sub-node never show the prompt and never
-        reset.\n// Panel layout (research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs):
-        0.4 x 0.28 m, text centred at\n// y = +0.05, \"OK\" at y = -0.045, \"\u7D9A\u304D\u304B\u3089\"
-        at y = -0.105; text size 0.015 (about 24 Japanese characters per line).\nconst
-        NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel
-        shown (lets End's upload be issued under the old sessionID; lets the avatar
-        settle)\nconst NR_RESEND_SEC = 2;           // re-send unconfirmed reset
-        requests (the handlers are idempotent per token)\nconst NR_ALERT_SEC = 15;\nconst
-        NR_DIST = 0.5;               // panel distance in front of the player [m]
-        (close, so the panel and its text are small)\nconst NR_HEIGHT = 1.4;            
-        // panel height when the head bone cannot be read [m]\nconst NR_REPLACE_DIST
-        = 1;         // the player walked this far from where they were asked: place
-        the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst NR_TEXT
-        = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
+        reset.\n// Panel layout (ParticipantManager prefab; LUIDA-ExpManagers overrides
+        the same values): 0.7 x 0.4 m centred at\n// y = +0.03, text at y = +0.075
+        (size 0.015, about 24 Japanese characters per line), \"OK\" at y = -0.1.
+        \"\u7D9A\u304D\u304B\u3089\"\n// (0.3 x 0.05 m) sits at NR_NO_OFFSET under
+        \"OK\" and carries a 0.7 x 0.05 m strip of the panel colour that extends\n//
+        the panel downward while it is shown. NR_NO_OFFSET and the strip must follow
+        any change of the panel or \"OK\".\nconst NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC
+        = 3;     // first seen -> panel shown (lets End's upload be issued under
+        the old sessionID; lets the avatar settle)\nconst NR_RESEND_SEC = 2;          
+        // re-send unconfirmed reset requests (the handlers are idempotent per token)\nconst
+        NR_ALERT_SEC = 15;\nconst NR_DIST = 0.5;               // panel distance
+        in front of the player [m] (close, so the panel and its text are small)\nconst
+        NR_HEIGHT = 1.4;             // panel height when the head bone cannot be
+        read [m]\nconst NR_REPLACE_DIST = 1;         // the player walked this far
+        from where they were asked: place the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst
+        NR_TEXT = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
         NR_NO_ITEM = \"NewParticipantPromptNo\";                 // world item reference
-        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.105, -0.01);         
+        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.165, -0.01);         
         // \"\u7D9A\u304D\u304B\u3089\" relative to the panel, under \"OK\"\nconst
-        NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3059\u3068\u3001\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u307E\u3059\u3002\\n\"
+        NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3057\u3066\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u3066\u304F\u3060\u3055\u3044\u3002\\n\"
         +\n                    \"It seems you have entered a session that\\nwas interrupted
-        or has ended.\\nPress OK to restart the experiment\\nfrom the beginning.\";\nconst
-        NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u7D9A\u304D\u3092\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
+        or has ended.\\nPlease press OK to start the experiment\\nfrom the beginning.\";\nconst
+        NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
         +\n                           \"You seem to have returned to an\\ninterrupted
         session.\\nPress OK to start over,\\nor Resume to continue.\";\nconst NR_TEXT_BUSY
         = \"\u521D\u671F\u5316\u3057\u3066\u3044\u307E\u3059\u3002\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026\\nResetting
@@ -8422,13 +8425,13 @@ PrefabInstance:
         if (panel) panel.setEnabled(false);\n  const no = nr_noItem(); if (no) no.send(\"luida_prompt_hide\",
         {});\n  $.state.nr_shown = false;\n  $.state.nr_placed = false;\n  $.state.nr_for
         = null;\n}\n\n// Puts the (hidden) panel NR_DIST in front of the player at
-        head height, facing them, and parks the \"\u3044\u3044\u3048\"\n// item next
-        to it. Sub-node positions are item-local; the \"\u3044\u3044\u3048\" item
-        is a separate movable item (world pose).\nfunction nr_place(player) {\n 
-        const panel = nr_node(NR_NODE);\n  if (!panel) return false;\n  const pPos
-        = player.getPosition(), pRot = player.getRotation();\n  if (!pPos || !pRot)
-        return false;\n  let h = NR_HEIGHT;\n  if (!isTestMode) {   // the editor
-        emulator may throw on bone reads; on Cluster a missing bone is null\n   
+        head height, facing them, and parks the \"\u7D9A\u304D\u304B\u3089\"\n//
+        item next to it. Sub-node positions are item-local; the \"\u7D9A\u304D\u304B\u3089\"
+        item is a separate movable item (world pose).\nfunction nr_place(player)
+        {\n  const panel = nr_node(NR_NODE);\n  if (!panel) return false;\n  const
+        pPos = player.getPosition(), pRot = player.getRotation();\n  if (!pPos ||
+        !pRot) return false;\n  let h = NR_HEIGHT;\n  if (!isTestMode) {   // the
+        editor emulator may throw on bone reads; on Cluster a missing bone is null\n   
         try { const head = player.getHumanoidBonePosition(HumanoidBone.Head); if
         (head) h = Math.min(1.8, Math.max(0.9, head.y - pPos.y)); } catch (e) {}\n 
         }\n  let fwd = new Vector3(0, 0, 1).applyQuaternion(pRot); fwd.y = 0;\n 
@@ -8467,7 +8470,7 @@ PrefabInstance:
         // retried at the next poll\n    nr_show(NR_TEXT_ERROR, false, false);\n   
         return;\n  }\n  $.log(\"LUIDA session reset: new sID=\" + $.groupState.sessionID);\n 
         nr_hide();\n  nr_phase(\"idle\");\n}\n\nfunction nr_resume(player) {\n  const
-        i = nr_resumeIndex(player);\n  if (i < 0) {\n    $.log(\"[PM] '\u3044\u3044\u3048'
+        i = nr_resumeIndex(player);\n  if (i < 0) {\n    $.log(\"[PM] '\u7D9A\u304D\u304B\u3089'
         pressed by a player who cannot resume; prompt closed\");\n    nr_hide();
         nr_phase(\"idle\");\n    return;\n  }\n  const ps = $.groupState.participants.slice();\n 
         ps[i] = player;\n  $.groupState.participants = ps;\n  $.setPlayerScript(player);\n 
@@ -8581,34 +8584,35 @@ PrefabInstance:
         = {};\r\n      $.groupState.participants = arg.participants;\r\n      $.groupState.sessionID
         = arg.sessionID;\r\n      sender.send(\"betweenSubjectsCondition\", $.state.betweenSubjectsConditions);\r\n     
         break;\r\n    case \"luida_rebind_participant\":\r\n      // A participant
-        who left rejoined with the same account (\"\u3044\u3044\u3048\" on the ParticipantManager's\r\n     
-        // new-participant prompt): the ParticipantManager put the new PlayerHandle
-        into their slot; mirror it here.\r\n      if (arg && typeof arg.index ===
-        \"number\" && arg.player) {\r\n        const ps = ($.groupState.participants
-        || []).slice();\r\n        if (arg.index >= 0 && arg.index < ps.length) {\r\n         
-        ps[arg.index] = arg.player;\r\n          $.groupState.participants = ps;\r\n         
-        $.log(\"[ConditionManager] participant \" + (arg.index + 1) + \" rejoined;
-        handle replaced\");\r\n        }\r\n      }\r\n      break;\r\n    case \"luida_reset\":
-        {\r\n      // Sent by the ParticipantManager when a newly joined player confirmed
-        that they are a new participant\r\n      // (or by any item that resets the
-        session). Same steps as $.onStart (except sending betweenSubjectsConfig),\r\n     
-        // plus isLast, which reset() keeps. The token is saved only after the reset
-        succeeded; completion is\r\n      // reported to the sender (which may be
-        in another item group) and in luida_resetAck of this group.\r\n      const
-        resetToken = arg && arg.token;\r\n      if ($.state.luida_lastResetToken
-        !== resetToken) {\r\n        $.state.isLast = false;\r\n        $.state.isServerAssigned
-        = false;\r\n        $.state.betweenSubjectsConditions = {};\r\n        initializeBetweenSubjectsConditions();\r\n       
-        reset();\r\n        $.state.luida_lastResetToken = resetToken;\r\n       
-        $.log(\"[ConditionManager] session reset\");\r\n      }\r\n      $.groupState.luida_resetAck
-        = resetToken;\r\n      if (sender && sender.send) sender.send(\"luida_reset_ack\",
-        { token: resetToken });\r\n      break;\r\n    }\r\n    default:\r\n     
-        break;\r\n  }\r\n});\r\n\r\nfunction updateCondition() {\r\n  if ($.state.trialID
-        >= $.state.trialCount) {\r\n    $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n 
-        } else if ($.state.trialID <= -1) {\r\n    reset();\r\n  } else {\r\n   
-        let condition = { ...$.state.betweenSubjectsConditions };\r\n    for (let
-        i = 0; i < $.state.withinSubjectsVariableNames.length; i++) {\r\n      const
-        varName = $.state.withinSubjectsVariableNames[i];\r\n      const varValue
-        =\r\n          within_subjects_variables[i].values[\r\n              $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
+        who left rejoined with the same account (\"\u7D9A\u304D\u304B\u3089\" on
+        the ParticipantManager's\r\n      // new-participant prompt): the ParticipantManager
+        put the new PlayerHandle into their slot; mirror it here.\r\n      if (arg
+        && typeof arg.index === \"number\" && arg.player) {\r\n        const ps =
+        ($.groupState.participants || []).slice();\r\n        if (arg.index >= 0
+        && arg.index < ps.length) {\r\n          ps[arg.index] = arg.player;\r\n         
+        $.groupState.participants = ps;\r\n          $.log(\"[ConditionManager] participant
+        \" + (arg.index + 1) + \" rejoined; handle replaced\");\r\n        }\r\n     
+        }\r\n      break;\r\n    case \"luida_reset\": {\r\n      // Sent by the
+        ParticipantManager when a newly joined player confirmed that they are a new
+        participant\r\n      // (or by any item that resets the session). Same steps
+        as $.onStart (except sending betweenSubjectsConfig),\r\n      // plus isLast,
+        which reset() keeps. The token is saved only after the reset succeeded; completion
+        is\r\n      // reported to the sender (which may be in another item group)
+        and in luida_resetAck of this group.\r\n      const resetToken = arg && arg.token;\r\n     
+        if ($.state.luida_lastResetToken !== resetToken) {\r\n        $.state.isLast
+        = false;\r\n        $.state.isServerAssigned = false;\r\n        $.state.betweenSubjectsConditions
+        = {};\r\n        initializeBetweenSubjectsConditions();\r\n        reset();\r\n       
+        $.state.luida_lastResetToken = resetToken;\r\n        $.log(\"[ConditionManager]
+        session reset\");\r\n      }\r\n      $.groupState.luida_resetAck = resetToken;\r\n     
+        if (sender && sender.send) sender.send(\"luida_reset_ack\", { token: resetToken
+        });\r\n      break;\r\n    }\r\n    default:\r\n      break;\r\n  }\r\n});\r\n\r\nfunction
+        updateCondition() {\r\n  if ($.state.trialID >= $.state.trialCount) {\r\n   
+        $.sendSignalCompat(\"this\", \"exp_resetTrials\");\r\n  } else if ($.state.trialID
+        <= -1) {\r\n    reset();\r\n  } else {\r\n    let condition = { ...$.state.betweenSubjectsConditions
+        };\r\n    for (let i = 0; i < $.state.withinSubjectsVariableNames.length;
+        i++) {\r\n      const varName = $.state.withinSubjectsVariableNames[i];\r\n     
+        const varValue =\r\n          within_subjects_variables[i].values[\r\n             
+        $.state.withinSubjectsConditionIndicesByTrial[$.state.trialID][i]\r\n             
         ];\r\n      condition[varName] = varValue;\r\n    }\r\n    $.groupState.currentCondition
         = condition;\r\n\r\n    // Check if this is the last trial (if true, stop
         repeating trials when next state transition is triggered)\r\n    if (\r\n       
@@ -10792,7 +10796,7 @@ PrefabInstance:
         if (hadParticipant) {\n            $.state.participant = null;\n           
         $.state.isParticipantAssigned = false;\n            reopenForm();\n       
         }\n    }\n\n    // The participant left and rejoined with the same account:
-        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u3044\u3044\u3048\"
+        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u7D9A\u304D\u304B\u3089\"
         on its new-participant prompt). Follow it. A form that was open is closed
         and\n    // restarted, because its answer options and texts were only visible
         to the previous join.\n    if ($.state.isParticipantAssigned && $.state.participant
@@ -14344,7 +14348,7 @@ PrefabInstance:
         if (hadParticipant) {\n            $.state.participant = null;\n           
         $.state.isParticipantAssigned = false;\n            reopenForm();\n       
         }\n    }\n\n    // The participant left and rejoined with the same account:
-        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u3044\u3044\u3048\"
+        the ParticipantManager put the new PlayerHandle\n    // into their slot (\"\u7D9A\u304D\u304B\u3089\"
         on its new-participant prompt). Follow it. A form that was open is closed
         and\n    // restarted, because its answer options and texts were only visible
         to the previous join.\n    if ($.state.isParticipantAssigned && $.state.participant
