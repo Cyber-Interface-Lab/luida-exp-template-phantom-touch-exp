@@ -45,8 +45,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textMesh: {fileID: 0}
-  text: "\u3044\u3044\u3048\uFF08\u7D9A\u304D\u304B\u3089\uFF09"
-  size: 0.05
+  text: "\u7D9A\u304D\u304B\u3089 / Resume"
+  size: 0.016
   textAnchor: 4
   textAlignment: 1
   color: {r: 0, g: 0, b: 0, a: 1}
@@ -309,7 +309,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.3, y: 0.12, z: 1}
+  m_LocalScale: {x: 0.14, y: 0.05, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2621587108977228798}
@@ -347,7 +347,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 0e028c7d7604f7e40818164664f0f854, type: 2}
+  - {fileID: 2100000, guid: c75e55f0d74e0b9439ae80c16a69a58f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -423,7 +423,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.3, y: 0.12, z: 0.02}
+  m_Size: {x: 0.14, y: 0.05, z: 0.02}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5775079480882698412
 GameObject:
@@ -568,7 +568,7 @@ Transform:
   m_GameObject: {fileID: 6895221210647069355}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.2, y: 1.25, z: -0.79999995}
+  m_LocalPosition: {x: 0, y: 1.295, z: -0.80999994}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -981,7 +981,7 @@ PrefabInstance:
         }\n        case \"luida_reset_ack\":\n            // ConditionManager finished
         the reset this item asked for (new-participant prompt).\n            if (arg
         && arg.token && arg.token === $.state.nr_token) $.state.nr_cmAck = arg.token;\n           
-        break;\n        case \"luida_prompt_no\":\n            // \"\u3044\u3044\u3048\"
+        break;\n        case \"luida_prompt_no\":\n            // \"\u7D9A\u304D\u304B\u3089\"
         on the new-participant prompt (NewParticipantPromptNo item): the player says
         they are the\n            // participant who left; put them back into their
         slot instead of resetting.\n            if (($.state.nr_phase || \"idle\")
@@ -1030,42 +1030,52 @@ PrefabInstance:
         a second\n// for players who are not enrolled while none of the enrolled
         participants is still here (they finished and\n// left, or left in the middle;
         scripts only run while someone is in the space, so this happens when the
-        next\n// player joins). Such a player is asked, on a panel placed in front
-        of them, whether they are a new participant.\n//   \"\u306F\u3044\"   (sub-node
-        NewParticipantPromptYes, a collider of this item, $.onInteract): reset the
-        globals (signal\n//            exp_sessionReset -> GlobalLogics on this prefab)
-        and ConditionManager, confirm both, then this item\n//            (initSession),
-        after which enrollment resumes exactly as at space start.\n//   \"\u3044\u3044\u3048\"
-        (item NewParticipantPromptNo, shown only when the player uses the account
-        of an enrolled participant\n//            who left): the player is put back
-        into their participant slot and the session goes on.\n// Nothing is reset
-        before an answer. Each reset step is confirmed and never advances on a timeout;
-        after\n// NR_ALERT_SEC without confirmation the panel shows an error (and
-        keeps retrying). Worlds whose\n// ParticipantManager prefab has no NewParticipantPrompt
-        sub-node never show the prompt and never reset.\nconst NR_POLL_SEC = 1;\nconst
-        NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel shown (lets End's upload
-        be issued under the old sessionID; lets the avatar settle)\nconst NR_RESEND_SEC
-        = 2;           // re-send unconfirmed reset requests (the handlers are idempotent
-        per token)\nconst NR_ALERT_SEC = 15;\nconst NR_DIST = 1.2;              
-        // panel distance in front of the player [m]\nconst NR_HEIGHT = 1.4;            
+        next\n// player joins). Such a player sees a small red panel close in front
+        of them: \"you seem to have entered a session\n// that was interrupted or
+        has ended; OK starts the experiment from the beginning\".\n//   \"OK\"     
+        (sub-node NewParticipantPromptOk, the only collider of this item, $.onInteract):
+        reset the globals\n//             (signal exp_sessionReset -> GlobalLogics
+        on this prefab) and ConditionManager, confirm both, then this\n//            
+        item (initSession), after which enrollment resumes exactly as at space start.\n//  
+        \"\u7D9A\u304D\u304B\u3089\" (item NewParticipantPromptNo, shown under \"OK\"
+        only when the player uses the account of an enrolled\n//             participant
+        who left): the player is put back into their participant slot and the session
+        goes on.\n// Nothing is reset before an answer. Each reset step is confirmed
+        and never advances on a timeout; after\n// NR_ALERT_SEC without confirmation
+        the panel shows an error (and keeps retrying). Worlds whose\n// ParticipantManager
+        prefab has no NewParticipantPrompt sub-node never show the prompt and never
+        reset.\n// Panel layout (research/study4-phantom-touch/tools/InstallNewParticipantPrompt.cs):
+        0.4 x 0.28 m, text centred at\n// y = +0.05, \"OK\" at y = -0.045, \"\u7D9A\u304D\u304B\u3089\"
+        at y = -0.105; text size 0.015 (about 24 Japanese characters per line).\nconst
+        NR_POLL_SEC = 1;\nconst NR_PROMPT_DELAY_SEC = 3;     // first seen -> panel
+        shown (lets End's upload be issued under the old sessionID; lets the avatar
+        settle)\nconst NR_RESEND_SEC = 2;           // re-send unconfirmed reset
+        requests (the handlers are idempotent per token)\nconst NR_ALERT_SEC = 15;\nconst
+        NR_DIST = 0.5;               // panel distance in front of the player [m]
+        (close, so the panel and its text are small)\nconst NR_HEIGHT = 1.4;            
         // panel height when the head bone cannot be read [m]\nconst NR_REPLACE_DIST
-        = 2;         // the player walked this far from where they were asked: place
+        = 1;         // the player walked this far from where they were asked: place
         the panel again\nconst NR_NODE = \"NewParticipantPrompt\";\nconst NR_TEXT
-        = \"NewParticipantPromptText\";\nconst NR_YES = \"NewParticipantPromptYes\";\nconst
+        = \"NewParticipantPromptText\";\nconst NR_OK = \"NewParticipantPromptOk\";\nconst
         NR_NO_ITEM = \"NewParticipantPromptNo\";                 // world item reference
-        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0.2, -0.15,
-        -0.01);         // \"\u3044\u3044\u3048\" relative to the panel (the \"\u306F\u3044\"
-        sub-node sits at x = -0.2)\nconst NR_TEXT_ASK = \"\u3042\u306A\u305F\u306F\u65B0\u3057\u304F\u5165\u3063\u305F\u53C2\u52A0\u8005\u3067\u3059\u304B\uFF1F\\n\u65B0\u3057\u3044\u53C2\u52A0\u8005\u306E\u65B9\u306F\u300C\u306F\u3044\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002\";\nconst
-        NR_TEXT_ASK_RESUME = \"\u3042\u306A\u305F\u306F\u65B0\u3057\u304F\u5165\u3063\u305F\u53C2\u52A0\u8005\u3067\u3059\u304B\uFF1F\\n\u65B0\u3057\u3044\u53C2\u52A0\u8005\u306A\u3089\u300C\u306F\u3044\u300D\u3001\\n\u3055\u3063\u304D\u306E\u7D9A\u304D\u306A\u3089\u300C\u3044\u3044\u3048\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002\";\nconst
-        NR_TEXT_BUSY = \"\u521D\u671F\u5316\u3057\u3066\u3044\u307E\u3059\u3002\\n\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026\";\nconst
-        NR_TEXT_ERROR = \"\u30A8\u30E9\u30FC\uFF1A\u5B9F\u9A13\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\\n\u5B9F\u9A13\u8005\u306B\u3054\u9023\u7D61\u304F\u3060\u3055\u3044\u3002\";\n\nfunction
-        nr_node(name) { try { return $.subNode(name); } catch (e) { return null;
-        } }\nfunction nr_noItem() { try { return $.worldItemReference(NR_NO_ITEM);
-        } catch (e) { return null; } }\nfunction nr_phase(p) { $.state.nr_phase =
-        p; $.state.nr_phaseSec = 0; $.state.nr_lastSend = -1e9; }\n\nfunction nr_show(text,
-        withYes, withNo) {\n  const panel = nr_node(NR_NODE);\n  if (!panel) return;\n 
-        const t = nr_node(NR_TEXT); if (t) t.setText(text);\n  const y = nr_node(NR_YES);
-        if (y) y.setEnabled(withYes);\n  panel.setEnabled(true);\n  const no = nr_noItem();
+        (LUIDA-ExpManagers prefab)\nconst NR_NO_OFFSET = new Vector3(0, -0.105, -0.01);         
+        // \"\u7D9A\u304D\u304B\u3089\" relative to the panel, under \"OK\"\nconst
+        NR_TEXT_ASK = \"\u4E2D\u65AD\u307E\u305F\u306F\u7D42\u4E86\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u5165\u3063\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3092\u62BC\u3059\u3068\u3001\u5B9F\u9A13\u3092\u6700\u521D\u304B\u3089\u59CB\u3081\u307E\u3059\u3002\\n\"
+        +\n                    \"It seems you have entered a session that\\nwas interrupted
+        or has ended.\\nPress OK to restart the experiment\\nfrom the beginning.\";\nconst
+        NR_TEXT_ASK_RESUME = \"\u4E2D\u65AD\u3057\u305F\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u623B\u3063\u3066\u304D\u305F\u3088\u3046\u3067\u3059\u3002\\n\u300COK\u300D\u3067\u6700\u521D\u304B\u3089\u3001\u300C\u7D9A\u304D\u304B\u3089\u300D\u3067\u7D9A\u304D\u3092\u518D\u958B\u3057\u307E\u3059\u3002\\n\"
+        +\n                           \"You seem to have returned to an\\ninterrupted
+        session.\\nPress OK to start over,\\nor Resume to continue.\";\nconst NR_TEXT_BUSY
+        = \"\u521D\u671F\u5316\u3057\u3066\u3044\u307E\u3059\u3002\u3057\u3070\u3089\u304F\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u2026\\nResetting
+        the experiment, please wait\u2026\";\nconst NR_TEXT_ERROR = \"\u30A8\u30E9\u30FC\uFF1A\u5B9F\u9A13\u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\\n\u5B9F\u9A13\u8005\u306B\u3054\u9023\u7D61\u304F\u3060\u3055\u3044\u3002\\nError:
+        the reset failed.\\nPlease contact the experimenter.\";\n\nfunction nr_node(name)
+        { try { return $.subNode(name); } catch (e) { return null; } }\nfunction
+        nr_noItem() { try { return $.worldItemReference(NR_NO_ITEM); } catch (e)
+        { return null; } }\nfunction nr_phase(p) { $.state.nr_phase = p; $.state.nr_phaseSec
+        = 0; $.state.nr_lastSend = -1e9; }\n\nfunction nr_show(text, withOk, withNo)
+        {\n  const panel = nr_node(NR_NODE);\n  if (!panel) return;\n  const t =
+        nr_node(NR_TEXT); if (t) t.setText(text);\n  const ok = nr_node(NR_OK); if
+        (ok) ok.setEnabled(withOk);\n  panel.setEnabled(true);\n  const no = nr_noItem();
         if (no) no.send(withNo ? \"luida_prompt_show\" : \"luida_prompt_hide\", {});\n 
         $.state.nr_shown = true;\n}\n\nfunction nr_hide() {\n  const panel = nr_node(NR_NODE);
         if (panel) panel.setEnabled(false);\n  const no = nr_noItem(); if (no) no.send(\"luida_prompt_hide\",
@@ -1154,9 +1164,9 @@ PrefabInstance:
         {}); $.state.nr_shown = false; }\n    $.state.nr_for = s.id;\n    $.state.nr_placed
         = nr_place(s);\n    return;\n  }\n  if (!$.state.nr_shown) {\n    const canResume
         = nr_resumeIndex(s) >= 0;\n    nr_show(canResume ? NR_TEXT_ASK_RESUME : NR_TEXT_ASK,
-        true, canResume);\n  }\n}\n\n$.onInteract((player) => {   // \"\u306F\u3044\"
-        (the only collider of this item)\n  if (($.state.nr_phase || \"idle\") !==
-        \"asking\" || !$.state.nr_shown) return;\n  nr_startReset(player);\n});\n"
+        true, canResume);\n  }\n}\n\n$.onInteract((player) => {   // \"OK\" (the
+        only collider of this item)\n  if (($.state.nr_phase || \"idle\") !== \"asking\"
+        || !$.state.nr_shown) return;\n  nr_startReset(player);\n});\n"
       objectReference: {fileID: 0}
     - target: {fileID: 7807161544533224870, guid: d54fd1885b76d47d9bd9a3a2f0675afb,
         type: 3}
