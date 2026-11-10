@@ -511,7 +511,9 @@ return {
     social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
-    strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],
+    strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec: CD['strokeRampSec'],
+    // touch layout: NPC standing azimuth (deg from the participant's facing, + = right), touched cheek, finger curl
+    npcStandAz: CD['npcStandAz'], touchSide: CD['touchSide'], fingerCurl: CD['fingerCurl'],
     // greeting period (written on both trials of the block)
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
     greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],
@@ -639,7 +641,9 @@ return {
     // the mirror) <= 20, above the questionnaire <= 26, center (nothing else shown) <= 26 / 30 in the debrief,
     // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
-    //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
+    //   greeting: NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left)
+    //   touch: near mirror "MirrorTouch" (straight ahead, 1 m) + instruction "touch" slot (just above it); the NPC
+    //          stands behind-right of the participant and is seen in the mirror
     //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photos (right of it) + mirror (front-left)
     //   pose check: front mirror (straight ahead, below the front slot) + device check panel (right)
     //   report: report panel (straight ahead, NPC hidden)
@@ -657,10 +661,18 @@ return {
     // in both states. The device check stays on the right (the participant turns the head left and right there).
     const float PanelTextSize = 0.018f, PanelDist = 1.25f, FrontPanelYawDeg = 0f, RightPanelYawDeg = 40f;
     const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
-    // Pose check: a second mirror ("MirrorFront") straight ahead, behind the front instruction slot and below its
-    // text (top edge ~16 deg up vs the 3-line text's bottom ~19 deg), clear of the device check panel on the right.
-    // Seen from 1.6 m it shows the whole avatar, hands raised above the head included.
+    // Pose check: a second mirror ("MirrorFront") straight ahead, behind the front instruction slot (1.5 m) and
+    // below its text (top edge ~16 deg up vs the 3-line text's bottom ~19 deg), so it never covers the text; clear
+    // of the device check panel on the right. Seen from 1.6 m it shows the whole avatar, hands raised above the
+    // head included.
     const float PoseMirrorDist = 1.6f, PoseMirrorCenterHeight = 1.1f, PoseMirrorW = 1.2f, PoseMirrorH = 1.8f;
+    // Touch: a third mirror ("MirrorTouch") straight ahead and closer (the NPC stands behind the participant, so
+    // nothing else is in front). It is nearer than the "front" instruction slot, so the touch instruction has its own
+    // slot ("touch"): just in front of this mirror's plane and entirely above its top edge, where the mirror can
+    // neither cover it nor show its reflection; the text size keeps the front slot's angular size.
+    const float TouchMirrorDist = 1.0f, TouchMirrorCenterHeight = 1.05f, TouchMirrorW = 1.2f, TouchMirrorH = 1.8f;
+    const float InsTouchGap = 0.03f, InsTouchSize = InsSize * (TouchMirrorDist - InsTouchGap) / InsDist;
+    const int InsTouchLines = 3;
     // Photos of how to switch the avatar ("MenuPhoto1", "MenuPhoto2", children of the AvatarGate item), stacked top to
     // bottom right of the gate's backing (which ends ~20 deg right), each MenuPhotoW wide keeping the image's aspect,
     // the column centred at MenuPhotoHeight. 1: open the menu and tap "Avatar"; 2: pick "LUIDA Default Avatar" and
@@ -686,6 +698,9 @@ return {
 
     static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
     static Vector3 InsCenterPos(Layout l) => l.Around(0f, InsDist, InsCenterHeight);
+    // bottom edge of the backing of an InsTouchLines-line text InsTouchGap above the touch mirror's top edge
+    static Vector3 InsTouchPos(Layout l) => l.Around(0f, TouchMirrorDist - InsTouchGap,
+        TouchMirrorCenterHeight + TouchMirrorH * 0.5f + InsTouchGap + (InsTouchLines * LineH * InsTouchSize + InsBoardPad) * 0.5f);
     static Vector3 InsAbovePos(Layout l) => l.Around(0f, QuestFwd - InsAboveBack, QuestCenterHeight + QuestHeight * 0.5f + InsAboveGap);
 
     /// <summary>
@@ -787,25 +802,8 @@ return {
                 mir.localRotation = Quaternion.identity;
                 mir.localScale = new Vector3(MirrorW, MirrorH, 1f);
             }
-            var front = mp.Find("MirrorFront");
-            if (front == null)
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MirrorPrefabPath);
-                if (prefab != null)
-                {
-                    var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, mp);
-                    go.name = "MirrorFront";
-                    go.SetActive(false);
-                    front = go.transform;
-                }
-                else Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath);
-            }
-            if (front != null)
-            {
-                var fp = l.Around(0f, PoseMirrorDist, PoseMirrorCenterHeight);
-                front.SetPositionAndRotation(fp, l.FaceAwayFromViewer(fp));
-                front.localScale = new Vector3(PoseMirrorW, PoseMirrorH, 1f);
-            }
+            PlaceExtraMirror(l, mp, "MirrorFront", PoseMirrorDist, PoseMirrorCenterHeight, PoseMirrorW, PoseMirrorH);
+            PlaceExtraMirror(l, mp, "MirrorTouch", TouchMirrorDist, TouchMirrorCenterHeight, TouchMirrorW, TouchMirrorH);
         }
 
         EnsureHeightObjects(l, m);
@@ -814,6 +812,24 @@ return {
         var npcRoot = FindRoot("NPC", false);
         if (npcRoot != null) AttachFaceExpression(npcRoot.gameObject, EnsureFaceAssets(false));
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+    }
+
+    // A CCK mirror straight ahead of the standing spot, child of the MirrorPanel item (created inactive when missing).
+    static void PlaceExtraMirror(Layout l, Transform mirrorPanel, string name, float dist, float centerHeight, float w, float h)
+    {
+        var t = mirrorPanel.Find(name);
+        if (t == null)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MirrorPrefabPath);
+            if (prefab == null) { Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath); return; }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, mirrorPanel);
+            go.name = name;
+            go.SetActive(false);
+            t = go.transform;
+        }
+        var pos = l.Around(0f, dist, centerHeight);
+        t.SetPositionAndRotation(pos, l.FaceAwayFromViewer(pos));
+        t.localScale = new Vector3(w, h, 1f);
     }
 
     // Unlit quads (no collider) facing the eye, one per MenuPhotoFiles entry, stacked top to bottom; inactive until
@@ -1077,6 +1093,166 @@ return {
         marker.GetComponent<MeshRenderer>().sharedMaterial = m.marker;
     }
 
+    // ------------------------------------------------------------------ 3c. room
+    // A plain apartment-style room around the standing spot (beige walls, light plank floor, white ceiling, thin
+    // baseboard), built from a few Apartment Kit pieces (Brick Project Studio, Unity Asset Store; only the three
+    // models and two textures below are in the project, under their original paths and GUIDs). The kit's pieces sit
+    // on a 2.5 m grid, each wall on the outer 10 cm of its cell, 4 m tall: they are scaled down to RoomHeight.
+    // Cheap to render (standalone HMDs; the mirror renders the room a second time): 3 materials, no normal maps,
+    // no shadows, no light or reflection probes, no extra lights. Most of each surface's brightness is emission
+    // (RoomGlow), so the room looks evenly lit whatever the scene's light does; the rest (RoomLit) reacts to the
+    // directional light and the ambient light, which keeps the walls, floor and ceiling slightly different.
+    const string RoomName = "Room";
+    const string RoomKitFolder = "Assets/Brick Project Studio";
+    const string RoomWallFbx = RoomKitFolder + "/_BPS Basic Assets/Common/Models/Build Kits/Build Kit Interior Updated_01.fbx";
+    const string RoomCeilingFbx = RoomKitFolder + "/_BPS Basic Assets/Common/Models/Build Kits/Build Kit Interior - 01.fbx";
+    const string RoomMoldingFbx = RoomKitFolder + "/Apartment Kit/Common/Models/Apt_Kit_02.fbx";
+    const string RoomWallMesh = "Int_WallNew_01", RoomCeilingMesh = "Int_Ceiling_01", RoomMoldingMesh = "Int_Molding_Base_Apt_01";
+    const string RoomAtlasTex = RoomKitFolder + "/Apartment Kit/Common/Textures/Interior Exterior/Int_Apt_01_A.png";   // beige wall, white ceiling
+    const string RoomFloorTex = RoomKitFolder + "/_BPS Basic Assets/Common/Textures/Legacy/Wood Floor 01.png";
+    const float RoomCell = 2.5f, RoomKitHeight = 4f, RoomKitMoldingHeight = 0.368f;
+    const int RoomCellsX = 2, RoomCellsZ = 2;        // 5 x 5 m (4.7 m between the wall faces)
+    const float RoomFrontDist = 3.0f;                // standing spot -> outer edge of the front cells (the wall face is 0.1 m nearer)
+    const float RoomHeight = 2.9f;                   // the "above" instruction slot's text ends at ~2.66 m
+    const float RoomBaseboardHeight = 0.07f, RoomFloorLift = 0.005f, RoomFloorTile = 0.9f;   // m of floor per texture repeat
+    const float RoomLit = 0.3f, RoomGlow = 0.8f;
+    static readonly Color RoomWallTint = new Color(1f, 0.96f, 0.89f);   // warms the kit's beige (also the ceiling's white)
+    static readonly Color RoomBaseboardColor = new Color(0.80f, 0.66f, 0.47f);
+
+    /// <summary>
+    /// (Re)builds the "Room" root from the Apartment Kit pieces and hides the template's floor plane (its collider
+    /// stays). Nothing else in the scene changes. Save the scene afterwards.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Build room (keep scene)")]
+    public static void BuildRoomKeepScene()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        BuildRoom(ComputeLayout());
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+    }
+
+    static void BuildRoom(Layout l)
+    {
+        Mesh FindMesh(string path, string name) =>
+            AssetDatabase.LoadAllAssetsAtPath(path).OfType<Mesh>().FirstOrDefault(x => x.name == name);
+        var wallMesh = FindMesh(RoomWallFbx, RoomWallMesh);
+        var ceilingMesh = FindMesh(RoomCeilingFbx, RoomCeilingMesh);
+        var moldingMesh = FindMesh(RoomMoldingFbx, RoomMoldingMesh);
+        var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(RoomAtlasTex);
+        var wood = AssetDatabase.LoadAssetAtPath<Texture2D>(RoomFloorTex);
+        if (wallMesh == null || ceilingMesh == null || moldingMesh == null || atlas == null || wood == null)
+        {
+            Debug.LogWarning("[Study4] Apartment Kit pieces not found under " + RoomKitFolder + "; the room is not built.");
+            return;
+        }
+        SetMaxTextureSize(RoomAtlasTex, 512);    // flat colours only
+        SetMaxTextureSize(RoomFloorTex, 1024);
+
+        float w = RoomCellsX * RoomCell, d = RoomCellsZ * RoomCell;
+        float fMax = RoomFrontDist, fMin = RoomFrontDist - d;
+        Directory.CreateDirectory(MaterialsFolder);
+        var wallMat = MakeRoomMaterial("RoomWall", atlas, Vector2.one, RoomWallTint);
+        var floorMat = MakeRoomMaterial("RoomFloor", wood, new Vector2(w / RoomFloorTile, d / RoomFloorTile), Color.white);
+        var baseMat = MakeRoomMaterial("RoomBaseboard", null, Vector2.one, RoomBaseboardColor);
+        AssetDatabase.SaveAssets();
+
+        var old = FindRoot(RoomName, false);
+        if (old != null) Object.DestroyImmediate(old.gameObject);
+        var root = new GameObject(RoomName).transform;
+        root.SetPositionAndRotation(l.origin, l.Frame);
+
+        Transform Piece(string name, Mesh mesh, Material mat, Vector3 localPos, float yawDeg, Vector3 scale)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(root, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = Quaternion.Euler(0f, yawDeg, 0f);
+            go.transform.localScale = scale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+            return go.transform;
+        }
+
+        var wallScale = new Vector3(1f, RoomHeight / RoomKitHeight, 1f);
+        var baseScale = new Vector3(1f, RoomBaseboardHeight / RoomKitMoldingHeight, 1f);
+        // a wall and its baseboard on the given side of a cell (yaw turns the piece's +z, where its wall is, outwards)
+        void Wall(string side, int index, float r, float f, float yawDeg)
+        {
+            var t = Piece("Wall_" + side + index, wallMesh, wallMat, new Vector3(r, 0f, f), yawDeg, wallScale);
+            var col = t.gameObject.AddComponent<BoxCollider>();   // the wall slab, in the unscaled mesh's coordinates
+            col.center = new Vector3(0f, RoomKitHeight * 0.5f, RoomCell * 0.5f - 0.05f);
+            col.size = new Vector3(RoomCell, RoomKitHeight, 0.1f);
+            Piece("Baseboard_" + side + index, moldingMesh, baseMat, new Vector3(r, 0f, f), yawDeg, baseScale);
+        }
+        for (int i = 0; i < RoomCellsX; i++)
+        {
+            float r = -w * 0.5f + (i + 0.5f) * RoomCell;
+            Wall("Front", i, r, fMax - RoomCell * 0.5f, 0f);
+            Wall("Back", i, r, fMin + RoomCell * 0.5f, 180f);
+            for (int j = 0; j < RoomCellsZ; j++)
+                Piece("Ceiling_" + i + "_" + j, ceilingMesh, wallMat, new Vector3(r, 0f, fMin + (j + 0.5f) * RoomCell), 0f, wallScale);
+        }
+        for (int j = 0; j < RoomCellsZ; j++)
+        {
+            float f = fMin + (j + 0.5f) * RoomCell;
+            Wall("Right", j, w * 0.5f - RoomCell * 0.5f, f, 90f);
+            Wall("Left", j, -w * 0.5f + RoomCell * 0.5f, f, -90f);
+        }
+
+        // floor: one quad just above the template's plane (the floor collider is the template's)
+        var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var quadMesh = quad.GetComponent<MeshFilter>().sharedMesh;
+        Object.DestroyImmediate(quad);
+        var floor = Piece("Floor", quadMesh, floorMat, new Vector3(0f, RoomFloorLift, (fMin + fMax) * 0.5f), 0f, new Vector3(w, d, 1f));
+        floor.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+        var env = FindRoot("Environment", false);
+        var plane = env != null ? env.Find("Plane") : null;
+        if (plane != null && plane.GetComponent<MeshRenderer>() != null) plane.GetComponent<MeshRenderer>().enabled = false;
+        Debug.Log("[Study4] room built: " + w + " x " + d + " x " + RoomHeight + " m, " + root.childCount + " pieces");
+    }
+
+    static void SetMaxTextureSize(string path, int size)
+    {
+        var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (imp == null || imp.maxTextureSize == size) return;
+        imp.maxTextureSize = size;
+        imp.SaveAndReimport();
+    }
+
+    // Standard shader, mostly self-lit (see the room notes above); no specular highlights or reflections.
+    static Material MakeRoomMaterial(string name, Texture2D tex, Vector2 tiling, Color color)
+    {
+        string path = MaterialsFolder + "/" + name + ".mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        bool create = mat == null;
+        if (create) mat = new Material(Shader.Find("Standard"));
+        mat.mainTexture = tex;
+        mat.mainTextureScale = tiling;
+        mat.color = new Color(color.r * RoomLit, color.g * RoomLit, color.b * RoomLit, 1f);
+        mat.SetTexture("_EmissionMap", tex);
+        mat.SetColor("_EmissionColor", new Color(color.r * RoomGlow, color.g * RoomGlow, color.b * RoomGlow, 1f));
+        // not EmissiveIsBlack: the Standard shader's material validation would switch the _EMISSION keyword off
+        mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        mat.EnableKeyword("_EMISSION");
+        mat.SetFloat("_Glossiness", 0f);
+        mat.SetFloat("_Metallic", 0f);
+        mat.SetFloat("_SpecularHighlights", 0f);
+        mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+        mat.SetFloat("_GlossyReflections", 0f);
+        mat.EnableKeyword("_GLOSSYREFLECTIONS_OFF");
+        if (create) AssetDatabase.CreateAsset(mat, path);
+        else EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
     // ------------------------------------------------------------------ 4. NPC
     static Item FindDataCollectorItem()
     {
@@ -1106,11 +1282,11 @@ return {
 
         string sceneFolder = AvatarsConfigAssetUtil.GetSceneFolderFromRegistry(registry);
         string boneMapPath = AvatarsConfigAssetUtil.GetGeneratedFolder(sceneFolder) + "/NpcBody_BoneMap.js";
-        AppendEyeBonesToBoneMap(boneMapPath, vrm);
         string npcBoneMapPath = AvatarsConfigAssetUtil.GetGeneratedFolder(sceneFolder) + "/NPC_BoneMap.js";
         if (File.Exists(npcBoneMapPath)) AssetDatabase.DeleteAsset(npcBoneMapPath);
         AssetDatabase.MoveAsset(boneMapPath, npcBoneMapPath);
-        AssetDatabase.ImportAsset(npcBoneMapPath, ImportAssetOptions.ForceUpdate);
+        // the wrapper's map has no eyes or fingers: rewrite it with the NPC's bone set (rests sampled from the model)
+        WriteNpcBoneMap(npcBoneMapPath, vrm);
 
         var boneMapAsset = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(npcBoneMapPath);
         var controllerAsset = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(NpcControllerJsPath);
@@ -1285,35 +1461,102 @@ return {
         return controller;
     }
 
-    // Append LeftEye/RightEye to the generated BONE_MAP / BONE_PARENT so the NPC can move its eyes.
-    static void AppendEyeBonesToBoneMap(string boneMapPath, GameObject vrm)
+    // ------------------------------------------------------------------ NPC bone map
+    // NPC_BoneMap.js (prepended to NpcController.js by the combiner) lists the bones the controller drives, each with
+    // its rest rotation and its transform parent's rest rotation relative to the item root, and BONE_PARENT (nearest
+    // listed ancestor). The controller sets every listed bone each frame from these, so the map must be sampled from
+    // the model the NPC actually carries: with wrong rests a bone is posed off by the difference, and a bone between
+    // two listed ones (e.g. UpperChest) passes its rest on to everything below it (the arms).
+    const string NpcBoneMapPath = AvatarsFolder + "/Generated/NPC_BoneMap.js";
+    static readonly HumanBodyBones[] NpcBoneMapBones =
+    {
+        HumanBodyBones.Hips, HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.Neck, HumanBodyBones.Head,
+        HumanBodyBones.LeftShoulder, HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
+        HumanBodyBones.RightShoulder, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
+        HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg,
+        HumanBodyBones.LeftEye, HumanBodyBones.RightEye,
+        // right-hand fingers (curled while the NPC touches the face), proximal before distal
+        HumanBodyBones.RightThumbProximal, HumanBodyBones.RightThumbIntermediate, HumanBodyBones.RightThumbDistal,
+        HumanBodyBones.RightIndexProximal, HumanBodyBones.RightIndexIntermediate, HumanBodyBones.RightIndexDistal,
+        HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleIntermediate, HumanBodyBones.RightMiddleDistal,
+        HumanBodyBones.RightRingProximal, HumanBodyBones.RightRingIntermediate, HumanBodyBones.RightRingDistal,
+        HumanBodyBones.RightLittleProximal, HumanBodyBones.RightLittleIntermediate, HumanBodyBones.RightLittleDistal,
+    };
+
+    /// <summary>
+    /// Rewrites NPC_BoneMap.js from the model the scene's NPC carries (its "Model" child may differ from the NPC
+    /// prefab's), then recombines the scripts. Save the scene afterwards.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Regenerate NPC bone map from the scene model")]
+    public static void RegenerateNpcBoneMapFromSceneModel()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        var npc = FindRoot("NPC", false);
+        var model = npc != null ? npc.Find("Model") : null;
+        if (model == null) throw new Exception("NPC/Model not found in the scene");
+        if (model.localPosition.sqrMagnitude > 1e-8f || Quaternion.Angle(model.localRotation, Quaternion.identity) > 0.01f)
+            Debug.LogWarning("[Study4] NPC/Model is not at the item origin; the bone map assumes it is");
+        var vrm = PrefabUtility.GetCorrespondingObjectFromOriginalSource(model.gameObject);
+        if (vrm == null || string.IsNullOrEmpty(AssetDatabase.GetAssetPath(vrm)))
+            throw new Exception("NPC/Model is not an instance of a model asset");
+        WriteNpcBoneMap(NpcBoneMapPath, vrm);
+        LuidaScriptCombiner.CombineAll();
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+    }
+
+    // Samples the model's rest pose in a preview scene (instance root at the origin = the NPC item root).
+    static void WriteNpcBoneMap(string boneMapPath, GameObject vrm)
     {
         var preview = EditorSceneManager.NewPreviewScene();
         GameObject instance = null;
         try
         {
             instance = (GameObject)PrefabUtility.InstantiatePrefab(vrm, preview);
+            instance.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
             var animator = instance.GetComponentInChildren<Animator>();
-            if (animator == null || animator.avatar == null || !animator.avatar.isHuman) return;
-            var left = animator.GetBoneTransform(HumanBodyBones.LeftEye);
-            var right = animator.GetBoneTransform(HumanBodyBones.RightEye);
-            if (left == null || right == null) { Debug.LogWarning("[Study4] NPC model has no eye bones; gaze will use head only"); return; }
+            if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
+                throw new Exception("NPC model has no humanoid Animator: " + AssetDatabase.GetAssetPath(vrm));
+            var root = instance.transform;
+            Quaternion Rel(Transform t) => t != null ? Quaternion.Inverse(root.rotation) * t.rotation : Quaternion.identity;
 
-            string js = File.ReadAllText(boneMapPath);
-            string Entry(string bone, Transform t) => string.Format(CultureInfo.InvariantCulture,
-                "  {{ bone: HumanoidBone.{0}, name: \"{1}\", rest: {2}, restParent: {3} }},\n",
-                bone, t.name.Replace("\"", "\\\""), Q(t.rotation), Q(t.parent != null ? t.parent.rotation : Quaternion.identity));
+            var listed = new List<(HumanBodyBones bone, Transform t)>();
+            foreach (var b in NpcBoneMapBones)
+            {
+                var t = animator.GetBoneTransform(b);
+                if (t != null) listed.Add((b, t));
+                else Debug.LogWarning("[Study4] NPC model has no " + b + " bone; it is left out of the bone map");
+            }
+            var byTransform = listed.ToDictionary(x => x.t, x => x.bone);
+            var hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            var hipsParent = hips != null ? hips.parent : null;
 
-            int mapStart = js.IndexOf("const BONE_MAP = [", StringComparison.Ordinal);
-            int mapEnd = js.IndexOf("];", mapStart, StringComparison.Ordinal);
-            js = js.Insert(mapEnd, Entry("LeftEye", left) + Entry("RightEye", right));
-
-            int parentStart = js.IndexOf("const BONE_PARENT = {", StringComparison.Ordinal);
-            int parentEnd = js.IndexOf("};", parentStart, StringComparison.Ordinal);
-            js = js.Insert(parentEnd, "  [HumanoidBone.LeftEye]: HumanoidBone.Head,\n  [HumanoidBone.RightEye]: HumanoidBone.Head,\n");
-
-            File.WriteAllText(boneMapPath, js);
+            var sb = new System.Text.StringBuilder();
+            sb.Append("// NPC bone map: generated by Study4SceneBuilder from " + AssetDatabase.GetAssetPath(vrm) + "\n");
+            sb.Append("// Do not edit manually: LUIDA > Study4 > Regenerate NPC bone map from the scene model.\n");
+            sb.Append("// rest / restParent: rotation of the bone / of its transform parent relative to the item root, in the\n");
+            sb.Append("// model's rest pose. BONE_PARENT: nearest listed ancestor.\n\n");
+            sb.Append("const AVATAR_SYNC_HIPS_Y = true;\nconst AVATAR_HIPS_Y_OFFSET = 0;\n\n");
+            sb.Append("const AVATAR_HIPS_PARENT_REST_ROT = " + Q(Rel(hipsParent)) + ";\n");
+            var hp = hipsParent != null ? root.InverseTransformPoint(hipsParent.position) : Vector3.zero;
+            sb.Append(string.Format(CultureInfo.InvariantCulture, "const AVATAR_HIPS_PARENT_REST_POS = new Vector3({0:G7}, {1:G7}, {2:G7});\n\n", hp.x, hp.y, hp.z));
+            sb.Append("const BONE_MAP = [\n");
+            foreach (var (bone, t) in listed)
+                sb.Append(string.Format(CultureInfo.InvariantCulture,
+                    "  {{ bone: HumanoidBone.{0}, name: \"{1}\", rest: {2}, restParent: {3} }},\n",
+                    bone, t.name.Replace("\"", "\\\""), Q(Rel(t)), Q(Rel(t.parent))));
+            sb.Append("];\n\nconst BONE_PARENT = {\n");
+            foreach (var (bone, t) in listed)
+            {
+                string parent = "null";
+                for (var a = t.parent; a != null && a != root; a = a.parent)
+                    if (byTransform.TryGetValue(a, out var pb)) { parent = "HumanoidBone." + pb; break; }
+                sb.Append("  [HumanoidBone." + bone + "]: " + parent + ",\n");
+            }
+            sb.Append("};\n");
+            File.WriteAllText(boneMapPath, sb.ToString());
             AssetDatabase.ImportAsset(boneMapPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log("[Study4] NPC bone map written from " + AssetDatabase.GetAssetPath(vrm) + ": " + listed.Count + " bones -> " + boneMapPath);
         }
         finally
         {
@@ -1514,6 +1757,7 @@ return {
 
             // -- final placement, sizes and backings of all UI (also used by "Update layout ...") --
             ApplyLayout(l, m);
+            BuildRoom(l);
 
             // -- generate JS for all items -------------------------------------------
             ItemsManagerAssetUtil.RefreshStateListeningItems(tab);
@@ -1691,9 +1935,9 @@ return {
                 L(Act(T_ShowItem), Custom("ins_okBegin();"), Ins("center",
                     "ようこそ。\\n" +
                     "この実験では、正面に現れる相手に挨拶をしたあと、\\n" +
-                    "相手の手があなたの顔にゆっくり近づく様子を\\n" +
-                    "見ていただきます。そのたびに、感じたことを\\n" +
-                    "短い質問にお答えください。\\n" +
+                    "相手の手があなたの顔にゆっくり近づく様子を、\\n" +
+                    "正面の鏡で見ていただきます。そのたびに、\\n" +
+                    "感じたことを短い質問にお答えください。\\n" +
                     "途中で、アバターの着替えと機器の確認をお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。")),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
@@ -1702,7 +1946,9 @@ return {
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
             Listener(S_POSE, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
             Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見ながら\\n挨拶してください。\\n（例：手を振る、少し横に動く）');"))),
-            Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
+            // touch: the NPC stands behind-right of the participant; both are seen in the near mirror straight ahead
+            // (InsTouchLines lines; the "touch" slot sits just above that mirror)
+            Listener(S_TOUCH, L(Ins("touch", "後ろの相手の手がゆっくり顔に近づきます。\\n顔を正面に向けたまま、楽な姿勢で\\n鏡を見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
@@ -1750,9 +1996,10 @@ return {
                    F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + "), size: " + F4(size) + " }";
         }
         return "// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----\n" +
-               "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead\n" +
+               "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead,\n" +
+               "//        touch = just above the near mirror shown during the touch\n" +
                "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l), InsSize) + ",\n  above: " + Slot(InsAbovePos(l), InsAboveSize) +
-               ",\n  center: " + Slot(InsCenterPos(l), InsSize) + ",\n};\n" +
+               ",\n  center: " + Slot(InsCenterPos(l), InsSize) + ",\n  touch: " + Slot(InsTouchPos(l), InsTouchSize) + ",\n};\n" +
                "// CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size\n" +
                "const INS_GLYPH_W = " + F4(GlyphW) + ", INS_LINE_H = " + F4(LineH) + ", INS_PAD = " + F4(InsBoardPad) + ";\n" +
                "function ins_show(slot, text, size) {\n" +
@@ -1846,9 +2093,10 @@ return {
                     "}")),
                 null,
                 L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
-            // Touch and stroke: freeze; the NPC puts the participant back on the marker (position and facing, on
-            // their height platform), waits a moment, then turns to them, steps in and touches. At the end the
-            // NPC steps back to the conversation spot and disappears before npc_done.
+            // Touch and stroke: freeze; the NPC leaves the greeting spot in front (disappears), puts the participant
+            // back on the marker (position and facing, on their height platform), reappears behind-right of them
+            // (seen in the front mirror), steps in and touches their right cheek from the side. At the end the NPC
+            // steps back and disappears before npc_done.
             Listener(S_TOUCH,
                 L(Custom(
                     "nd_setMove(0);\n" +
@@ -2387,16 +2635,22 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
         return new List<StateListener>
         {
             // both mirrors hidden at Start (also after a session reset from the middle of a trial)
-            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")))),
-            // avatar switch (trial start): the front-left mirror, so the participant sees the new avatar load (the
-            // gate panel is straight ahead). Unconditional: in the 2nd trial of a block it stays on into the greeting.
-            Listener(S_TSTART, L(Act(T_ShowChild, ("childName", "Mirror")))),
+            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")),
+                                Act(T_HideChild, ("childName", "MirrorTouch")))),
+            // avatar switch (1st trial of each block): the front-left mirror, so the participant sees the new avatar
+            // load (the gate panel is straight ahead). The 2nd trial passes Start, PoseCheck and Greeting at once.
+            Listener(S_TSTART, L(If(Act(T_ShowChild, ("childName", "Mirror")), "rep", "1"))),
             // pose check (1st trial of each block): the mirror straight ahead instead
             Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1"),
                                If(Act(T_HideChild, ("childName", "Mirror")), "rep", "1")), null,
                 L(Act(T_HideChild, ("childName", "MirrorFront")))),
-            Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
-            Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
+            // greeting (face to face): the front-left mirror again
+            Listener(S_GREET, L(If(Act(T_ShowChild, ("childName", "Mirror")), "rep", "1")), null,
+                L(Act(T_HideChild, ("childName", "Mirror")))),
+            // touch: the near mirror straight ahead (below the "touch" instruction slot), where the participant sees
+            // their own avatar and the NPC standing behind-right of them, and the NPC's hand at their face
+            Listener(S_TOUCH, L(Act(T_ShowChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror"))), null,
+                L(Act(T_HideChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror")))),
         };
     }
 

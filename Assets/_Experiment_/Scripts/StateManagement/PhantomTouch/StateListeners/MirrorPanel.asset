@@ -57,6 +57,21 @@ MonoBehaviour:
       - childName
       _variableValuesList:
       - MirrorFront
+    - predefinedActionTemplate:
+        actionType: Hide child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - MirrorTouch
     duringStateActions: []
     onStateExitedActions: []
   - stateID: 1
@@ -69,9 +84,9 @@ MonoBehaviour:
         - childName
         category: Item child
       customAction: 
-      isConditional: 0
-      conditionVariable: 
-      conditionValue: 
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
       _variableKeys:
       - childName
       _variableValuesList:
@@ -137,6 +152,55 @@ MonoBehaviour:
         - childName
         category: Item child
       customAction: 
+      isConditional: 1
+      conditionVariable: rep
+      conditionValue: 1
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - Mirror
+    duringStateActions: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Hide child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - Mirror
+  - stateID: 4
+    onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Show child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - MirrorTouch
+    - predefinedActionTemplate:
+        actionType: Hide child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
       isConditional: 0
       conditionVariable: 
       conditionValue: 
@@ -145,11 +209,22 @@ MonoBehaviour:
       _variableValuesList:
       - Mirror
     duringStateActions: []
-    onStateExitedActions: []
-  - stateID: 4
-    onStateStartedActions: []
-    duringStateActions: []
     onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Hide child
+        displayLabel: 
+        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
+        variables:
+        - childName
+        category: Item child
+      customAction: 
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys:
+      - childName
+      _variableValuesList:
+      - MirrorTouch
     - predefinedActionTemplate:
         actionType: Hide child
         displayLabel: 

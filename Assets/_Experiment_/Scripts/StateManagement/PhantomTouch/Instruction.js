@@ -7,7 +7,7 @@ const stateEnterActions = {
             ins_okBegin();
         } },
         { type: "exec", action: (deltaTime) => {
-            ins_show('center', 'ようこそ。\nこの実験では、正面に現れる相手に挨拶をしたあと、\n相手の手があなたの顔にゆっくり近づく様子を\n見ていただきます。そのたびに、感じたことを\n短い質問にお答えください。\n途中で、アバターの着替えと機器の確認をお願いします。\n読み終わったら、下の「OK」を押してください。');
+            ins_show('center', 'ようこそ。\nこの実験では、正面に現れる相手に挨拶をしたあと、\n相手の手があなたの顔にゆっくり近づく様子を、\n正面の鏡で見ていただきます。そのたびに、\n感じたことを短い質問にお答えください。\n途中で、アバターの着替えと機器の確認をお願いします。\n読み終わったら、下の「OK」を押してください。');
         } }
     ],
     1: [
@@ -27,7 +27,7 @@ const stateEnterActions = {
     ],
     4: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '正面の相手の手がゆっくり近づきます。\n顔を正面に向けたまま、\n楽な姿勢で見ていてください。');
+            ins_show('touch', '後ろの相手の手がゆっくり顔に近づきます。\n顔を正面に向けたまま、楽な姿勢で\n鏡を見ていてください。');
         } }
     ],
     5: [
@@ -105,11 +105,13 @@ const stateExitActions = {
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
 // ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----
-// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead
+// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead,
+//        touch = just above the near mirror shown during the touch
 const INS_SLOTS = {
   front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799), size: 0.024 },
   above: { p: new Vector3(0, 2.55, 1.7), r: new Quaternion(-0.2627, 0, 0, 0.9649), size: 0.03 },
   center: { p: new Vector3(0, 1.65, 1.5), r: new Quaternion(-0.0333, 0, 0, 0.9994), size: 0.024 },
+  touch: { p: new Vector3(0, 2.0688, 0.97), r: new Quaternion(-0.2431, 0, 0, 0.97), size: 0.0155 },
 };
 // CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size
 const INS_GLYPH_W = 1.85, INS_LINE_H = 2.74, INS_PAD = 0.05;
