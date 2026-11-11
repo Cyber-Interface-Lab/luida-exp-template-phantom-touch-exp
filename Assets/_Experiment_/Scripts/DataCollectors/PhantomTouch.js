@@ -31,8 +31,6 @@ return {
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
     strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec: CD['strokeRampSec'],
-    // touch layout: NPC standing azimuth (deg from the participant's facing, + = right), touched cheek, finger curl
-    npcStandAz: CD['npcStandAz'], touchSide: CD['touchSide'], fingerCurl: CD['fingerCurl'],
     // greeting period (written on both trials of the block)
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
     greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],

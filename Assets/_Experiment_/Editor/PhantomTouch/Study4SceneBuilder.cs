@@ -151,7 +151,7 @@ public static class Study4SceneBuilder
                 ("AvatarGate", AvatarGateListeners, null, AvatarGateLegacy),
                 ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
                 ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
-                ("MirrorPanel", MirrorPanelListeners, null, MirrorPanelLegacy(l)),
+                ("MirrorPanel", MirrorPanelListeners, null, MirrorPanelLegacy),
                 ("ExitPortal", ExitPortalListeners, null, ExitPortalLegacy()),
             };
             foreach (var d in defs)
@@ -555,8 +555,6 @@ return {
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
     strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec: CD['strokeRampSec'],
-    // touch layout: NPC standing azimuth (deg from the participant's facing, + = right), touched cheek, finger curl
-    npcStandAz: CD['npcStandAz'], touchSide: CD['touchSide'], fingerCurl: CD['fingerCurl'],
     // greeting period (written on both trials of the block)
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
     greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],
@@ -684,9 +682,7 @@ return {
     // the mirror) <= 20, above the questionnaire <= 26, center (nothing else shown) <= 26 / 30 in the debrief,
     // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
-    //   greeting: NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left)
-    //   touch: near mirror "MirrorTouch" (straight ahead, 1.3 m) + instruction "touch" slot (just above it); the NPC
-    //          stands behind-right of the participant and is seen in the mirror
+    //   NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left, greeting/touch)
     //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photos (right of it) + mirror (front-left)
     //   pose check: front mirror (straight ahead, below the front slot) + device check panel (right)
     //   report: report panel (straight ahead, NPC hidden)
@@ -709,24 +705,6 @@ return {
     // of the device check panel on the right. Seen from 1.6 m it shows the whole avatar, hands raised above the
     // head included.
     const float PoseMirrorDist = 1.6f, PoseMirrorCenterHeight = 1.1f, PoseMirrorW = 1.2f, PoseMirrorH = 1.8f;
-    // Touch: a third mirror ("MirrorTouch") straight ahead and closer than MirrorFront (the NPC stands behind the
-    // participant, so nothing else is in front). Two limits of Cluster's mirror on standalone headsets (CCK Mirror.cs,
-    // CLUSTER_QUEST): (1) when the eye is nearer the mirror plane than stereoConvergence x 0.1 (1 m with Unity's default
-    // convergence 10) it falls back to a cheap mode that renders avatars only, so the NPC (an item) and the room vanish;
-    // the mirror is therefore 1.3 m away (a step or a lean forward still keeps the eye beyond 1 m). (2) its texture is
-    // at most 768 x 768 for the whole mirror, so the mirror is only as tall as this participant needs: at the start of
-    // each touch the MirrorPanel item (mp_fitTouch) reads their head bone and feet and sets the mirror's height and
-    // size so that both avatars are seen from the floor to above the heads (a plane mirror shows a point at height y
-    // where the eye-to-image line crosses it, at (eye + y) / 2, whatever the distance), within TouchMirrorMinBottom ..
-    // TouchMirrorMaxTop. The values below are the scene's default (about 19 px/deg) until then.
-    // The touch instruction has its own slot ("touch"): just in front of this mirror's plane and entirely above the
-    // highest possible top edge, where the mirror can neither cover it nor show its reflection; the text keeps the
-    // front slot's angular size.
-    const float TouchMirrorDist = 1.3f, TouchMirrorCenterHeight = 1.275f, TouchMirrorW = 0.9f, TouchMirrorH = 0.95f;
-    const float TouchMirrorMinBottom = 0.3f, TouchMirrorMaxTop = 2.1f, TouchMirrorMargin = 0.05f;
-    const float TouchMirrorEyeAboveHead = 0.07f, TouchMirrorTopAboveHead = 0.22f;   // eyes / top of the hair vs the head bone
-    const float InsTouchGap = 0.03f, InsTouchSize = InsSize * (TouchMirrorDist - InsTouchGap) / InsDist;
-    const int InsTouchLines = 3;
     // Photos of how to switch the avatar ("MenuPhoto1", "MenuPhoto2", children of the AvatarGate item), stacked top to
     // bottom right of the gate's backing (which ends ~20 deg right), each MenuPhotoW wide keeping the image's aspect,
     // the column centred at MenuPhotoHeight. 1: open the menu and tap "Avatar"; 2: pick "LUIDA Default Avatar" and
@@ -752,9 +730,6 @@ return {
 
     static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
     static Vector3 InsCenterPos(Layout l) => l.Around(0f, InsDist, InsCenterHeight);
-    // bottom edge of the backing of an InsTouchLines-line text InsTouchGap above the touch mirror's highest top edge
-    static Vector3 InsTouchPos(Layout l) => l.Around(0f, TouchMirrorDist - InsTouchGap,
-        TouchMirrorMaxTop + InsTouchGap + (InsTouchLines * LineH * InsTouchSize + InsBoardPad) * 0.5f);
     static Vector3 InsAbovePos(Layout l) => l.Around(0f, QuestFwd - InsAboveBack, QuestCenterHeight + QuestHeight * 0.5f + InsAboveGap);
 
     /// <summary>
@@ -857,7 +832,9 @@ return {
                 mir.localScale = new Vector3(MirrorW, MirrorH, 1f);
             }
             PlaceExtraMirror(l, mp, "MirrorFront", PoseMirrorDist, PoseMirrorCenterHeight, PoseMirrorW, PoseMirrorH);
-            PlaceExtraMirror(l, mp, "MirrorTouch", TouchMirrorDist, TouchMirrorCenterHeight, TouchMirrorW, TouchMirrorH);
+            // the near mirror of the layout with the NPC behind the participant (kept on another branch) is not used
+            var touchMirror = mp.Find("MirrorTouch");
+            if (touchMirror != null) Object.DestroyImmediate(touchMirror.gameObject);
         }
 
         EnsureHeightObjects(l, m);
@@ -1791,7 +1768,7 @@ return {
                 mirror.SetActive(false);
             }
             else Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath);
-            WriteItemData(mirrorPanel, MirrorPanelListeners(), null, MirrorPanelLegacy(l));
+            WriteItemData(mirrorPanel, MirrorPanelListeners(), null, MirrorPanelLegacy);
 
             // -- ExitPortal (gate back to the recruitment world, shown at End) -------
             var exitPortal = CreateSli(tab, "ExitPortal");
@@ -1989,9 +1966,9 @@ return {
                 L(Act(T_ShowItem), Custom("ins_okBegin();"), Ins("center",
                     "ようこそ。\\n" +
                     "この実験では、正面に現れる相手に挨拶をしたあと、\\n" +
-                    "相手の手があなたの顔にゆっくり近づく様子を、\\n" +
-                    "正面の鏡で見ていただきます。そのたびに、\\n" +
-                    "感じたことを短い質問にお答えください。\\n" +
+                    "相手の手があなたの顔にゆっくり近づく様子を\\n" +
+                    "見ていただきます。そのたびに、感じたことを\\n" +
+                    "短い質問にお答えください。\\n" +
                     "途中で、アバターの着替えと機器の確認をお願いします。\\n" +
                     "読み終わったら、下の「OK」を押してください。")),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
@@ -2000,9 +1977,7 @@ return {
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
             Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
             Listener(S_GREET, L(Ins("front", "20秒間、目の前のアバターを見ながら\\n挨拶してください。\\n（例：手を振る、少し横に動く）"))),
-            // touch: the NPC stands behind-right of the participant; both are seen in the near mirror straight ahead
-            // (InsTouchLines lines; the "touch" slot sits just above that mirror)
-            Listener(S_TOUCH, L(Ins("touch", "後ろの相手の手がゆっくり顔に近づきます。\\n顔を正面に向けたまま、楽な姿勢で\\n鏡を見ていてください。"))),
+            Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (lastTrialOfBlock()) ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
@@ -2050,10 +2025,9 @@ return {
                    F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + "), size: " + F4(size) + " }";
         }
         return BlockTrialJs + "// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----\n" +
-               "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead,\n" +
-               "//        touch = just above the near mirror shown during the touch\n" +
+               "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead\n" +
                "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l), InsSize) + ",\n  above: " + Slot(InsAbovePos(l), InsAboveSize) +
-               ",\n  center: " + Slot(InsCenterPos(l), InsSize) + ",\n  touch: " + Slot(InsTouchPos(l), InsTouchSize) + ",\n};\n" +
+               ",\n  center: " + Slot(InsCenterPos(l), InsSize) + ",\n};\n" +
                "// CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size\n" +
                "const INS_GLYPH_W = " + F4(GlyphW) + ", INS_LINE_H = " + F4(LineH) + ", INS_PAD = " + F4(InsBoardPad) + ";\n" +
                "function ins_show(slot, text, size) {\n" +
@@ -2144,10 +2118,9 @@ return {
                     "$.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });")),
                 null,
                 L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
-            // Touch and stroke: freeze; the NPC leaves the greeting spot in front (disappears), puts the participant
-            // back on the marker (position and facing, on their height platform), reappears behind-right of them
-            // (seen in the front mirror), steps in and touches their right cheek from the side. At the end the NPC
-            // steps back and disappears before npc_done.
+            // Touch and stroke: freeze; the NPC puts the participant back on the marker (position and facing, on
+            // their height platform), waits a moment, then turns to them, steps in and touches. At the end the
+            // NPC steps back to the conversation spot and disappears before npc_done.
             Listener(S_TOUCH,
                 L(Custom(
                     "nd_setMove(0);\n" +
@@ -2700,62 +2673,21 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
         return new List<StateListener>
         {
             // both mirrors hidden at Start (also after a session reset from the middle of a trial)
-            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")),
-                                Act(T_HideChild, ("childName", "MirrorTouch")))),
+            Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")))),
             // avatar switch (1st trial of each block): the front-left mirror, so the participant sees the new avatar
             // load (the gate panel is straight ahead). Later trials of a block pass Start and PoseCheck at once.
             Listener(S_TSTART, L(Custom("if (firstTrialOfBlock()) $.subNode('Mirror').setEnabled(true);"))),
             // pose check (1st trial of each block): the mirror straight ahead instead
             Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) { $.subNode('MirrorFront').setEnabled(true); $.subNode('Mirror').setEnabled(false); }")), null,
                 L(Act(T_HideChild, ("childName", "MirrorFront")))),
-            // greeting (face to face, every trial): the front-left mirror again
-            Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror"))), null,
-                L(Act(T_HideChild, ("childName", "Mirror")))),
-            // touch: the near mirror straight ahead (below the "touch" instruction slot), where the participant sees
-            // their own avatar and the NPC standing behind-right of them, and the NPC's hand at their face
-            // (fitted to the participant's height: mp_fitTouch, retried while their bones are not readable)
-            Listener(S_TOUCH, L(Custom("$.state.mp_fitted = mp_fitTouch();"), Act(T_ShowChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror"))),
-                L(Custom("if (!$.state.mp_fitted) $.state.mp_fitted = mp_fitTouch();")),
-                L(Act(T_HideChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror")))),
+            // greeting and touch (face to face, every trial): the front-left mirror, where the participant sees their
+            // own avatar and the NPC's hand at their face
+            Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror")))),
+            Listener(S_TOUCH, null, null, L(Act(T_HideChild, ("childName", "Mirror")))),
         };
     }
 
-    // mp_fitTouch(): height and size of MirrorTouch for the current participant (see TouchMirrorDist). The NPC stands
-    // on the floor or on its riser and its head is matched to the participant's, so the floor (the marker's height)
-    // and the participant's head top bound both avatars.
-    static string MirrorPanelLegacy(Layout l)
-    {
-        var mpPos = l.Around(MirrorYawDeg, MirrorDist, MirrorCenterHeight);
-        var mpRot = l.FaceAwayFromViewer(mpPos);
-        var basePos = l.Around(0f, TouchMirrorDist, TouchMirrorCenterHeight);
-        var local = Quaternion.Inverse(mpRot) * (basePos - mpPos);   // the item turns about the vertical only
-        return BlockTrialJs + "// ---- Study 4: MirrorPanel (the touch mirror is fitted to the participant's height) ----\n" +
-               "const MP_TOUCH = { local: new Vector3(" + F4(local.x) + ", " + F4(local.y) + ", " + F4(local.z) + "), baseY: " +
-               F4(TouchMirrorCenterHeight) + ", w: " + F4(TouchMirrorW) + ", floorY: " + F4(l.origin.y) + ",\n" +
-               "  minBottom: " + F4(TouchMirrorMinBottom) + ", maxTop: " + F4(TouchMirrorMaxTop) + ", margin: " + F4(TouchMirrorMargin) +
-               ", eyeAboveHead: " + F4(TouchMirrorEyeAboveHead) + ", topAboveHead: " + F4(TouchMirrorTopAboveHead) + " };\n" +
-               "// returns false while the participant's bones cannot be read (the mirror keeps its previous size)\n" +
-               "function mp_fitTouch() {\n" +
-               "  const p = PARTICIPANTS[1];\n" +
-               "  if (!p || !p.exists()) return false;\n" +
-               "  let head = null;\n" +
-               "  try { head = p.getHumanoidBonePosition(HumanoidBone.Head); } catch (e) { head = null; }\n" +
-               "  const root = p.getPosition();\n" +
-               "  if (!head || !root || head.y - root.y < 0.3) return false;\n" +
-               "  const c = MP_TOUCH;\n" +
-               "  const eye = head.y + c.eyeAboveHead, feet = Math.min(root.y, c.floorY), top = head.y + c.topAboveHead;\n" +
-               "  const bottom = Math.max(c.minBottom, (eye + feet) / 2 - c.margin);\n" +
-               "  const upper = Math.min(c.maxTop, Math.max(bottom + 0.3, (eye + top) / 2 + c.margin));\n" +
-               "  const node = $.subNode('MirrorTouch');\n" +
-               "  if (!node) return true;\n" +
-               "  const mid = (bottom + upper) / 2;\n" +
-               "  node.setPosition(new Vector3(c.local.x, c.local.y + mid - c.baseY, c.local.z));\n" +
-               "  try { node.getUnityComponent('Transform').unityProp.localScale = new Vector3(c.w, upper - bottom, 1); }\n" +
-               "  catch (e) { $.log('[MirrorPanel] mirror size: ' + e); }\n" +
-               "  $.log('[MirrorPanel] touch mirror ' + bottom.toFixed(2) + '..' + upper.toFixed(2) + ' m (head bone ' + head.y.toFixed(2) + ', feet ' + root.y.toFixed(2) + ')');\n" +
-               "  return true;\n" +
-               "}\n";
-    }
+    const string MirrorPanelLegacy = BlockTrialJs;
 
     // ------------------------------------------------------------------ ExitPortal
     static List<StateListener> ExitPortalListeners()

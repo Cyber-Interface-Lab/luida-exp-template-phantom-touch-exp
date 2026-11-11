@@ -1,6 +1,6 @@
 # Study 4（PhantomTouch）実装メモ
 
-- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述）、注意の質問を最後へ、機器（ポーズ）確認を各ブロックの着替えの後へ移し正面に鏡、着替え指示の横にアバターメニューの写真、VEQ の指示文に「あなた」、NPC の手を 1 cm 近くまで伸ばし撫でる長さを 6 cm に。2026-11-09 更新: 試行間の休憩を 10 秒に、着替えの間も鏡を表示、挨拶の指示に具体例。2026-11-08 更新: セッションリセットを「新しく入った人に確認してから」に変更し、同じアカウントの入り直しは続きから再開できるようにした（§8）。2026-11-10 更新: 触る段階の配置を変更（正面の鏡、NPC は参加者の右後ろに立ち、横から右頬へ手を近づける。指を曲げる）、NPC のボーンマップをシーンのモデルから作り直し、撫でる動作の加減速、試行中の近い鏡、部屋（§10））
+- 実装日: 2026-10-24（2026-10-26 更新: 挨拶期間・NPC 表示制御・笑顔・鏡・単一 VEQ ステート／手のひらの向きの修正。2026-11-04 更新: 表示されない不具合の修正、UI レイアウトの作り直し、顔を撫でる動作。2026-11-07 更新: 同じスペースで次の参加者を迎えるセッションリセット、退出ゲートを遠方へ移動。2026-11-08 更新: 身長合わせ、無反応時の頷き、30 秒の挨拶、頬を狙う接触点と手の向き、撫で方、表情のギミック化、質問紙の上の指示文、デブリーフ文、試行内報告の選択肢の更新（英語併記、「その他」の自由記述）、注意の質問を最後へ、機器（ポーズ）確認を各ブロックの着替えの後へ移し正面に鏡、着替え指示の横にアバターメニューの写真、VEQ の指示文に「あなた」、NPC の手を 1 cm 近くまで伸ばし撫でる長さを 6 cm に。2026-11-09 更新: 試行間の休憩を 10 秒に、着替えの間も鏡を表示、挨拶の指示に具体例。2026-11-08 更新: セッションリセットを「新しく入った人に確認してから」に変更し、同じアカウントの入り直しは続きから再開できるようにした（§8）。2026-11-10 更新: 触る段階の配置を変更（正面の鏡、NPC は参加者の右後ろに立ち、横から右頬へ手を近づける。指を曲げる）、NPC のボーンマップをシーンのモデルから作り直し、撫でる動作の加減速、試行中の近い鏡、部屋（§10）。2026-11-11 更新: 社会的条件を参加者内に（§11）、触る段階を正面からの配置に戻した（§12））
 - 設計書: `implementation-plan.md`（同フォルダ）
 - 生成シーン: `Assets/_Experiment_/Scenes/PhantomTouch.unity`
 - 生成手段: `Assets/_Experiment_/Editor/PhantomTouch/Study4SceneBuilder.cs`（メニュー `LUIDA > Study4 > Build PhantomTouch scene`）。LUIDA のエディタ API（シーンテンプレート、State Machine タブの生成処理、State-listening Item 生成、質問紙束縛、Data Collector、アバターラッパー生成）をそのまま呼び出しているので、生成物は LUIDA の各ウィンドウでそのまま編集できる。
@@ -17,7 +17,7 @@
 | State-listening Items | `Assets/_Experiment_/Scripts/StateManagement/PhantomTouch/*.js` と `StateListeners/*.asset` | `Instruction`, `NpcDirector`, `AvatarGate`, `DeviceCheck`, `ReportPanel`, `MirrorPanel`, `ExitPortal`, `SessionReset`（§8） |
 | NPC | `Assets/_Experiment_/Prefabs/PhantomTouch/NPC.prefab`（シーンに配置済み） | YoungAvatar.vrm のラッパー（モデル子オブジェクト名 `Model`。シーン上の NPC は `luida_default_avatar_02.vrm` に差し替え済み）+ `Scripts/PhantomTouch/NpcController.js` + `Avatars/PhantomTouch/Generated/NPC_BoneMap.js`（シーンのモデルから生成。胴・腕・脚・目と右手の指 15 本の計 34 ボーン、§10）+ `npc_done` を Global へ中継する GlobalLogic + 顔メッシュ `Face` の Animator（`NpcFace.controller`: Bool `joy` / Trigger `surprised`、クリップ `NpcFaceNeutral/Joy/Surprised`）と、それを NPC アイテムの状態 `npc_joy`（Bool）・信号 `npc_surprised` から動かす CCK の Set Animator Value Gimmick 2 個（§2-4） |
 | ボタン | シーン内 `ReportPanelUI/RP_0..RP_10, RPW_0..RPW_7, RP_Done`, `AvatarGateUI/AG_Changed, AG_Yes, AG_No`, `DeviceCheckUI/DC_Force`, `DebriefUI/DB_Ok` | 各ボタンは Item + Interact Item Trigger（Specified Item → 親 SLI の Integer 状態）+ `Scripts/PhantomTouch/Study4Button.js`（ラベル・表示・ON/OFF） |
-| 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab` を 2 枚（`Mirror` と `MirrorFront`、どちらも 1.2 × 1.8 m、初期非アクティブ） | `Mirror`: 参加者の左前方 45°・1.3 m、参加者の方を向く。rep=1 の Trial - Start（着替え）と Trial - Greeting（向かい合っての挨拶）の間だけ表示。`MirrorFront`: 正面 1.6 m（中心の高さ 1.1 m）。rep=1 の Trial - PoseCheck の間だけ表示。`MirrorTouch`: 正面 1.0 m（中心の高さ 1.05 m）。毎回の Trial - Touch の間に表示（右後ろに立つ NPC、自分のアバター、顔に触れる NPC の手が映る）。Touch の指示文はこの鏡のすぐ上の「touch」位置に出る。配置は §7、§10 |
+| 鏡 | `MirrorPanel`（SLI）配下に CCK の `Mirror.prefab` を 2 枚（`Mirror` と `MirrorFront`、どちらも 1.2 × 1.8 m、初期非アクティブ） | `Mirror`: 参加者の左前方 45°・1.3 m、参加者の方を向く（自分のアバターと、顔に触れる NPC の手が映る）。ブロックの 1 試行目の Trial - Start（着替え）で表示し、Trial - PoseCheck の間は隠して、毎試行の Trial - Greeting 開始で表示、Trial - Touch 終了で非表示。`MirrorFront`: 正面 1.6 m（中心の高さ 1.1 m）。ブロックの 1 試行目の Trial - PoseCheck の間だけ表示。配置は §7。右後ろの配置で使っていた 3 枚目 `MirrorTouch` は 2026-11-11 に削除（§12） |
 | アバター変更の写真 | `AvatarGateUI/AvatarGate/MenuPhoto1`, `MenuPhoto2`（Quad、Unlit/Texture、コライダーなし、初期非アクティブ）。画像は `Assets/_Experiment_/Textures/PhantomTouch/open-menu.png`（1: メニューを開いて「アバター」）と `open-avatar-menu.png`（2: アバター変更画面で「LUIDA Default Avatar」を選び「アバターを変更」）、マテリアルは `Materials/PhantomTouch/MenuPhoto1.mat`, `MenuPhoto2.mat`。画像は 2 の累乗へ縮小せずに取り込む | 着替え指示（AvatarGate）の右隣に上から 1, 2 の順で縦に並べる（幅 0.52 m、縦横比は画像のまま）。AvatarGate が rep=1 の着替えの間だけ表示。2 は Default Avatar を選ぶ写真なので、Default Avatar のブロックでだけ出す（普段使いのブロックでは 1 だけ） |
 | 身長合わせ | `HeightPlatform`（Item + `Scripts/PhantomTouch/Study4Platform.js`、立ち位置。子 `Cube` 1.6 × 1 × 1.6 m、コライダー付き）と NPC の子 `Riser`（0.8 × 1 × 0.8 m、コライダーなし） | どちらも高さ 1 m の直方体で、上面が足元（床）にあるので通常は床下に隠れ、持ち上げた分だけ床の上に出る。NPC が `platform_set { h }` で台を上げる。§2-4 |
 | その他 | `FloorMarker`（Quad）、`Materials/PhantomTouch/*.mat`、`ExitPortal`（立ち位置に配置）配下に移した `WorldGateToLuidaBar`（ExitPortal から (100, 100, 100) 離れた位置に置き、End の 10 秒後に参加者をそこへテレポートする） | |
@@ -42,7 +42,7 @@
      - 表情は顔メッシュ `Model/Face` の Animator（`NpcFace.controller`: Bool `joy`、Trigger `surprised`）で切り替える。Cluster Script からはブレンドシェイプを直接書けない（`unityProp` で触れる SkinnedMeshRenderer のプロパティに重みは無い）ので、クリップで動かす。Animator のパラメータは、同じオブジェクトに付けた CCK の Set Animator Value Gimmick 2 個（NPC アイテムの状態 `npc_joy`（Bool）→ `joy`、信号 `npc_surprised` → `surprised`）が書き、スクリプトは `$.setStateCompat('this', 'npc_joy', …)` / `$.sendSignalCompat('this', 'npc_surprised')` を呼ぶだけ（LUIDA の「Show item」と同じ仕組みで、エディタのプレビューでも Cluster でも動く）。以前はスクリプトが `getUnityComponent('Animator').setBool` を直接呼んでいたが、NPC のモデルをシーン上で差し替えたあと新しいモデルには Animator が無く、表情が出なかった。keep-scene メニューと `LUIDA > Study4 > Rebuild NPC face animator` は、シーン上の NPC の今のモデルから 4 つのシェイプキーを持つメッシュを探して Animator とギミックを付け直す。
    - social = without: NPC は立っているだけ（注視も反応もなし）。
    - 期間終了時に `greetSec / greetGazeEvents / greetHandRaises / greetNpcReactions / greetNpcNods / greetNpcWaves / greetNpcSmiles / greetNpcIdleReactions / greetTouches` を収集データへ書き込む（同じブロックの 2 試行目の行にも残る）。これらの列は 2026-11-08 まで Data Collector の列一覧に入っておらず行に出ていなかった（同日に追加）。
-5. `Trial - Touch`（2026-11-10 から配置を変更。§10。鏡・接触点・撫でる速度は同日の追加調整で更新、数値は §10 が最新）: 正面の近い鏡（`MirrorTouch`）を出し、左前方の鏡は隠す。指示板は「後ろの相手の手がゆっくり顔に近づきます。顔を正面に向けたまま、楽な姿勢で鏡を見ていてください。」。NpcDirector が `npc_trial_start`（`reset: true`）を送信。NPC は挨拶の位置（正面）から消え、参加者の位置と向きをマーカー（初期位置。台があればその上）へ戻し、1 秒待ってから（テレポートの反映待ち）、参加者の右後ろ（マーカーの向きから右へ 125°、`TOUCH_STAND_AZ_DEG`）の会話距離に現れ、0.5 秒後に 1 秒で同じ線上の手の届く位置（マーカーから約 0.4 m）へ前進する。体はマーカーの向きから左へ 30°（`TOUCH_BODY_YAW_DEG`）、つまりほぼ鏡の方を向き、少し参加者の方へ向く。prep(2 s, with 条件は注視＋会釈/手振り。手振りは外側の右手で、鏡に映る) → ready(1.2 s で手を参加者の顔の右横へ上げ、指を曲げ始める。接触点が目標から参加者の右へ 30 cm・前へ 5 cm（`APPROACH_SIDE` / `APPROACH_FWD`）。指は顔の前を横切る向き（参加者の左へ、前へ 30°・上へ 10°。`HAND_ACROSS_YAW_DEG` / `HAND_ACROSS_TILT_DEG`）、手のひらは頬の方、親指は上) → approach(横からの直線に沿って 2 cm/s で、曲げた指の接触点が目標の 2 cm 手前（`STOP_MARGIN`）に来るまで。経路 0.28 m、約 14 秒) → stroke(撫でる: 接触点を顔に沿って真下へ 6 cm（2 cm/s）→ 手のひらの法線に沿って顔から 3 cm 引く → 引いたまま上へ戻る → 再び触れる、を 3 回。戻りの 3 区間は 4 cm/s。計 15 秒。手の向きは接近時のまま) → hold(最後の撫で終わりの位置で 1 s) → retract(接近した直線を 10 cm/s で ready の位置まで戻る。参加者の頭や肩を横切らない) → lower(1.2 s で腕を下ろし、指を伸ばす) → 会話距離（右後ろ）へ後退してから消える。目標点は参加者の右頬: Head ボーンの 2 cm 上、参加者から見て右へ 4 cm、前へ 9 cm（`FACE_UP`, `FACE_SIDE`, `FACE_FWD`）。本番（LUIDA の `isTestMode` が false。NpcDirector が `npc_setup { eyes }` で伝える）では目ボーンの中点の 4.5 cm 下（`CHEEK_BELOW_EYES`）を使う。エディタのエミュレータは目ボーンの無いアバターで `getHumanoidBonePosition` が null を返さず .NET 例外を投げ、JS の try/catch では受けられずハンドラ全体が止まる（2026-11-08 に NPC が出なくなった原因）ので、テストモードでは目ボーンを読まない（以前は Head ボーンの 5 cm 上＝目のすぐ下で、高すぎた）。撫で方は `STROKE_AMP` / `STROKE_BACK` / `STROKE_CYCLES` / `STROKE_RETURN_SPEED`（`STROKE_CYCLES` 0 で撫でない）。行データに `strokeEndTs`, `strokeAmp`, `strokeBack`, `strokeCycles`, `strokeReturnSpeed`（撫で始め = `contactTs`）と、そのときの `heightPlatform`, `npcLift`。消えた後に `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移するので、報告パネルや質問紙の間 NPC はいない。各ブロックの 2 試行目も同じく、消えていた NPC が参加者を戻してから 1 秒後に右後ろの会話距離に現れ、0.5 秒後に前進する。120 秒の安全タイムアウトあり（このときも NPC は後退して消える）。鏡はこのステートの終了で非表示。
+5. `Trial - Touch`（2026-11-11 に正面からの配置へ戻した。§12）: 指示板（front 位置）は「正面の相手の手がゆっくり近づきます。顔を正面に向けたまま、楽な姿勢で見ていてください。」。左前方の鏡は挨拶から出たまま。NpcDirector が `npc_trial_start`（`reset: true`）を送信。NPC は開始の瞬間に参加者の位置と向きをマーカー（初期位置。台があればその上）へ戻し、1 秒待ってから（テレポートの反映待ち）、戻った参加者の方へ向き直りながら、1 秒でマーカーの正面方向の手の届く位置（マーカーから約 0.56 m）へ前進し（頭の向きではなくマーカーの向きを使うので、参加者が鏡を見ていても正面に立つ）、prep(2 s, with 条件は注視＋会釈/手振り) → ready(1.2 s で手を肩と目標を結ぶ線上の 35% 地点へ。指は水平から 45° 上向きで真っすぐ、手のひらは目標の方向) → approach(その線に沿って 2 cm/s で、指の腹が目標の 2 cm 手前（`STOP_MARGIN`）に来るまで。経路 0.32 m、約 16 秒) → stroke(撫でる: 指の腹を顔に沿って真下へ 6 cm（2 cm/s）→ 顔から最大 3 cm 離れる弧で上へ戻る（4 cm/s）→ 再び触れる、を 3 回。各区間は 0.4 秒で加速し 0.4 秒で減速する。計 15.7 秒。手の向きは接近時のまま。弧は接近方向の逆へ膨らむ) → hold(最後の撫で終わりの位置で 1 s) → retract(関節角の補間で腕を下ろす) → 元の位置（会話距離）へ後退してから消える。目標点は参加者の頬: Head ボーンの 2 cm 上、参加者から見て左へ 4 cm、前へ 9 cm（`FACE_UP`, `FACE_SIDE`, `FACE_FWD`）。本番（LUIDA の `isTestMode` が false。NpcDirector が `npc_setup { eyes }` で伝える）では目ボーンの中点の 4.5 cm 下（`CHEEK_BELOW_EYES`）を使う。エディタのエミュレータは目ボーンの無いアバターで `getHumanoidBonePosition` が null を返さず .NET 例外を投げ、JS の try/catch では受けられずハンドラ全体が止まる（2026-11-08 に NPC が出なくなった原因）ので、テストモードでは目ボーンを読まない（以前は Head ボーンの 5 cm 上＝目のすぐ下で、高すぎた）。撫で方は `STROKE_AMP` / `STROKE_BACK` / `STROKE_CYCLES` / `STROKE_RETURN_SPEED` / `STROKE_RAMP_SEC`（`STROKE_CYCLES` 0 で撫でない）。行データに `strokeEndTs`, `strokeAmp`, `strokeBack`, `strokeCycles`, `strokeReturnSpeed`, `strokeRampSec`（撫で始め = `contactTs`）と、そのときの `heightPlatform`, `npcLift`。消えた後に `npc_done`（Item 信号 → GlobalLogic → Global 信号）→ NpcDirector が遷移するので、報告パネルや質問紙の間 NPC はいない。120 秒の安全タイムアウトあり（このときも NPC は後退して消える）。鏡はこのステートの終了で非表示。
 6. `Trial - Report`: 0–10 → （評定≥1 のみ）感覚の種類（複数）→ 部位（複数）→ 操作チェック 1–7（相手に注意を向けられたと感じたか。2026-11-08 から最後に回した）→ 行保存 → 遷移。数字は `RP_*`（4 × 3）、種類と部位は幅の広い `RPW_*`（2 × 4）に出す。
    - 種類（`ptype`）: 1 触れられた感じ（Touch）/ 2 圧迫感（Pressure）/ 3 温かさ / 4 冷たさ / 5 ピリピリ・チクチク・しびれ（Tingling）/ 6 くすぐったさ・かゆみ / 7 風が通る感じ / 8 その他。
    - 部位（`ploc`）: 1 額 / 2 目・目のまわり / 3 頬 / 4 鼻・鼻のまわり / 5 唇・口のまわり / 6 あご / 7 頭の側面・耳 / 8 その他。場所が分からない人は「その他」を選ぶ想定。
@@ -56,7 +56,7 @@
 
 1. Web Console（手動）: 実験作成（定員 1、Allowed platforms = VR、Participant Avatar = DEFAULT）、質問紙 qID 1–4（Start の同意、VEQ、SocialPresence、PersonalExperience）をこの順に登録、実験 ID を `LUIDA > Configure experiment identifiers` に設定、ワールド ID 登録。
 2. テスト（設計書 §16）: T2（Default Avatar の骨格値 `AG_D_ARM`/`AG_D_SHOULDER` を実測して設定。未設定の間は自己申告のみ）、T3、T4（2 cm/s・停止位置・身長差）、T5、T6、T7（Custom Log 7 行・100 kB 未満）、T8、T10。
-3. 文言・レイアウト調整: 文言は `Study4SceneBuilder.cs` の `InstructionListeners` と各 Legacy code（`AvatarGateLegacy`, `DeviceCheckLegacy`, `ReportPanelLegacy`）、配置・文字サイズ・背景色は §3b の定数と `ApplyLayout`（§7）。変更後はメニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`（UI の配置のほか、`HeightPlatform` と NPC の `Riser` が無ければ作り、`Trial - Greeting` の Exit Time を builder の `GreetingSeconds` に合わせ、アイテムの動作と JS を書き直す）。NPC の距離・反応の閾値は `NpcController.js` 冒頭の `NPC_CFG`（`IDLE_EXTRA_DIST`, `LOOK_AT_DEG`, `HAND_RAISE_OFFSET`, `JOY_PROB`, `IDLE_REACT_SEC`, `HEIGHT_MATCH_MIN`、目標点の `CHEEK_BELOW_EYES` / `FACE_SIDE` / `FACE_FWD`、触る段階の立ち位置 `TOUCH_STAND_AZ_DEG` / `TOUCH_BODY_YAW_DEG` / `TOUCH_MIN_STAND_DIST`、接近の始点 `APPROACH_SIDE` / `APPROACH_FWD` / `APPROACH_UP`、手の向き `HAND_ACROSS_YAW_DEG` / `HAND_ACROSS_TILT_DEG`、指の曲げ `FINGER_CURL`、撫で方の `STROKE_*` など）。
+3. 文言・レイアウト調整: 文言は `Study4SceneBuilder.cs` の `InstructionListeners` と各 Legacy code（`AvatarGateLegacy`, `DeviceCheckLegacy`, `ReportPanelLegacy`）、配置・文字サイズ・背景色は §3b の定数と `ApplyLayout`（§7）。変更後はメニュー `LUIDA > Study4 > Update layout and behaviours (keep scene)`（UI の配置のほか、`HeightPlatform` と NPC の `Riser` が無ければ作り、`Trial - Greeting` の Exit Time を builder の `GreetingSeconds` に合わせ、アイテムの動作と JS を書き直す）。NPC の距離・反応の閾値は `NpcController.js` 冒頭の `NPC_CFG`（`IDLE_EXTRA_DIST`, `LOOK_AT_DEG`, `HAND_RAISE_OFFSET`, `JOY_PROB`, `IDLE_REACT_SEC`, `HEIGHT_MATCH_MIN`、目標点の `CHEEK_BELOW_EYES` / `FACE_SIDE` / `FACE_FWD`、手の `HAND_PITCH_DEG` / `CONTACT_LEN`、撫で方の `STROKE_*` など）。
 4. 既知の軽微な点: ボタンは Study4Button.js の `btn_cfg` を受け取るまで非表示。ReportPanel はボタンへのメッセージを 1 フレーム 4 件ずつに分けて送る（ワールドアイテムの `send` の上限はスペース全体で 3000 回/秒なので余裕はある。数字から語の選択肢に切り替えるときで 20 件）。
 
 ## 4. 再生成
@@ -70,14 +70,12 @@
 | 場面 | 手のひらの向き | 指の向き |
 |---|---|---|
 | 待機 | 体側（太もも側） | 下 |
-| 手を振る（挨拶では左手、触る段階の prep では外側の右手） | 正面 | 上（左右に振る） |
-| 頬に触れる（右手、2026-11-10 から） | 参加者の右頬の方（後ろ左向き、水平） | 顔の前を横切って参加者の左へ。前へ 30°、上へ 10°（`HAND_ACROSS_YAW_DEG` / `HAND_ACROSS_TILT_DEG`）。親指は上 |
+| 手を振る（左手） | 参加者側（正面） | 上（左右に振る） |
+| 手を伸ばす（右手） | 目標（頬）の方向のうち、指に直交する成分 | 水平から 45° 上（`HAND_PITCH_DEG`。接近線の傾きによらず一定） |
 
-2026-11-10 までの正面からの接近（指は水平から 45° 上、`HAND_PITCH_DEG`）は、挨拶の距離を決める計算にだけ残している（`greetStandPose`）。
+接触判定に使う点は指の腹（手首から指方向 12 cm（`CONTACT_LEN`）、手のひら側へ 1.5 cm（`PALM_OFF`））。指先はそこから約 3 cm 先で、目標点のほぼ上（約 1 mm 手前）で止まる。手首の反りは約 21°、肘の曲がりは約 49°（オフライン検証 `sim_stroke.js`）。値は `NPC_CFG` の `READY_FRAC`, `HAND_PITCH_DEG`, `CONTACT_LEN`, `PALM_OFF` で調整できる。
 
-指（右手のみ）: ready で曲げ始め、approach・stroke・hold・retract の間は `FINGER_CURL` の角度、lower で伸ばす。それ以外は真っすぐ。曲げは各関節を手のひら側へ回す（人差し指 5/15/10°、中指 25/35/20°、薬指 35/45/25°、小指 45/50/30°、親指 0/10/10°。参考画像のように人差し指はほぼ伸ばし、ほかは順に強く曲げる）。指ボーンが無いボーンマップでは指は動かず、接触点は従来の値（手首から指方向 12 cm（`CONTACT_LEN`）、手のひら側へ 1.5 cm（`PALM_OFF`））。
-
-接触点（`STOP_MARGIN` と距離 `d` の基準）: 指の方向には中指の先、手のひらの法線方向には曲げた指のうちいちばん手のひら側に出た点 + 指の腹の厚さ 8 mm（`FINGER_PAD`）。手のどこも、この点より顔に近づかない。起動時に休止姿勢の指ボーンの位置から計算してログに出す（`[NPC] fingers: 5 curled, contact a=0.109 b=0.054 c=0.002`: 手首から指方向 10.9 cm、手のひら側 5.4 cm、親指側 0.2 cm）。
+指は真っすぐ。ボーンマップには右手の指ボーン 15 本が入っている（§10）ので、毎フレーム手と同じ回転を与えて手に追従させる（`R_FINGER_BONES`）。右後ろの配置で使っていた指の曲げ（`FINGER_CURL`）と、曲げた指に合わせた接触点の計算は、ブランチ `hao/phantom-touch-npc-behind` にある（§12）。
 
 ## 6. 修正履歴: テキストやボタンが表示されない不具合（2026-11-04）
 
@@ -96,14 +94,13 @@
 | VEQ, SocialPresence, PersonalExperience | 質問紙（LUIDA） | ±34° / −25〜+23° / 2 m |
 | 同上 | 指示板「above」位置（質問紙の上端から 0.05 m 上、文字 0.03。2026-11-08 に 0.2 m 下げた） | ±23° / +28〜+33°（2 行時） / 1.7 m |
 | Start, Debrief, End | 指示板「center」位置（正面）と OK ボタン（Start・Debrief、その下） | デブリーフ（13 行、文字 0.022）±22° / −11〜+18°、ボタン −17° / 1.5 m |
-| 上記以外 | 指示板「front」位置（挨拶では NPC の頭の上、触る段階では正面の鏡の上） | ±14° / +17〜+28°（4 行時） / 1.5 m |
+| 上記以外 | 指示板「front」位置（NPC の頭の上） | ±14° / +17〜+28°（4 行時） / 1.5 m |
 | Trial - Start | AvatarGate（紫、正面。NPC は非表示） | ±20° / −22〜+4° / 1.25 m |
 | Trial - Start | アバター変更の写真 1・2（AvatarGate の右隣、上から順に） | +22〜+45° / −25〜+3° / 1.25 m |
 | Trial - PoseCheck | DeviceCheck（緑） | +27〜+53° / −16〜−2° / 1.25 m |
-| Trial - PoseCheck（rep=1） | 正面の鏡（`MirrorFront`。上端は front 位置の 3 行の文字の下端 +19° より下。文字より奥にあるので文字を隠さない） | ±21° / −40〜+16° / 1.6 m |
-| Trial - Touch | 近い鏡（`MirrorTouch`）と、その上の指示板「touch」位置（鏡の面の 3 cm 手前、文字 0.0155） | 鏡 ±31° / −42〜+22° / 1.0 m、指示文 ±17° / +24〜+32° / 0.97 m |
+| Trial - PoseCheck（ブロックの 1 試行目） | 正面の鏡（`MirrorFront`。上端は front 位置の 3 行の文字の下端 +19° より下。文字より奥にあるので文字を隠さない） | ±21° / −40〜+16° / 1.6 m |
 | Trial - Report | ReportPanel（茶、正面。NPC は非表示） | ±19° / −32〜+5° / 1.25 m |
-| Trial - Start, Trial - Greeting（いずれも rep=1） | 左前方の鏡（`Mirror`） | −20〜−70° / −41〜+21° / 1.3 m |
+| Trial - Start（ブロックの 1 試行目）、Trial - Greeting と Trial - Touch（毎試行） | 左前方の鏡（`Mirror`） | −20〜−70° / −41〜+21° / 1.3 m |
 
 - **文字**: CCK の TextView では全角 1 文字の幅が size × 1.85、行の高さが size × 2.74（実測）。指示板 0.024（1.5 m で 1 文字約 1.7°）、パネル 0.018（1.25 m で約 1.5°）。1 行の長さは場所ごとの空きに合わせた（全角換算）: front（NPC の頭上、隣に鏡）20 字、above（質問紙の上）26 字、center 26 字（デブリーフは 30 字）、AvatarGate と ReportPanel（正面）24 字。パネルの文字は下端を基準に上へ伸びるので、行数が増えてもボタンに重ならない。
 - **背景**: 文字ごとに半透明の色板（Standard / Fade、文字より先に描画する render queue 2990、コライダーなし）。指示板は紺、AvatarGate は紫、DeviceCheck は緑、ReportPanel は茶。背景は各 `Text` の子なので、文字と一緒に表示・非表示になる。指示板の背景は 1 枚（`Bg`）で、`ins_show` が行数と最長行の文字数から大きさを計算し、`getUnityComponent('Transform').unityProp.localScale` で合わせる。
@@ -134,7 +131,9 @@
 - 送信の応答が返らない（通信失敗）場合は、以前と同じくそのステートに留まり、質問紙も閉じたまま。送信の確認・再送は `upload-reliability-plan.md` の範囲。
 - モックテスト: `luida-reset-handlers.test.mjs` の「answered once per state visit」。
 
-## 10. 触る段階の配置: 正面の鏡、右後ろから右頬へ、指を曲げる（2026-11-10）
+## 10. 触る段階の配置: 正面の鏡、右後ろから右頬へ、指を曲げる（2026-11-10。このブランチでは 2026-11-11 に正面からの配置へ戻した、§12）
+
+> この節の配置（NPC が右後ろに立つ、正面の近い鏡、指を曲げる、右斜め前から接近）は、ブランチ `hao/phantom-touch-npc-behind` に残してある。このブランチに残っているのは、ボーンマップの作り直し、撫でる動作の加減速と戻りの弧、後ずさりの符号の修正、部屋。それ以外は §12 のとおり元に戻した。
 
 参考: `phantom-touch-exp-references/`（実験者が参加者の右後ろに立ち、右手を参加者の右側から顔の前へ回して右目〜頬に触れる。参加者は正面の鏡で両者のアバターと触れられている自分を見る。一人称の画像では手は右から入り、人差し指を左へ伸ばし、ほかの指を曲げ、手のひらは顔の方、親指は上）。
 
@@ -177,3 +176,11 @@
 - **所要時間**: 挨拶 20 秒 × 4（以前 30 秒 × 2）、SocialPresence × 4（以前 1 回）。
 - **Web Console**: 参加者間の変数が `order` だけになった。条件の割り当て設定が Web Console 側にある場合は合わせること。
 
+## 12. 触る段階を正面からの配置に戻した（2026-11-11）
+
+- **配置**: NPC は挨拶と同じく参加者の正面に立ち、右手を正面から顔へ伸ばす。鏡は左前方の 1 枚（`Mirror`）を挨拶から触る段階の終わりまで出す。§10 の配置（NPC が右後ろ、正面の近い鏡 `MirrorTouch`）はブランチ `hao/phantom-touch-npc-behind`（コミット「Backup: NPC behind-right touch …」）に残した。
+- **元に戻したもの**（2026-11-10 より前の実装と同じ）: 立ち位置の計算（`standPose`、正面のみ）、試行開始の流れ（参加者をマーカーへ戻し、1 秒後に手の届く位置へ前進）、ready の位置（肩と目標を結ぶ線の 35%、`READY_FRAC`）、手の向き（指は水平から 45° 上で真っすぐ、手のひらは顔の方。`HAND_PITCH_DEG`）、接触点（`CONTACT_LEN` / `PALM_OFF`）、目標点（参加者の左頬: `FACE_SIDE` 0.04、`FACE_UP` 0.02、`FACE_FWD` 0.09、`CHEEK_BELOW_EYES` 0.045）、retract（関節角の補間で腕を下ろす）、手を振るのは左手、Start と Trial - Touch の指示文、行データの列（`npcStandAz` / `touchSide` / `fingerCurl` を削除）。
+- **残したもの**: 撫でる動作の加減速（`STROKE_RAMP_SEC`）と戻りの弧（膨らむ向きは接近方向の逆、つまり顔から NPC の方へ）、シーンのモデルから作り直したボーンマップ（指ボーンは手に追従させるだけ）、接触時の `wristErr` ログ、後ずさりの符号の修正、部屋、社会的条件の参加者内計画（§11）。
+- **シーン**: `MirrorTouch` を削除（`ApplyLayout` が見つけたら消す）。Instruction の「touch」位置も削除。MirrorPanel は Trial - Greeting の開始で左前方の鏡を出し、Trial - Touch の終了で隠す。
+- **確認（エディタ、without 条件）**: `[NPC] stand 0.557 m in front`、`approach: path=0.316 m, duration=15.792 s, reachable=true`、`contact: d=0.02 early=true wristErr=0.002, stroking for 15.689 s`。開始から次のステートまで約 43 秒。
+- **HMD 単機での鏡**: 左前方の鏡は面までの距離が約 1.3 m なので、§10 で調べた「1 m より近いとアバターしか映らない」条件には掛からないが、参加者が鏡の方へ 0.3 m 以上寄ると掛かる。解像度（鏡全体で最大 768 × 768）は 1.2 × 1.8 m のままなので粗い。

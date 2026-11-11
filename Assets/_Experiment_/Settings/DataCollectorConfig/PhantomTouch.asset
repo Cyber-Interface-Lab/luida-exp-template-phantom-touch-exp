@@ -55,19 +55,16 @@ MonoBehaviour:
     CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs: CD['strokeEndTs'],
     strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack:
     CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec:
-    CD['strokeRampSec'],\n    // touch layout: NPC standing azimuth (deg from the
-    participant's facing, + = right), touched cheek, finger curl\n    npcStandAz:
-    CD['npcStandAz'], touchSide: CD['touchSide'], fingerCurl: CD['fingerCurl'],\n   
-    // greeting period (written on both trials of the block)\n    greetSec: CD['greetSec'],
-    greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],\n   
-    greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'],
-    greetNpcWaves: CD['greetNpcWaves'],\n    greetNpcSmiles: CD['greetNpcSmiles'],
-    greetNpcIdleReactions: CD['greetNpcIdleReactions'], greetTouches: CD['greetTouches'],\n   
-    // height matching (head-bone heights, m; platform under the participant / riser
-    under the NPC)\n    participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'],
-    heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'],
-    reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
-    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    retreatOnsetDist: CD['retreatOnsetDist'],
-    retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'],
-    lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n   
-    trace: CD['trace'],\n};\n"
+    CD['strokeRampSec'],\n    // greeting period (written on both trials of the block)\n   
+    greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises:
+    CD['greetHandRaises'],\n    greetNpcReactions: CD['greetNpcReactions'], greetNpcNods:
+    CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],\n    greetNpcSmiles:
+    CD['greetNpcSmiles'], greetNpcIdleReactions: CD['greetNpcIdleReactions'], greetTouches:
+    CD['greetTouches'],\n    // height matching (head-bone heights, m; platform under
+    the participant / riser under the NPC)\n    participantHeadH: CD['participantHeadH'],
+    npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],\n   
+    pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'],
+    reachable: CD['reachable'],\n    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n   
+    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:
+    CD['oscAmp'],\n    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted:
+    CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n"
