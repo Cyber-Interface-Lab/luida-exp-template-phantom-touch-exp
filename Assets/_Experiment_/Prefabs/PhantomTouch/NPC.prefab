@@ -235,7 +235,8 @@ MonoBehaviour:
     turn, surprised face when touched; answers the cues below\n//   \"npc_greet_cue\"      
     { cue }               -> the participant has followed an instruction of the guided
     greeting\n//                                                  (GreetingGuide
-    item; cue = \"wave\" | \"lookAway\" | \"lookBack\" | \"move\" |\n//                                                 
+    item; cue = \"hello\" (sent before the first instruction:\n//                                                 
+    the NPC greets first) | \"wave\" | \"lookAway\" | \"lookBack\" | \"move\" |\n//                                                 
     \"lookAgain\"): social condition only, react as GREET_REACTIONS says\n//   \"npc_greeting_end\"   
     {}                    -> stop the greeting reactions, write greeting counters\n//  
     \"npc_trial_start\"     { block, rep, avatar, social, fwd, reset } -> (reset:
@@ -298,10 +299,15 @@ MonoBehaviour:
     one by one; each time it reports\n  // one as done (\"npc_greet_cue\"), the NPC
     answers like this (social condition only; nothing otherwise). nod / wave:\n 
     // the gesture, joy: smile while it lasts, turn: the whole body turns to face
-    the participant.\n  GREET_REACTIONS: {\n    wave: { nod: true, wave: true, joy:
-    true },        // the participant waved: wave back, nodding and smiling\n   
-    lookBack: { nod: true, joy: true },                // looked away, then at the
-    NPC again: nod and smile\n    move: { turn: true },                             
+    the participant. An answer with a wave\n  // lasts WAVE_SEC, a nod alone NOD_SEC,
+    a turn about 1 s (BODY_TURN_RATE). The guide waits for the answer to end\n  //
+    before its next instruction and before the touch, in both conditions: its GG_HELLO
+    / GG_STEPS 'react' times\n  // must not be shorter (tests/greeting-guide.test.mjs
+    checks this).\n  GREET_REACTIONS: {\n    hello: { nod: true, wave: true, joy:
+    true },       // before the first instruction: the NPC greets first\n    wave:
+    { nod: true, wave: true, joy: true },        // the participant waved: wave back,
+    nodding and smiling\n    lookBack: { nod: true, joy: true },                //
+    looked away, then at the NPC again: nod and smile\n    move: { turn: true },                             
     // stepped aside: turn to them (head and eyes follow anyway)\n    lookAgain:
     { wave: true, joy: true },              // ... and looked at the NPC again: wave
     and smile\n  },\n  PREP_REACTION: { nod: true, wave: true, joy: true }, // touch
@@ -592,28 +598,29 @@ MonoBehaviour:
     = 0; $.state.npc_gWaves = 0; $.state.npc_gNods = 0;\n  $.state.npc_gReact = 0;
     $.state.npc_smiles = 0; $.state.npc_gTouch = 0; $.state.npc_gCues = 0;\n  $.state.npc_gazeAligned
     = false;\n  $.state.npc_handUp = false;\n  $.state.npc_touching = false;\n  $.state.npc_bodyTurning
-    = false;\n  clearReaction();\n  $.log(\"[NPC] greeting begin social=\" + $.state.npc_social);\n}\nfunction
-    endGreeting() {\n  if ($.state.npc_mode !== \"greeting\") return;\n  $.state.npc_mode
-    = \"none\";\n  $.state.npc_bodyTurning = false;\n  pushData({\n    greetSec:
-    (Date.now() - ($.state.npc_greetStartTs || Date.now())) / 1000,\n    greetGazeEvents:
-    $.state.npc_gGaze || 0,\n    greetHandRaises: $.state.npc_gHand || 0,\n    greetCues:
-    $.state.npc_gCues || 0,\n    greetNpcReactions: $.state.npc_gReact || 0,\n   
-    greetNpcNods: $.state.npc_gNods || 0,\n    greetNpcWaves: $.state.npc_gWaves
-    || 0,\n    greetNpcSmiles: $.state.npc_smiles || 0,\n    greetTouches: $.state.npc_gTouch
-    || 0,\n  });\n  $.log(\"[NPC] greeting end: gaze=\" + ($.state.npc_gGaze || 0)
-    + \" hands=\" + ($.state.npc_gHand || 0) +\n        \" cues=\" + ($.state.npc_gCues
+    = false;\n  $.state.npc_turnCueAt = null;\n  clearReaction();\n  $.log(\"[NPC]
+    greeting begin social=\" + $.state.npc_social);\n}\nfunction endGreeting() {\n 
+    if ($.state.npc_mode !== \"greeting\") return;\n  $.state.npc_mode = \"none\";\n 
+    $.state.npc_bodyTurning = false;\n  pushData({\n    greetSec: (Date.now() - ($.state.npc_greetStartTs
+    || Date.now())) / 1000,\n    greetGazeEvents: $.state.npc_gGaze || 0,\n    greetHandRaises:
+    $.state.npc_gHand || 0,\n    greetCues: $.state.npc_gCues || 0,\n    greetNpcReactions:
+    $.state.npc_gReact || 0,\n    greetNpcNods: $.state.npc_gNods || 0,\n    greetNpcWaves:
+    $.state.npc_gWaves || 0,\n    greetNpcSmiles: $.state.npc_smiles || 0,\n    greetTouches:
+    $.state.npc_gTouch || 0,\n  });\n  $.log(\"[NPC] greeting end: gaze=\" + ($.state.npc_gGaze
+    || 0) + \" hands=\" + ($.state.npc_gHand || 0) +\n        \" cues=\" + ($.state.npc_gCues
     || 0) + \" reactions=\" + ($.state.npc_gReact || 0) + \" touches=\" + ($.state.npc_gTouch
     || 0));\n}\n// The participant has followed an instruction of the guided greeting:
     answer it (social condition only).\nfunction greetCue(cue) {\n  if ($.state.npc_mode
     !== \"greeting\") return;\n  $.state.npc_gCues = ($.state.npc_gCues || 0) + 1;\n 
     const r = $.state.npc_social ? NPC_CFG.GREET_REACTIONS[cue] : null;\n  $.log(\"[NPC]
     greet cue \" + cue + (r ? \" -> \" + JSON.stringify(r) : \" (no reaction)\"));\n 
-    if (!r) return;\n  if (r.turn) $.state.npc_bodyTurning = true;\n  if (r.nod ||
-    r.wave) startReaction(r);\n}\n// Start a reaction r = { nod, wave, joy }: nod
-    and / or left-hand wave, smiling while it lasts when joy is set (the\n// face
-    returns to neutral when the reaction ends). Replaces a reaction that is still
-    running.\nfunction startReaction(r) {\n  $.state.npc_react = { t: 0, nod: !!r.nod,
-    wave: !!r.wave, dur: r.wave ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC };\n  $.state.npc_gReact
+    if (!r) return;\n  if (r.turn) { $.state.npc_bodyTurning = true; $.state.npc_turnCueAt
+    = nowSec(); }\n  if (r.nod || r.wave) startReaction(r, cue);\n}\n// Start a reaction
+    r = { nod, wave, joy }: nod and / or left-hand wave, smiling while it lasts when
+    joy is set (the\n// face returns to neutral when the reaction ends). Replaces
+    a reaction that is still running. name: for the log.\nfunction startReaction(r,
+    name) {\n  $.state.npc_react = { t: 0, nod: !!r.nod, wave: !!r.wave, dur: r.wave
+    ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC, name: name || \"\" };\n  $.state.npc_gReact
     = ($.state.npc_gReact || 0) + 1;\n  if (r.nod) $.state.npc_gNods = ($.state.npc_gNods
     || 0) + 1;\n  if (r.wave) $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;\n 
     setJoy(!!r.joy);\n}\n// Rotate the whole body toward the participant when they
@@ -623,8 +630,11 @@ MonoBehaviour:
     rest.fwd));\n  const cosA = Math.max(-1, Math.min(1, vdot(curFwd, faceDir)));\n 
     const ang = Math.acos(cosA) * 180 / Math.PI;\n  if (!$.state.npc_bodyTurning
     && ang > NPC_CFG.BODY_TURN_START_DEG) $.state.npc_bodyTurning = true;\n  if (!$.state.npc_bodyTurning)
-    return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG) { $.state.npc_bodyTurning
-    = false; return ip; }\n  const yaw = cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd,
+    return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG) {\n    $.state.npc_bodyTurning
+    = false;\n    if ($.state.npc_turnCueAt !== null && $.state.npc_turnCueAt !==
+    undefined) {\n      $.log(\"[NPC] reaction move (turn) ended after \" + f3(nowSec()
+    - $.state.npc_turnCueAt) + \" s\");\n      $.state.npc_turnCueAt = null;\n   
+    }\n    return ip;\n  }\n  const yaw = cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd,
     faceDir);\n  const target = qmul(yaw, ip.rot);\n  const rot = qslerp(ip.rot,
     target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE * dt));\n  $.setRotation(rot);\n 
     return { pos: ip.pos, rot: rot };\n}\n// Participant hand(s) touching the NPC's
@@ -868,42 +878,44 @@ MonoBehaviour:
     && p && detectTouch(p, rest, ip)) surprise();\n    } else if (sig.aligned &&
     !$.state.npc_lookedAt) {\n      $.state.npc_lookedAt = true;\n      $.state.npc_lookTs
     = Date.now();\n      if (social && phase === \"prep\" && !$.state.npc_react)
-    { startReaction(NPC_CFG.PREP_REACTION); $.state.npc_greeted = true; }\n    }\n 
-    }\n\n  // --- arms (bone rotations incl. twist, so the palms face the right way)
-    ---\n  const idleR = armRots(rest, \"R\", idleArm(rest, \"R\"));\n  const idleL
-    = armRots(rest, \"L\", idleArm(rest, \"L\"));\n  let armR = idleR, armL = idleL;\n\n 
-    // reaction gesture (nod and/or left-hand wave with the palm toward the participant),
-    social only\n  let nodDeg = 0;\n  const react = $.state.npc_react;\n  if (social
-    && react) {\n    const rt = (react.t || 0) + dt;\n    if (react.wave) {\n     
-    const lift = Math.sin(Math.PI * clamp01(rt / react.dur));     // 0 -> 1 -> 0\n     
-    armL = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest, rt)), lift);\n    }\n   
-    if (react.nod) {\n      const nodSec = react.wave ? 0.6 : NPC_CFG.NOD_SEC;\n     
-    nodDeg = NPC_CFG.NOD_DEG * Math.sin(Math.PI * clamp01(rt / nodSec));\n    }\n   
-    if (rt >= react.dur) clearReaction(); else { react.t = rt; $.state.npc_react
-    = react; }\n  } else if (react && !social) {\n    clearReaction();\n  }\n\n 
-    // --- phase machine for the right arm ---\n  if (phase === \"prep\") {\n   
-    const greetBusy = social && $.state.npc_react;\n    if (t >= NPC_CFG.PREP_SEC
-    && !greetBusy && head && !$.state.npc_glide) {\n      // social: if the participant
-    never looked, greet once before raising the hand\n      if (social && !$.state.npc_greeted)
-    { $.state.npc_greeted = true; startReaction(NPC_CFG.PREP_REACTION); }\n     
-    else { $.state.npc_phase = \"ready\"; $.state.npc_t = 0; }\n    }\n  } else if
-    (phase === \"ready\") {\n    // raise the hand from the idle pose to the ready
-    position, palm already turned toward the\n    // participant's face (fast; the
-    stimulus starts afterwards)\n    const T = head ? toLocal(facePointWorld(head),
-    ip) : vadd(rest.sR, vadd(vscale(rest.fwd, 0.4), vscale(UP, 0.2)));\n    const
-    H0 = readyContact(rest, T);\n    const readyArm = armRots(rest, \"R\", reachArm(rest,
-    H0, reachHandFrame(vsub(T, H0))));\n    armR = slerpArm(idleR, readyArm, easeInOut(t
-    / NPC_CFG.READY_SEC));\n    if (t >= NPC_CFG.READY_SEC && head) beginApproach(head,
-    rest, ip);\n  } else if (phase === \"approach\") {\n    const L = $.state.npc_L,
-    dir = $.state.npc_dir, H0 = $.state.npc_H0;\n    const frame = $.state.npc_frame
-    || reachHandFrame(dir);\n    const s = Math.min(NPC_CFG.REACH_SPEED * t, L);\n   
-    const Ft = vadd(H0, vscale(dir, s));\n    const arm = reachArm(rest, Ft, frame);\n   
-    armR = armRots(rest, \"R\", arm);\n    const Fw = toWorld(contactOf(rest, arm),
-    ip);\n    let d = -1;\n    if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n     
-    sampleTrace(dt, t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n   
-    const earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd
-    || earlyContact) {\n      $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist
-    = d;\n      $.state.npc_contactT = t;\n      $.state.npc_Fc = Ft;\n      $.state.npc_strokeSec
+    { startReaction(NPC_CFG.PREP_REACTION, \"prep\"); $.state.npc_greeted = true;
+    }\n    }\n  }\n\n  // --- arms (bone rotations incl. twist, so the palms face
+    the right way) ---\n  const idleR = armRots(rest, \"R\", idleArm(rest, \"R\"));\n 
+    const idleL = armRots(rest, \"L\", idleArm(rest, \"L\"));\n  let armR = idleR,
+    armL = idleL;\n\n  // reaction gesture (nod and/or left-hand wave with the palm
+    toward the participant), social only\n  let nodDeg = 0;\n  const react = $.state.npc_react;\n 
+    if (social && react) {\n    const rt = (react.t || 0) + dt;\n    if (react.wave)
+    {\n      const lift = Math.sin(Math.PI * clamp01(rt / react.dur));     // 0 ->
+    1 -> 0\n      armL = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest, rt)),
+    lift);\n    }\n    if (react.nod) {\n      const nodSec = react.wave ? 0.6 :
+    NPC_CFG.NOD_SEC;\n      nodDeg = NPC_CFG.NOD_DEG * Math.sin(Math.PI * clamp01(rt
+    / nodSec));\n    }\n    if (rt >= react.dur) {\n      clearReaction();\n     
+    $.log(\"[NPC] reaction \" + (react.name || \"?\") + \" ended after \" + f3(rt)
+    + \" s\");\n    } else { react.t = rt; $.state.npc_react = react; }\n  } else
+    if (react && !social) {\n    clearReaction();\n  }\n\n  // --- phase machine
+    for the right arm ---\n  if (phase === \"prep\") {\n    const greetBusy = social
+    && $.state.npc_react;\n    if (t >= NPC_CFG.PREP_SEC && !greetBusy && head &&
+    !$.state.npc_glide) {\n      // social: if the participant never looked, greet
+    once before raising the hand\n      if (social && !$.state.npc_greeted) { $.state.npc_greeted
+    = true; startReaction(NPC_CFG.PREP_REACTION, \"prep\"); }\n      else { $.state.npc_phase
+    = \"ready\"; $.state.npc_t = 0; }\n    }\n  } else if (phase === \"ready\") {\n   
+    // raise the hand from the idle pose to the ready position, palm already turned
+    toward the\n    // participant's face (fast; the stimulus starts afterwards)\n   
+    const T = head ? toLocal(facePointWorld(head), ip) : vadd(rest.sR, vadd(vscale(rest.fwd,
+    0.4), vscale(UP, 0.2)));\n    const H0 = readyContact(rest, T);\n    const readyArm
+    = armRots(rest, \"R\", reachArm(rest, H0, reachHandFrame(vsub(T, H0))));\n   
+    armR = slerpArm(idleR, readyArm, easeInOut(t / NPC_CFG.READY_SEC));\n    if (t
+    >= NPC_CFG.READY_SEC && head) beginApproach(head, rest, ip);\n  } else if (phase
+    === \"approach\") {\n    const L = $.state.npc_L, dir = $.state.npc_dir, H0 =
+    $.state.npc_H0;\n    const frame = $.state.npc_frame || reachHandFrame(dir);\n   
+    const s = Math.min(NPC_CFG.REACH_SPEED * t, L);\n    const Ft = vadd(H0, vscale(dir,
+    s));\n    const arm = reachArm(rest, Ft, frame);\n    armR = armRots(rest, \"R\",
+    arm);\n    const Fw = toWorld(contactOf(rest, arm), ip);\n    let d = -1;\n   
+    if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n      sampleTrace(dt,
+    t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n    const earlyContact
+    = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd || earlyContact) {\n     
+    $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist = d;\n     
+    $.state.npc_contactT = t;\n      $.state.npc_Fc = Ft;\n      $.state.npc_strokeSec
     = strokePath(Ft, dir).total;\n      $.state.npc_Fhold = Ft;\n      $.state.npc_phase
     = \"stroke\";\n      $.state.npc_t = 0;\n      // how far the rendered wrist
     is from the IK wrist (bone map / rest pose mismatch shows up here)\n      const

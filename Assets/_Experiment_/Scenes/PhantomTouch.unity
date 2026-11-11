@@ -6607,11 +6607,13 @@ PrefabInstance:
         turn, surprised face when touched; answers the cues below\n//   \"npc_greet_cue\"      
         { cue }               -> the participant has followed an instruction of the
         guided greeting\n//                                                  (GreetingGuide
-        item; cue = \"wave\" | \"lookAway\" | \"lookBack\" | \"move\" |\n//                                                 
-        \"lookAgain\"): social condition only, react as GREET_REACTIONS says\n//  
-        \"npc_greeting_end\"    {}                    -> stop the greeting reactions,
-        write greeting counters\n//   \"npc_trial_start\"     { block, rep, avatar,
-        social, fwd, reset } -> (reset: put the participant back on the\n//                                                 
+        item; cue = \"hello\" (sent before the first instruction:\n//                                                 
+        the NPC greets first) | \"wave\" | \"lookAway\" | \"lookBack\" | \"move\"
+        |\n//                                                  \"lookAgain\"): social
+        condition only, react as GREET_REACTIONS says\n//   \"npc_greeting_end\"   
+        {}                    -> stop the greeting reactions, write greeting counters\n//  
+        \"npc_trial_start\"     { block, rep, avatar, social, fwd, reset } -> (reset:
+        put the participant back on the\n//                                                 
         marker, on their platform) -> (reappear at the conversation spot if\n//                                                 
         hidden) -> turn to the participant and step closer -> prep -> raise hand\n//                                                 
         -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold\n//                                                 
@@ -6673,61 +6675,67 @@ PrefabInstance:
         follows the GreetingGuide item's instructions one by one; each time it reports\n 
         // one as done (\"npc_greet_cue\"), the NPC answers like this (social condition
         only; nothing otherwise). nod / wave:\n  // the gesture, joy: smile while
-        it lasts, turn: the whole body turns to face the participant.\n  GREET_REACTIONS:
-        {\n    wave: { nod: true, wave: true, joy: true },        // the participant
-        waved: wave back, nodding and smiling\n    lookBack: { nod: true, joy: true
-        },                // looked away, then at the NPC again: nod and smile\n   
-        move: { turn: true },                              // stepped aside: turn
-        to them (head and eyes follow anyway)\n    lookAgain: { wave: true, joy:
-        true },              // ... and looked at the NPC again: wave and smile\n 
-        },\n  PREP_REACTION: { nod: true, wave: true, joy: true }, // touch phase,
-        before the hand is raised: greet once\n  HEAD_MAX_DEG: 50,        // gaze:
-        the head alone turns up to this angle ...\n  EYE_EXTRA_DEG: 12,       //
-        ... and the eyes a bit further\n  BODY_TURN_START_DEG: 35, // greeting: if
-        the participant is farther than this from the NPC's facing,\n  BODY_TURN_STOP_DEG:
-        4,   //   the whole body turns toward them (lerp) until within this angle;\n 
-        BODY_TURN_RATE: 2.5,     //   exponential rate (1/s). The head's local rotation
-        unwinds as the body turns.\n  LOOK_AT_DEG: 30,         // participant \"looks
-        at\" the NPC when head forward is within this angle\n  LOOK_AWAY_DEG: 45,      
-        // ... and stops when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET:
-        0.10, // a hand counts as raised when above (head height - this)\n  NOD_SEC:
-        0.8,            // nod-only reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC:
-        1.6,           // reaction duration when it includes a wave\n  TOUCH_COOLDOWN_SEC:
-        1.5, // surprised face when touched: minimum interval\n  TOUCH_HAND_MARGIN:
-        0.06, // participant hand bone (wrist) -> fingers allowance (m)\n  RETREAT_THRESHOLD:
-        0.02, // m, for the in-world retreat-onset estimate\n  MODEL_NODE: \"Model\",    
-        // sub-node holding the VRM model (toggled for visibility)\n  JOY_KEY: \"npc_joy\",     
-        // item Bool state -> Set Animator Value gimmick on the face mesh -> Animator
-        Bool \"joy\"\n  SURPRISED_KEY: \"npc_surprised\", // item signal -> gimmick
-        -> Animator Trigger \"surprised\" (1 s clip)\n                          
-        // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50,
-        Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",     // 1 m cube under the
-        NPC's feet (top at the feet); shown while the NPC is lifted\n  PLATFORM_ITEM:
-        \"HeightPlatform\", // world item reference: the platform under the participant's
-        standing spot\n};\n\nconst IDENT = new Quaternion(0, 0, 0, 1);\nconst UP
-        = new Vector3(0, 1, 0);\n// Right-hand finger bones in NPC_BoneMap.js: kept
-        straight, i.e. given the hand's rotation every frame (applyPose\n// gives
-        a bone without a rotation the identity in the item frame, not its parent's).\nconst
-        R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal, HumanoidBone.RightThumbIntermediate,
-        HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal, HumanoidBone.RightIndexIntermediate,
-        HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal, HumanoidBone.RightMiddleIntermediate,
-        HumanoidBone.RightMiddleDistal,\n  HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate,
-        HumanoidBone.RightRingDistal,\n  HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate,
-        HumanoidBone.RightLittleDistal,\n];\n\n// ----------------------------------------------------------------
-        math helpers\nfunction v3(x, y, z) { return new Vector3(x, y, z); }\nfunction
-        vadd(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a,
-        b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s)
-        { return v3(a.x * s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x
-        * b.x + a.y * b.y + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y *
-        b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction
-        vlen(a) { return Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l =
-        vlen(a); return l > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a,
-        b, t) { return vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return
-        vnorm(v3(a.x, 0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z);
-        }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n    a.w * b.x + a.x
-        * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y * b.w + a.z
-        * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w * b.w
-        - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return new Quaternion(-q.x,
+        it lasts, turn: the whole body turns to face the participant. An answer with
+        a wave\n  // lasts WAVE_SEC, a nod alone NOD_SEC, a turn about 1 s (BODY_TURN_RATE).
+        The guide waits for the answer to end\n  // before its next instruction and
+        before the touch, in both conditions: its GG_HELLO / GG_STEPS 'react' times\n 
+        // must not be shorter (tests/greeting-guide.test.mjs checks this).\n  GREET_REACTIONS:
+        {\n    hello: { nod: true, wave: true, joy: true },       // before the first
+        instruction: the NPC greets first\n    wave: { nod: true, wave: true, joy:
+        true },        // the participant waved: wave back, nodding and smiling\n   
+        lookBack: { nod: true, joy: true },                // looked away, then at
+        the NPC again: nod and smile\n    move: { turn: true },                             
+        // stepped aside: turn to them (head and eyes follow anyway)\n    lookAgain:
+        { wave: true, joy: true },              // ... and looked at the NPC again:
+        wave and smile\n  },\n  PREP_REACTION: { nod: true, wave: true, joy: true
+        }, // touch phase, before the hand is raised: greet once\n  HEAD_MAX_DEG:
+        50,        // gaze: the head alone turns up to this angle ...\n  EYE_EXTRA_DEG:
+        12,       // ... and the eyes a bit further\n  BODY_TURN_START_DEG: 35, //
+        greeting: if the participant is farther than this from the NPC's facing,\n 
+        BODY_TURN_STOP_DEG: 4,   //   the whole body turns toward them (lerp) until
+        within this angle;\n  BODY_TURN_RATE: 2.5,     //   exponential rate (1/s).
+        The head's local rotation unwinds as the body turns.\n  LOOK_AT_DEG: 30,        
+        // participant \"looks at\" the NPC when head forward is within this angle\n 
+        LOOK_AWAY_DEG: 45,       // ... and stops when it exceeds this angle (hysteresis)\n 
+        HAND_RAISE_OFFSET: 0.10, // a hand counts as raised when above (head height
+        - this)\n  NOD_SEC: 0.8,            // nod-only reaction duration\n  NOD_DEG:
+        15,\n  WAVE_SEC: 1.6,           // reaction duration when it includes a wave\n 
+        TOUCH_COOLDOWN_SEC: 1.5, // surprised face when touched: minimum interval\n 
+        TOUCH_HAND_MARGIN: 0.06, // participant hand bone (wrist) -> fingers allowance
+        (m)\n  RETREAT_THRESHOLD: 0.02, // m, for the in-world retreat-onset estimate\n 
+        MODEL_NODE: \"Model\",     // sub-node holding the VRM model (toggled for
+        visibility)\n  JOY_KEY: \"npc_joy\",      // item Bool state -> Set Animator
+        Value gimmick on the face mesh -> Animator Bool \"joy\"\n  SURPRISED_KEY:
+        \"npc_surprised\", // item signal -> gimmick -> Animator Trigger \"surprised\"
+        (1 s clip)\n                           // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;
+        Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",    
+        // 1 m cube under the NPC's feet (top at the feet); shown while the NPC is
+        lifted\n  PLATFORM_ITEM: \"HeightPlatform\", // world item reference: the
+        platform under the participant's standing spot\n};\n\nconst IDENT = new Quaternion(0,
+        0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n// Right-hand finger bones in
+        NPC_BoneMap.js: kept straight, i.e. given the hand's rotation every frame
+        (applyPose\n// gives a bone without a rotation the identity in the item frame,
+        not its parent's).\nconst R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal,
+        HumanoidBone.RightThumbIntermediate, HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal,
+        HumanoidBone.RightIndexIntermediate, HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal,
+        HumanoidBone.RightMiddleIntermediate, HumanoidBone.RightMiddleDistal,\n 
+        HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate, HumanoidBone.RightRingDistal,\n 
+        HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate, HumanoidBone.RightLittleDistal,\n];\n\n//
+        ---------------------------------------------------------------- math helpers\nfunction
+        v3(x, y, z) { return new Vector3(x, y, z); }\nfunction vadd(a, b) { return
+        v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a, b) { return v3(a.x
+        - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s) { return v3(a.x *
+        s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x * b.x + a.y * b.y
+        + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction vlen(a) { return
+        Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l = vlen(a); return l
+        > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a, b, t) { return
+        vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return vnorm(v3(a.x,
+        0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z); }\n\nfunction
+        qmul(a, b) {\n  return new Quaternion(\n    a.w * b.x + a.x * b.w + a.y *
+        b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,\n   
+        a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w * b.w - a.x * b.x
+        - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return new Quaternion(-q.x,
         -q.y, -q.z, q.w); }\nfunction qrot(q, v) {\n  const tx = 2 * (q.y * v.z -
         q.z * v.y);\n  const ty = 2 * (q.z * v.x - q.x * v.z);\n  const tz = 2 *
         (q.x * v.y - q.y * v.x);\n  return v3(\n    v.x + q.w * tx + (q.y * tz -
@@ -6981,8 +6989,8 @@ PrefabInstance:
         = 0; $.state.npc_gWaves = 0; $.state.npc_gNods = 0;\n  $.state.npc_gReact
         = 0; $.state.npc_smiles = 0; $.state.npc_gTouch = 0; $.state.npc_gCues =
         0;\n  $.state.npc_gazeAligned = false;\n  $.state.npc_handUp = false;\n 
-        $.state.npc_touching = false;\n  $.state.npc_bodyTurning = false;\n  clearReaction();\n 
-        $.log(\"[NPC] greeting begin social=\" + $.state.npc_social);\n}\nfunction
+        $.state.npc_touching = false;\n  $.state.npc_bodyTurning = false;\n  $.state.npc_turnCueAt
+        = null;\n  clearReaction();\n  $.log(\"[NPC] greeting begin social=\" + $.state.npc_social);\n}\nfunction
         endGreeting() {\n  if ($.state.npc_mode !== \"greeting\") return;\n  $.state.npc_mode
         = \"none\";\n  $.state.npc_bodyTurning = false;\n  pushData({\n    greetSec:
         (Date.now() - ($.state.npc_greetStartTs || Date.now())) / 1000,\n    greetGazeEvents:
@@ -6998,13 +7006,14 @@ PrefabInstance:
         if ($.state.npc_mode !== \"greeting\") return;\n  $.state.npc_gCues = ($.state.npc_gCues
         || 0) + 1;\n  const r = $.state.npc_social ? NPC_CFG.GREET_REACTIONS[cue]
         : null;\n  $.log(\"[NPC] greet cue \" + cue + (r ? \" -> \" + JSON.stringify(r)
-        : \" (no reaction)\"));\n  if (!r) return;\n  if (r.turn) $.state.npc_bodyTurning
-        = true;\n  if (r.nod || r.wave) startReaction(r);\n}\n// Start a reaction
-        r = { nod, wave, joy }: nod and / or left-hand wave, smiling while it lasts
-        when joy is set (the\n// face returns to neutral when the reaction ends).
-        Replaces a reaction that is still running.\nfunction startReaction(r) {\n 
-        $.state.npc_react = { t: 0, nod: !!r.nod, wave: !!r.wave, dur: r.wave ? NPC_CFG.WAVE_SEC
-        : NPC_CFG.NOD_SEC };\n  $.state.npc_gReact = ($.state.npc_gReact || 0) +
+        : \" (no reaction)\"));\n  if (!r) return;\n  if (r.turn) { $.state.npc_bodyTurning
+        = true; $.state.npc_turnCueAt = nowSec(); }\n  if (r.nod || r.wave) startReaction(r,
+        cue);\n}\n// Start a reaction r = { nod, wave, joy }: nod and / or left-hand
+        wave, smiling while it lasts when joy is set (the\n// face returns to neutral
+        when the reaction ends). Replaces a reaction that is still running. name:
+        for the log.\nfunction startReaction(r, name) {\n  $.state.npc_react = {
+        t: 0, nod: !!r.nod, wave: !!r.wave, dur: r.wave ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC,
+        name: name || \"\" };\n  $.state.npc_gReact = ($.state.npc_gReact || 0) +
         1;\n  if (r.nod) $.state.npc_gNods = ($.state.npc_gNods || 0) + 1;\n  if
         (r.wave) $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;\n  setJoy(!!r.joy);\n}\n//
         Rotate the whole body toward the participant when they are too far to the
@@ -7015,9 +7024,12 @@ PrefabInstance:
         const ang = Math.acos(cosA) * 180 / Math.PI;\n  if (!$.state.npc_bodyTurning
         && ang > NPC_CFG.BODY_TURN_START_DEG) $.state.npc_bodyTurning = true;\n 
         if (!$.state.npc_bodyTurning) return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG)
-        { $.state.npc_bodyTurning = false; return ip; }\n  const yaw = cosA < -0.999
-        ? qaxis(UP, 180) : qfromTo(curFwd, faceDir);\n  const target = qmul(yaw,
-        ip.rot);\n  const rot = qslerp(ip.rot, target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE
+        {\n    $.state.npc_bodyTurning = false;\n    if ($.state.npc_turnCueAt !==
+        null && $.state.npc_turnCueAt !== undefined) {\n      $.log(\"[NPC] reaction
+        move (turn) ended after \" + f3(nowSec() - $.state.npc_turnCueAt) + \" s\");\n     
+        $.state.npc_turnCueAt = null;\n    }\n    return ip;\n  }\n  const yaw =
+        cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd, faceDir);\n  const target
+        = qmul(yaw, ip.rot);\n  const rot = qslerp(ip.rot, target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE
         * dt));\n  $.setRotation(rot);\n  return { pos: ip.pos, rot: rot };\n}\n//
         Participant hand(s) touching the NPC's head / torso / arms (edge-triggered).\nfunction
         detectTouch(p, rest, ip) {\n  const hands = [p.getHumanoidBonePosition(HumanoidBone.LeftHand),
@@ -7272,29 +7284,31 @@ PrefabInstance:
         = ($.state.npc_gHand || 0) + 1;\n      if (social && p && detectTouch(p,
         rest, ip)) surprise();\n    } else if (sig.aligned && !$.state.npc_lookedAt)
         {\n      $.state.npc_lookedAt = true;\n      $.state.npc_lookTs = Date.now();\n     
-        if (social && phase === \"prep\" && !$.state.npc_react) { startReaction(NPC_CFG.PREP_REACTION);
-        $.state.npc_greeted = true; }\n    }\n  }\n\n  // --- arms (bone rotations
-        incl. twist, so the palms face the right way) ---\n  const idleR = armRots(rest,
-        \"R\", idleArm(rest, \"R\"));\n  const idleL = armRots(rest, \"L\", idleArm(rest,
-        \"L\"));\n  let armR = idleR, armL = idleL;\n\n  // reaction gesture (nod
-        and/or left-hand wave with the palm toward the participant), social only\n 
-        let nodDeg = 0;\n  const react = $.state.npc_react;\n  if (social && react)
-        {\n    const rt = (react.t || 0) + dt;\n    if (react.wave) {\n      const
-        lift = Math.sin(Math.PI * clamp01(rt / react.dur));     // 0 -> 1 -> 0\n     
-        armL = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest, rt)), lift);\n   
-        }\n    if (react.nod) {\n      const nodSec = react.wave ? 0.6 : NPC_CFG.NOD_SEC;\n     
-        nodDeg = NPC_CFG.NOD_DEG * Math.sin(Math.PI * clamp01(rt / nodSec));\n   
-        }\n    if (rt >= react.dur) clearReaction(); else { react.t = rt; $.state.npc_react
-        = react; }\n  } else if (react && !social) {\n    clearReaction();\n  }\n\n 
-        // --- phase machine for the right arm ---\n  if (phase === \"prep\") {\n   
-        const greetBusy = social && $.state.npc_react;\n    if (t >= NPC_CFG.PREP_SEC
-        && !greetBusy && head && !$.state.npc_glide) {\n      // social: if the participant
-        never looked, greet once before raising the hand\n      if (social && !$.state.npc_greeted)
-        { $.state.npc_greeted = true; startReaction(NPC_CFG.PREP_REACTION); }\n     
-        else { $.state.npc_phase = \"ready\"; $.state.npc_t = 0; }\n    }\n  } else
-        if (phase === \"ready\") {\n    // raise the hand from the idle pose to the
-        ready position, palm already turned toward the\n    // participant's face
-        (fast; the stimulus starts afterwards)\n    const T = head ? toLocal(facePointWorld(head),
+        if (social && phase === \"prep\" && !$.state.npc_react) { startReaction(NPC_CFG.PREP_REACTION,
+        \"prep\"); $.state.npc_greeted = true; }\n    }\n  }\n\n  // --- arms (bone
+        rotations incl. twist, so the palms face the right way) ---\n  const idleR
+        = armRots(rest, \"R\", idleArm(rest, \"R\"));\n  const idleL = armRots(rest,
+        \"L\", idleArm(rest, \"L\"));\n  let armR = idleR, armL = idleL;\n\n  //
+        reaction gesture (nod and/or left-hand wave with the palm toward the participant),
+        social only\n  let nodDeg = 0;\n  const react = $.state.npc_react;\n  if
+        (social && react) {\n    const rt = (react.t || 0) + dt;\n    if (react.wave)
+        {\n      const lift = Math.sin(Math.PI * clamp01(rt / react.dur));     //
+        0 -> 1 -> 0\n      armL = slerpArm(idleL, armRots(rest, \"L\", waveArm(rest,
+        rt)), lift);\n    }\n    if (react.nod) {\n      const nodSec = react.wave
+        ? 0.6 : NPC_CFG.NOD_SEC;\n      nodDeg = NPC_CFG.NOD_DEG * Math.sin(Math.PI
+        * clamp01(rt / nodSec));\n    }\n    if (rt >= react.dur) {\n      clearReaction();\n     
+        $.log(\"[NPC] reaction \" + (react.name || \"?\") + \" ended after \" + f3(rt)
+        + \" s\");\n    } else { react.t = rt; $.state.npc_react = react; }\n  }
+        else if (react && !social) {\n    clearReaction();\n  }\n\n  // --- phase
+        machine for the right arm ---\n  if (phase === \"prep\") {\n    const greetBusy
+        = social && $.state.npc_react;\n    if (t >= NPC_CFG.PREP_SEC && !greetBusy
+        && head && !$.state.npc_glide) {\n      // social: if the participant never
+        looked, greet once before raising the hand\n      if (social && !$.state.npc_greeted)
+        { $.state.npc_greeted = true; startReaction(NPC_CFG.PREP_REACTION, \"prep\");
+        }\n      else { $.state.npc_phase = \"ready\"; $.state.npc_t = 0; }\n   
+        }\n  } else if (phase === \"ready\") {\n    // raise the hand from the idle
+        pose to the ready position, palm already turned toward the\n    // participant's
+        face (fast; the stimulus starts afterwards)\n    const T = head ? toLocal(facePointWorld(head),
         ip) : vadd(rest.sR, vadd(vscale(rest.fwd, 0.4), vscale(UP, 0.2)));\n    const
         H0 = readyContact(rest, T);\n    const readyArm = armRots(rest, \"R\", reachArm(rest,
         H0, reachHandFrame(vsub(T, H0))));\n    armR = slerpArm(idleR, readyArm,
@@ -20429,20 +20443,38 @@ PrefabInstance:
         red\n// panel in front of the participant's face and disappears the moment
         they have followed it, so that they can\n// watch what the NPC does: the
         NPC is told with 'npc_greet_cue' and answers only in the social-cue condition.\n//
-        After the last instruction the state ends; the greeting has no time limit
-        of its own.\nconst GG_NPC = new Vector3(0, 0, -1);        // where the NPC
-        stands (horizontal)\nconst GG_RIGHT = new Vector3(1, 0, 0);      // the marker's
-        right\nconst GG_DIST = 0.7, GG_DROP = 0.05, GG_EYE_UP = 0.07;   // panel:
-        in front of / below the head bone; eyes above it\nconst GG_SIZE = 0.014,
-        GG_GLYPH_W = 1.85, GG_LINE_H = 2.74, GG_PAD = 0.04;\n// id: the cue sent
-        to the NPC; watch: seconds without a panel after the instruction was followed\nconst
-        GG_STEPS = [\n  { id: 'wave', text: '\u76F8\u624B\u306B\u5411\u304B\u3063\u3066\\n\u624B\u3092\u632F\u3063\u3066\u304F\u3060\u3055\u3044',
-        watch: 3.0 },\n  { id: 'lookAway', text: '\u9854\u3092\u53F3\u306B\u5411\u3051\u3066\u3001\\n\u76F8\u624B\u304B\u3089\u76EE\u3092\u305D\u3089\u3057\u3066\u304F\u3060\u3055\u3044',
-        watch: 1.0 },\n  { id: 'lookBack', text: '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
-        watch: 3.0 },\n  { id: 'move', text: '\u53F3\u30781\u6B69\uFF08\u7D0450cm\uFF09\\n\u52D5\u3044\u3066\u304F\u3060\u3055\u3044',
-        watch: 3.0 },\n  { id: 'lookAgain', text: '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
-        watch: 3.0 },\n];\nconst GG_START_SEC = 2.0;        // before the first instruction
-        (the NPC appears and settles)\nconst GG_TIMEOUT_SEC = 30;       // an instruction
+        The NPC greets first ('hello'). Every pause lasts until the NPC's answer
+        has surely ended, with the same\n// length in both conditions. After the
+        last instruction the state ends; the greeting has no time limit of its own.\nconst
+        GG_NPC = new Vector3(0, 0, -1);        // where the NPC stands (horizontal)\nconst
+        GG_RIGHT = new Vector3(1, 0, 0);      // the marker's right\nconst GG_DIST
+        = 0.7, GG_DROP = 0.05, GG_EYE_UP = 0.07;   // panel: in front of / below
+        the head bone; eyes above it\nconst GG_SIZE = 0.014, GG_GLYPH_W = 1.85, GG_LINE_H
+        = 2.74, GG_PAD = 0.04;\n// Timeline (the same in both social conditions):\n//  
+        GG_HELLO.at s after the state began: cue 'hello' (the NPC greets first: nod
+        + wave + smile)\n//   -> pause -> instruction 1 -> followed: cue -> pause
+        -> instruction 2 -> ... -> instruction 5 -> cue -> pause -> touch\n// Each
+        pause lasts react + GG_REACT_MARGIN, where react is how long the NPC's answer
+        to that cue lasts in the social-cue\n// condition (NpcController.js: NPC_CFG.GREET_REACTIONS;
+        a wave WAVE_SEC 1.6 s, a nod alone NOD_SEC 0.8 s, the body\n// turn about
+        1 s), or GG_NO_REACT_PAUSE when the NPC does not answer. In the condition
+        without social cues the NPC\n// does nothing and the pauses are the same.
+        tests/greeting-guide.test.mjs checks the react times against NPC_CFG.\n//
+        id: the cue sent to the NPC once the instruction has been followed\nconst
+        GG_HELLO = { at: 1.0, react: 1.6 };   // the NPC appears at the state's start
+        (and may glide while heights match)\nconst GG_STEPS = [\n  { id: 'wave',
+        text: '\u76F8\u624B\u306B\u5411\u304B\u3063\u3066\\n\u624B\u3092\u632F\u3063\u3066\u304F\u3060\u3055\u3044',
+        react: 1.6 },          // NPC: nod + wave + smile\n  { id: 'lookAway', text:
+        '\u9854\u3092\u53F3\u306B\u5411\u3051\u3066\u3001\\n\u76F8\u624B\u304B\u3089\u76EE\u3092\u305D\u3089\u3057\u3066\u304F\u3060\u3055\u3044',
+        react: 0 }, // NPC: nothing\n  { id: 'lookBack', text: '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
+        react: 0.8 },       // NPC: nod + smile\n  { id: 'move', text: '\u53F3\u30781\u6B69\uFF08\u7D0450cm\uFF09\\n\u52D5\u3044\u3066\u304F\u3060\u3055\u3044',
+        react: 1.5 },          // NPC: turns to face them\n  { id: 'lookAgain', text:
+        '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
+        react: 1.6 },      // NPC: wave + smile\n];\nconst GG_REACT_MARGIN = 1.4;    
+        // after an answer should have ended (message delay, frame drops) before
+        going on\nconst GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC
+        does not answer\nfunction gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN
+        : GG_NO_REACT_PAUSE; }\nconst GG_TIMEOUT_SEC = 30;       // an instruction
         not followed for this long is skipped (greetTimeouts)\nconst GG_MAX_SEC =
         180;          // the greeting ends after this long, whatever happened\nconst
         GG_LOOK_AT_DEG = 20;       // looking at the NPC: head forward within this
@@ -20457,10 +20489,16 @@ PrefabInstance:
         //   head's forward direction, or this much nearer / farther than GG_DIST\n\nfunction
         gg_begin() {\n  $.state.gg_active = true;\n  $.state.gg_startTs = Date.now();\n 
         $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t = 0; $.state.gg_wait
-        = GG_START_SEC;\n  $.state.gg_secs = []; $.state.gg_timeouts = 0;\n  gg_hide();\n}\nfunction
-        gg_stop() { $.state.gg_active = false; gg_hide(); }\nfunction gg_hide() {\n 
-        $.state.gg_shown = false;\n  SetText('');\n  const bg = $.subNode('Bg');\n 
-        if (bg) bg.setEnabled(false);\n}\nfunction gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head),
+        = GG_HELLO.at;\n  $.state.gg_hello = false; $.state.gg_lastCueTs = 0;\n 
+        $.state.gg_secs = []; $.state.gg_timeouts = 0;\n  gg_hide();\n}\n// seconds
+        since the greeting began, for the log\nfunction gg_now() { return 't=' +
+        ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1) + '
+        s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs = Date.now();\n  try
+        { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }\n  catch
+        (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop() { $.state.gg_active
+        = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown = false;\n 
+        SetText('');\n  const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction
+        gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head),
         rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  return (pos && rot)
         ? { pos: pos, rot: rot, fwd: new Vector3(0, 0, 1).applyQuaternion(rot) }
         : null;\n}\n// Panel in front of the face: GG_DIST along the head's horizontal
@@ -20519,30 +20557,37 @@ PrefabInstance:
         ? gg_head(p) : null;\n  if (!head) return;\n  $.state.gg_t = ($.state.gg_t
         || 0) + dt;\n  const i = $.state.gg_step || 0;\n  if ($.state.gg_phase ===
         'wait') {\n    if ($.state.gg_t < ($.state.gg_wait || 0)) return;\n    if
-        (i >= GG_STEPS.length) { gg_finish(); return; }\n    // next instruction;
-        not shown at all when the participant is already doing it\n    $.state.gg_phase
-        = 'prompt'; $.state.gg_t = 0; $.state.gg_hold = 0;\n    $.state.gg_base =
-        head.pos; $.state.gg_travel = 0; $.state.gg_prevL = null; $.state.gg_prevR
-        = null;\n    if (gg_done(GG_STEPS[i].id, p, head, dt, true)) gg_next(i, 0,
-        false);\n    else gg_show(GG_STEPS[i].text, head);\n    return;\n  }\n  if
-        (gg_done(GG_STEPS[i].id, p, head, dt, false)) { gg_next(i, $.state.gg_t,
+        (!$.state.gg_hello) {\n      // the NPC greets first; the first instruction
+        comes once that greeting has surely ended\n      $.state.gg_hello = true;
+        $.state.gg_t = 0; $.state.gg_wait = gg_pause(GG_HELLO.react);\n      gg_cue('hello');\n     
+        $.log('[GreetingGuide] ' + gg_now() + 'hello; first instruction in ' + $.state.gg_wait.toFixed(1)
+        + ' s');\n      return;\n    }\n    if (i >= GG_STEPS.length) { gg_finish();
+        return; }\n    // next instruction; not shown at all when the participant
+        is already doing it\n    $.state.gg_phase = 'prompt'; $.state.gg_t = 0; $.state.gg_hold
+        = 0;\n    $.state.gg_base = head.pos; $.state.gg_travel = 0; $.state.gg_prevL
+        = null; $.state.gg_prevR = null;\n    if (gg_done(GG_STEPS[i].id, p, head,
+        dt, true)) gg_next(i, 0, false);\n    else { gg_show(GG_STEPS[i].text, head);
+        $.log('[GreetingGuide] ' + gg_now() + 'show ' + GG_STEPS[i].id); }\n    return;\n 
+        }\n  if (gg_done(GG_STEPS[i].id, p, head, dt, false)) { gg_next(i, $.state.gg_t,
         false); return; }\n  if ($.state.gg_t > GG_TIMEOUT_SEC) { gg_next(i, -1,
         true); return; }\n  gg_follow(head);\n}\n// Instruction i is over (followed
         after sec seconds, or skipped): hide the panel at once, tell the NPC, pause.\nfunction
         gg_next(i, sec, timedOut) {\n  gg_hide();\n  const step = GG_STEPS[i];\n 
         const secs = $.state.gg_secs || [];\n  secs.push(timedOut ? -1 : Math.round(sec
         * 10) / 10);\n  $.state.gg_secs = secs;\n  if (timedOut) $.state.gg_timeouts
-        = ($.state.gg_timeouts || 0) + 1;\n  else {\n    try { $.worldItemReference('NPC').send('npc_greet_cue',
-        { cue: step.id }); }\n    catch (e) { $.log('[GreetingGuide] cue: ' + e);
-        }\n  }\n  $.log('[GreetingGuide] ' + step.id + (timedOut ? ' skipped (timeout)'
-        : ' done after ' + secs[secs.length - 1] + ' s'));\n  $.state.gg_step = i
-        + 1; $.state.gg_phase = 'wait'; $.state.gg_t = 0;\n  $.state.gg_wait = timedOut
-        ? 0.5 : step.watch;\n  // written before the last pause, so well before the
-        NPC writes its own greeting counters at the end of the state\n  if (i + 1
-        >= GG_STEPS.length) gg_report();\n}\nfunction gg_report() {\n  SendDataToCollector('greetStepSec',
-        ($.state.gg_secs || []).join(','));\n  SendDataToCollector('greetTimeouts',
-        $.state.gg_timeouts || 0);\n}\nfunction gg_finish() { gg_stop(); ToNextState();
-        }"
+        = ($.state.gg_timeouts || 0) + 1;\n  else gg_cue(step.id);\n  $.state.gg_step
+        = i + 1; $.state.gg_phase = 'wait'; $.state.gg_t = 0;\n  $.state.gg_wait
+        = timedOut ? 0.5 : gg_pause(step.react);\n  $.log('[GreetingGuide] ' + gg_now()
+        + step.id + (timedOut ? ' skipped (timeout)' : ' done after ' + secs[secs.length
+        - 1] + ' s') +\n        '; next in ' + $.state.gg_wait.toFixed(1) + ' s');\n 
+        // written before the last pause, so well before the NPC writes its own greeting
+        counters at the end of the state\n  if (i + 1 >= GG_STEPS.length) gg_report();\n}\nfunction
+        gg_report() {\n  SendDataToCollector('greetStepSec', ($.state.gg_secs ||
+        []).join(','));\n  SendDataToCollector('greetTimeouts', $.state.gg_timeouts
+        || 0);\n}\nfunction gg_finish() {\n  const since = $.state.gg_lastCueTs ?
+        ((Date.now() - $.state.gg_lastCueTs) / 1000).toFixed(1) + ' s after the last
+        cue' : 'no cue';\n  $.log('[GreetingGuide] ' + gg_now() + 'finished (' +
+        since + ')');\n  gg_stop(); ToNextState();\n}"
       objectReference: {fileID: 0}
     - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}

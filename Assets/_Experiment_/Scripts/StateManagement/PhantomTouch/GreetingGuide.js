@@ -37,20 +37,31 @@ const stateExitActions = {
 // Runs in the greeting state of every trial, in both social conditions. Each instruction is shown on a small red
 // panel in front of the participant's face and disappears the moment they have followed it, so that they can
 // watch what the NPC does: the NPC is told with 'npc_greet_cue' and answers only in the social-cue condition.
-// After the last instruction the state ends; the greeting has no time limit of its own.
+// The NPC greets first ('hello'). Every pause lasts until the NPC's answer has surely ended, with the same
+// length in both conditions. After the last instruction the state ends; the greeting has no time limit of its own.
 const GG_NPC = new Vector3(0, 0, -1);        // where the NPC stands (horizontal)
 const GG_RIGHT = new Vector3(1, 0, 0);      // the marker's right
 const GG_DIST = 0.7, GG_DROP = 0.05, GG_EYE_UP = 0.07;   // panel: in front of / below the head bone; eyes above it
 const GG_SIZE = 0.014, GG_GLYPH_W = 1.85, GG_LINE_H = 2.74, GG_PAD = 0.04;
-// id: the cue sent to the NPC; watch: seconds without a panel after the instruction was followed
+// Timeline (the same in both social conditions):
+//   GG_HELLO.at s after the state began: cue 'hello' (the NPC greets first: nod + wave + smile)
+//   -> pause -> instruction 1 -> followed: cue -> pause -> instruction 2 -> ... -> instruction 5 -> cue -> pause -> touch
+// Each pause lasts react + GG_REACT_MARGIN, where react is how long the NPC's answer to that cue lasts in the social-cue
+// condition (NpcController.js: NPC_CFG.GREET_REACTIONS; a wave WAVE_SEC 1.6 s, a nod alone NOD_SEC 0.8 s, the body
+// turn about 1 s), or GG_NO_REACT_PAUSE when the NPC does not answer. In the condition without social cues the NPC
+// does nothing and the pauses are the same. tests/greeting-guide.test.mjs checks the react times against NPC_CFG.
+// id: the cue sent to the NPC once the instruction has been followed
+const GG_HELLO = { at: 1.0, react: 1.6 };   // the NPC appears at the state's start (and may glide while heights match)
 const GG_STEPS = [
-  { id: 'wave', text: '相手に向かって\n手を振ってください', watch: 3.0 },
-  { id: 'lookAway', text: '顔を右に向けて、\n相手から目をそらしてください', watch: 1.0 },
-  { id: 'lookBack', text: 'もう一度、\n相手の顔を見てください', watch: 3.0 },
-  { id: 'move', text: '右へ1歩（約50cm）\n動いてください', watch: 3.0 },
-  { id: 'lookAgain', text: 'もう一度、\n相手の顔を見てください', watch: 3.0 },
+  { id: 'wave', text: '相手に向かって\n手を振ってください', react: 1.6 },          // NPC: nod + wave + smile
+  { id: 'lookAway', text: '顔を右に向けて、\n相手から目をそらしてください', react: 0 }, // NPC: nothing
+  { id: 'lookBack', text: 'もう一度、\n相手の顔を見てください', react: 0.8 },       // NPC: nod + smile
+  { id: 'move', text: '右へ1歩（約50cm）\n動いてください', react: 1.5 },          // NPC: turns to face them
+  { id: 'lookAgain', text: 'もう一度、\n相手の顔を見てください', react: 1.6 },      // NPC: wave + smile
 ];
-const GG_START_SEC = 2.0;        // before the first instruction (the NPC appears and settles)
+const GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message delay, frame drops) before going on
+const GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not answer
+function gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN : GG_NO_REACT_PAUSE; }
 const GG_TIMEOUT_SEC = 30;       // an instruction not followed for this long is skipped (greetTimeouts)
 const GG_MAX_SEC = 180;          // the greeting ends after this long, whatever happened
 const GG_LOOK_AT_DEG = 20;       // looking at the NPC: head forward within this angle of the NPC's head ...
@@ -65,9 +76,17 @@ const GG_REPLACE_DIST = 0.25;    //   head's forward direction, or this much nea
 function gg_begin() {
   $.state.gg_active = true;
   $.state.gg_startTs = Date.now();
-  $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t = 0; $.state.gg_wait = GG_START_SEC;
+  $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t = 0; $.state.gg_wait = GG_HELLO.at;
+  $.state.gg_hello = false; $.state.gg_lastCueTs = 0;
   $.state.gg_secs = []; $.state.gg_timeouts = 0;
   gg_hide();
+}
+// seconds since the greeting began, for the log
+function gg_now() { return 't=' + ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1) + ' s: '; }
+function gg_cue(id) {
+  $.state.gg_lastCueTs = Date.now();
+  try { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }
+  catch (e) { $.log('[GreetingGuide] cue: ' + e); }
 }
 function gg_stop() { $.state.gg_active = false; gg_hide(); }
 function gg_hide() {
@@ -165,12 +184,19 @@ function gg_tick(dt) {
   const i = $.state.gg_step || 0;
   if ($.state.gg_phase === 'wait') {
     if ($.state.gg_t < ($.state.gg_wait || 0)) return;
+    if (!$.state.gg_hello) {
+      // the NPC greets first; the first instruction comes once that greeting has surely ended
+      $.state.gg_hello = true; $.state.gg_t = 0; $.state.gg_wait = gg_pause(GG_HELLO.react);
+      gg_cue('hello');
+      $.log('[GreetingGuide] ' + gg_now() + 'hello; first instruction in ' + $.state.gg_wait.toFixed(1) + ' s');
+      return;
+    }
     if (i >= GG_STEPS.length) { gg_finish(); return; }
     // next instruction; not shown at all when the participant is already doing it
     $.state.gg_phase = 'prompt'; $.state.gg_t = 0; $.state.gg_hold = 0;
     $.state.gg_base = head.pos; $.state.gg_travel = 0; $.state.gg_prevL = null; $.state.gg_prevR = null;
     if (gg_done(GG_STEPS[i].id, p, head, dt, true)) gg_next(i, 0, false);
-    else gg_show(GG_STEPS[i].text, head);
+    else { gg_show(GG_STEPS[i].text, head); $.log('[GreetingGuide] ' + gg_now() + 'show ' + GG_STEPS[i].id); }
     return;
   }
   if (gg_done(GG_STEPS[i].id, p, head, dt, false)) { gg_next(i, $.state.gg_t, false); return; }
@@ -185,13 +211,11 @@ function gg_next(i, sec, timedOut) {
   secs.push(timedOut ? -1 : Math.round(sec * 10) / 10);
   $.state.gg_secs = secs;
   if (timedOut) $.state.gg_timeouts = ($.state.gg_timeouts || 0) + 1;
-  else {
-    try { $.worldItemReference('NPC').send('npc_greet_cue', { cue: step.id }); }
-    catch (e) { $.log('[GreetingGuide] cue: ' + e); }
-  }
-  $.log('[GreetingGuide] ' + step.id + (timedOut ? ' skipped (timeout)' : ' done after ' + secs[secs.length - 1] + ' s'));
+  else gg_cue(step.id);
   $.state.gg_step = i + 1; $.state.gg_phase = 'wait'; $.state.gg_t = 0;
-  $.state.gg_wait = timedOut ? 0.5 : step.watch;
+  $.state.gg_wait = timedOut ? 0.5 : gg_pause(step.react);
+  $.log('[GreetingGuide] ' + gg_now() + step.id + (timedOut ? ' skipped (timeout)' : ' done after ' + secs[secs.length - 1] + ' s') +
+        '; next in ' + $.state.gg_wait.toFixed(1) + ' s');
   // written before the last pause, so well before the NPC writes its own greeting counters at the end of the state
   if (i + 1 >= GG_STEPS.length) gg_report();
 }
@@ -199,4 +223,8 @@ function gg_report() {
   SendDataToCollector('greetStepSec', ($.state.gg_secs || []).join(','));
   SendDataToCollector('greetTimeouts', $.state.gg_timeouts || 0);
 }
-function gg_finish() { gg_stop(); ToNextState(); }
+function gg_finish() {
+  const since = $.state.gg_lastCueTs ? ((Date.now() - $.state.gg_lastCueTs) / 1000).toFixed(1) + ' s after the last cue' : 'no cue';
+  $.log('[GreetingGuide] ' + gg_now() + 'finished (' + since + ')');
+  gg_stop(); ToNextState();
+}
