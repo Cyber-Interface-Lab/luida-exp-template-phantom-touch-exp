@@ -31,10 +31,12 @@ return {
     trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],
     strokeEndTs: CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],
     strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec: CD['strokeRampSec'],
-    // greeting period (written on both trials of the block)
+    // guided greeting (every trial): seconds from each instruction to the participant following it (0 = already
+    // doing it, -1 = skipped after the timeout), number skipped, cues the NPC received, and the NPC's counters
+    greetStepSec: CD['greetStepSec'], greetTimeouts: CD['greetTimeouts'], greetCues: CD['greetCues'],
     greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],
     greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],
-    greetNpcSmiles: CD['greetNpcSmiles'], greetNpcIdleReactions: CD['greetNpcIdleReactions'], greetTouches: CD['greetTouches'],
+    greetNpcSmiles: CD['greetNpcSmiles'], greetTouches: CD['greetTouches'],
     // height matching (head-bone heights, m; platform under the participant / riser under the NPC)
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],

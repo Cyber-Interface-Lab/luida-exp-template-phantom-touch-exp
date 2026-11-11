@@ -39,7 +39,7 @@ MonoBehaviour:
     qID: 0
   - StateName: Trial - Greeting
     DestStateName: Trial - Touch
-    HasExitTime: 1
+    HasExitTime: 0
     ExitTime: 20
     IsRepeated: 0
     RepeatDestStateName: 

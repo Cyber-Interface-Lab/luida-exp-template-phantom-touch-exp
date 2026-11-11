@@ -22,7 +22,7 @@ const stateEnterActions = {
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '20秒間、目の前のアバターを見ながら\n挨拶してください。\n（例：手を振る、少し横に動く）');
+            ins_show('front', '目の前に赤く表示される指示に、\nひとつずつ従ってください。');
         } }
     ],
     4: [

@@ -82,7 +82,8 @@ export function loadItem(files, { world, groupState = {}, globals = {}, refs = {
       if (subNodes && !subNodes.includes(n)) return null;
       return (item.subNodes[n] ||= { name: n, enabled: null, pos: null, rot: null, text: null,
         setEnabled(v) { this.enabled = v; }, setPosition(p) { this.pos = p; }, setRotation(r) { this.rot = r; }, setText(t) { this.text = t; },
-        getPosition() { return new Vector3(); }, getGlobalPosition() { return new Vector3(); }, getGlobalRotation() { return new Quaternion(); } });
+        getPosition() { return new Vector3(); }, getGlobalPosition() { return new Vector3(); }, getGlobalRotation() { return new Quaternion(); },
+        unity: { unityProp: {} }, getUnityComponent() { return this.unity; } });
     },
     worldItemReference: (id) => (id in item.refs ? item.refs[id] : null),
     getPlayersNear: () => world.players.filter((p) => p.here),
