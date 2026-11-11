@@ -34,6 +34,14 @@ const stateExitActions = {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
+// ---- Study 4: position of this trial in its avatar block ----
+const TRIALS_PER_BLOCK = 2;
+function trialInBlock() {
+  const t = $.getStateCompat('global', 'exp_trialID', 'integer');
+  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK : 0) + 1;
+}
+function firstTrialOfBlock() { return trialInBlock() === 1; }
+function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
 // ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
 // Bone-length signature of the LUIDA "Default Avatar" (participantAvatarMode = DEFAULT; luida_default_avatar).
 // Not measured yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is off and the gate relies on
@@ -89,8 +97,8 @@ function ag_targetMatches(sig) {
 }
 function ag_begin() {
   $.state.ag_active = false;
-  if (!CONDITION || CONDITION['rep'] !== '1') {
-    // second trial of a block: no avatar change, skip the setup immediately
+  if (!firstTrialOfBlock()) {
+    // later trial of a block: no avatar change, skip the setup immediately
     HideChild('Text');
     ag_showButtons(false, false);
     ToNextState();

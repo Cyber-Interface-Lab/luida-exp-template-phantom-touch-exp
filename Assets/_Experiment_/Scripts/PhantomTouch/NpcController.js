@@ -38,15 +38,21 @@ const NPC_CFG = {
   PREP_SEC: 2.0,           // wait (and step closer) before the hand is raised
   READY_SEC: 1.2,          // raise the hand to the ready position (fast, not part of the stimulus)
   // Touch layout: the greeting is face to face (conversation spot in front of the marker, as before); for the touch
-  // the NPC stands behind-right of the participant, turned toward them, and its right hand comes in from the side
-  // of the participant's face to their right cheek. The participant watches it in the mirror straight ahead.
-  TOUCH_STAND_AZ_DEG: 125, // reach spot: on this azimuth around the marker (deg from its facing, + = right); the
+  // the NPC stands behind-right of the participant, turned toward them, and its right hand comes in diagonally from
+  // the front-right of the participant's face. The participant watches it in the mirror straight ahead.
+  TOUCH_STAND_AZ_DEG: 110, // reach spot: on this azimuth around the marker (deg from its facing, + = right; 90 = beside,
+                           //   180 = behind; nearer the side than 125 so the arm reaches the front-right start); the
                            //   conversation spot of the touch is IDLE_EXTRA_DIST farther out on the same line
   TOUCH_BODY_YAW_DEG: -30, // NPC facing at the touch spots: the marker's facing turned by this (deg, - = to the left)
   TOUCH_MIN_STAND_DIST: 0.30, // minimum horizontal marker-to-NPC distance at the touch reach spot (m)
-  APPROACH_SIDE: 0.30,     // ready point of the contact point: this far to the participant's right of the face target ...
-  APPROACH_FWD: 0.05,      //   ... this far forward of it (participant's head yaw frame) ...
-  APPROACH_UP: 0.0,        //   ... and this far up; the approach is the straight line from there to the target
+  TOUCH_STAND_FACTOR: 0.88, // touch reach spot: the wrist at the end of the approach is this fraction of (upper arm
+                           //   + forearm) from the shoulder (smaller = the NPC stands closer, elbow more bent) ...
+  TOUCH_START_FACTOR: 0.92, //   ... and at the start of the approach at most this fraction (the NPC steps closer if needed)
+  APPROACH_SIDE: 0.246,    // ready point of the contact point: this far to the participant's right of the face target ...
+  APPROACH_FWD: 0.172,     //   ... this far forward of it (participant's head yaw frame; with SIDE: 0.30 m, 35 deg
+                           //   in front of the side) ...
+  APPROACH_UP: -0.06,      //   ... and this far up (a little below, so the hand rises slightly toward the face); the
+                           //   approach is the straight line from there to the target
   HAND_ACROSS_YAW_DEG: 20, // touching hand: fingers point across the face (toward the participant's left), turned
   HAND_ACROSS_TILT_DEG: 10, //   this far forward and this far up; palm toward the cheek, thumb up
   // Right-hand fingers while the hand is raised, approaching, stroking and retracting (curled in during the raise,
@@ -66,15 +72,17 @@ const NPC_CFG = {
   HOLD_SEC: 1.0,           // rest where the last stroke ended
   RETRACT_SPEED: 0.10,     // m/s, back along the approach line to the ready point
   STOP_MARGIN: 0.02,       // stop the hand's contact point (the curled fingers' pads) this far before the face target
-  // Touch target in the participant's head frame: the right cheek (the side the NPC's right hand comes from).
-  CHEEK_BELOW_EYES: 0.045, //   height: the eye bones' midpoint minus this ...
-  FACE_UP: 0.02,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
+  // Touch target in the participant's head frame: in front of the face, on the midline under the eyes (the hand comes
+  // in from the participant's right and its contact point stops STOP_MARGIN to the right of it).
+  CHEEK_BELOW_EYES: 0.025, //   height: the eye bones' midpoint minus this ...
+  FACE_UP: 0.04,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
   USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null for missing bones, but the editor
                            //   emulator (CSEmulator) throws a .NET exception that aborts the whole handler, so the
                            //   director turns this on only outside LUIDA's test mode (npc_setup { eyes })
-  FACE_SIDE: 0.015,        //   toward the participant's right (0 = midline of the face); the hand stops
-                           //   STOP_MARGIN short of this on its way in from the right
-  FACE_FWD: 0.09,          //   forward of the head bone (cheek surface)
+  FACE_SIDE: 0.0,          //   toward the participant's right (0 = midline of the face); the hand stops
+                           //   STOP_MARGIN short of this on its way in from the front-right
+  FACE_FWD: 0.095,         //   forward of the head bone (about the face surface; the hand stops STOP_MARGIN short of
+                           //   this point, coming in from the front-right, i.e. ~1 cm in front and ~1.6 cm right of it)
   // Greeting spot (face to face, unchanged from the earlier frontal touch): the distance at which a straight hand,
   // fingers HAND_PITCH_DEG above horizontal, would reach the face from the front, plus IDLE_EXTRA_DIST.
   // CONTACT_LEN / PALM_OFF are also the touching hand's contact point when the bone map has no finger bones.
@@ -474,7 +482,7 @@ function headOf(p) {
 function faceUp(head) {
   return (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp - NPC_CFG.CHEEK_BELOW_EYES : NPC_CFG.FACE_UP;
 }
-// Touch target: the participant's right cheek, FACE_SIDE toward their right (head local +x), FACE_FWD forward.
+// Touch target: in front of the participant's face, FACE_SIDE toward their right (head local +x), FACE_FWD forward.
 function facePointWorld(head) {
   return vadd(head.pos, qrot(head.rot, v3(NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));
 }
@@ -483,7 +491,7 @@ function headYawFrame(head) {
   const f = vhoriz(head.fwd);
   return { f: f, r: vcross(UP, f) };
 }
-// Ready point of the contact point: to the participant's right of the face target (the hand comes in from the side).
+// Ready point of the contact point: in front of and to the right of the face target (the hand comes in diagonally).
 function readyContactWorld(head, Tw) {
   const hf = headYawFrame(head);
   return vadd(Tw, vadd(vadd(vscale(hf.r, NPC_CFG.APPROACH_SIDE), vscale(hf.f, NPC_CFG.APPROACH_FWD)), vscale(UP, NPC_CFG.APPROACH_UP)));
@@ -514,7 +522,7 @@ function standPose(extraDist) {
   const floorY = (typeof $.state.npc_floorY === "number") ? $.state.npc_floorY : root.y - platformH;
   const g = {
     head: head, rest: rest, root: root, platformH: platformH, floorY: floorY, feetY: floorY + lift,
-    reach: (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR,
+    reach: (rest.L1 + rest.L2) * ($.state.npc_standKind === "touch" ? NPC_CFG.TOUCH_STAND_FACTOR : NPC_CFG.STAND_FACTOR),
     // the marker (falls back to the participant's head and facing)
     o: $.state.npc_origin || head.pos,
     pfwd: $.state.npc_fwd ? vhoriz($.state.npc_fwd) : vhoriz(head.fwd),
@@ -563,11 +571,18 @@ function touchStandPose(g, extraDist) {
   const W = vsub(vsub(Tw, vscale(dirW, NPC_CFG.STOP_MARGIN)), palmOffset(rest, touchHandFrameWorld(head)));
   const base = v3(g.o.x, g.feetY, g.o.z);
   const S0 = qrot(rot, rest.sR);
-  function wristDist(D) { return vlen(vsub(W, vadd(vadd(base, vscale(u, D)), S0))); }
-  let lo = Math.max(NPC_CFG.TOUCH_MIN_STAND_DIST, vdot(vsub(W, vadd(base, S0)), u)), hi = 1.5;
+  // the wrist at the start of the approach (ready point)
+  const W0 = vsub(readyContactWorld(head, Tw), palmOffset(rest, touchHandFrameWorld(head)));
+  function shoulderAt(D) { return vadd(vadd(base, vscale(u, D)), S0); }
+  function wristDist(D) { return vlen(vsub(W, shoulderAt(D))); }
+  const minD = NPC_CFG.TOUCH_MIN_STAND_DIST;
+  let lo = Math.max(minD, vdot(vsub(W, vadd(base, S0)), u)), hi = 1.5;
   if (wristDist(lo) <= g.reach) {
     for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (wristDist(mid) <= g.reach) lo = mid; else hi = mid; }
   }
+  // then step closer (down to the minimum) while the start of the approach is not comfortably within reach
+  const startReach = (rest.L1 + rest.L2) * NPC_CFG.TOUCH_START_FACTOR;
+  while (lo > minD + 1e-6 && vlen(vsub(W0, shoulderAt(lo))) > startReach) lo = Math.max(minD, lo - 0.005);
   const horiz = lo + extraDist;
   const pos = vadd(base, vscale(u, horiz));
   return { pos: pos, rot: rot, horiz: horiz, dy: Tw.y - (g.feetY + rest.sR.y), az: NPC_CFG.TOUCH_STAND_AZ_DEG };

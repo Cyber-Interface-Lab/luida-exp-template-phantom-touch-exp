@@ -77,54 +77,34 @@ MonoBehaviour:
   - stateID: 1
     onStateStartedActions:
     - predefinedActionTemplate:
-        actionType: Show child
+        actionType: Customized Action
         displayLabel: 
-        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
-        variables:
-        - childName
-        category: Item child
-      customAction: 
-      isConditional: 1
-      conditionVariable: rep
-      conditionValue: 1
-      _variableKeys:
-      - childName
-      _variableValuesList:
-      - Mirror
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (firstTrialOfBlock()) $.subNode('Mirror').setEnabled(true);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     duringStateActions: []
     onStateExitedActions: []
   - stateID: 2
     onStateStartedActions:
     - predefinedActionTemplate:
-        actionType: Show child
+        actionType: Customized Action
         displayLabel: 
-        codeSnippet: $.subNode('{_childName_}').setEnabled(true)
-        variables:
-        - childName
-        category: Item child
-      customAction: 
-      isConditional: 1
-      conditionVariable: rep
-      conditionValue: 1
-      _variableKeys:
-      - childName
-      _variableValuesList:
-      - MirrorFront
-    - predefinedActionTemplate:
-        actionType: Hide child
-        displayLabel: 
-        codeSnippet: $.subNode('{_childName_}').setEnabled(false)
-        variables:
-        - childName
-        category: Item child
-      customAction: 
-      isConditional: 1
-      conditionVariable: rep
-      conditionValue: 1
-      _variableKeys:
-      - childName
-      _variableValuesList:
-      - Mirror
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (firstTrialOfBlock()) { $.subNode('MirrorFront').setEnabled(true);
+        $.subNode('Mirror').setEnabled(false); }
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     duringStateActions: []
     onStateExitedActions:
     - predefinedActionTemplate:
@@ -152,9 +132,9 @@ MonoBehaviour:
         - childName
         category: Item child
       customAction: 
-      isConditional: 1
-      conditionVariable: rep
-      conditionValue: 1
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
       _variableKeys:
       - childName
       _variableValuesList:
@@ -178,6 +158,18 @@ MonoBehaviour:
       - Mirror
   - stateID: 4
     onStateStartedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: $.state.mp_fitted = mp_fitTouch();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     - predefinedActionTemplate:
         actionType: Show child
         displayLabel: 
@@ -208,7 +200,19 @@ MonoBehaviour:
       - childName
       _variableValuesList:
       - Mirror
-    duringStateActions: []
+    duringStateActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: if (!$.state.mp_fitted) $.state.mp_fitted = mp_fitTouch();
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
     onStateExitedActions:
     - predefinedActionTemplate:
         actionType: Hide child
@@ -241,4 +245,27 @@ MonoBehaviour:
       _variableValuesList:
       - Mirror
   eventHandlers: []
-  otherImplementation: 
+  otherImplementation: "// ---- Study 4: position of this trial in its avatar block
+    ----\nconst TRIALS_PER_BLOCK = 2;\nfunction trialInBlock() {\n  const t = $.getStateCompat('global',
+    'exp_trialID', 'integer');\n  return ((typeof t === 'number' && t >= 0) ? t %
+    TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
+    === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
+    }\n// ---- Study 4: MirrorPanel (the touch mirror is fitted to the participant's
+    height) ----\nconst MP_TOUCH = { local: new Vector3(0.9192, 0.075, -0.3808),
+    baseY: 1.275, w: 0.9, floorY: 0,\n  minBottom: 0.3, maxTop: 2.1, margin: 0.05,
+    eyeAboveHead: 0.07, topAboveHead: 0.22 };\n// returns false while the participant's
+    bones cannot be read (the mirror keeps its previous size)\nfunction mp_fitTouch()
+    {\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return false;\n  let
+    head = null;\n  try { head = p.getHumanoidBonePosition(HumanoidBone.Head); }
+    catch (e) { head = null; }\n  const root = p.getPosition();\n  if (!head || !root
+    || head.y - root.y < 0.3) return false;\n  const c = MP_TOUCH;\n  const eye =
+    head.y + c.eyeAboveHead, feet = Math.min(root.y, c.floorY), top = head.y + c.topAboveHead;\n 
+    const bottom = Math.max(c.minBottom, (eye + feet) / 2 - c.margin);\n  const upper
+    = Math.min(c.maxTop, Math.max(bottom + 0.3, (eye + top) / 2 + c.margin));\n 
+    const node = $.subNode('MirrorTouch');\n  if (!node) return true;\n  const mid
+    = (bottom + upper) / 2;\n  node.setPosition(new Vector3(c.local.x, c.local.y
+    + mid - c.baseY, c.local.z));\n  try { node.getUnityComponent('Transform').unityProp.localScale
+    = new Vector3(c.w, upper - bottom, 1); }\n  catch (e) { $.log('[MirrorPanel]
+    mirror size: ' + e); }\n  $.log('[MirrorPanel] touch mirror ' + bottom.toFixed(2)
+    + '..' + upper.toFixed(2) + ' m (head bone ' + head.y.toFixed(2) + ', feet '
+    + root.y.toFixed(2) + ')');\n  return true;\n}\n"

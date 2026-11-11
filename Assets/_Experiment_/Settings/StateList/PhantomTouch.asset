@@ -31,8 +31,8 @@ MonoBehaviour:
     qID: 0
   - StateName: Trial - PoseCheck
     DestStateName: Trial - Greeting
-    HasExitTime: 0
-    ExitTime: 5
+    HasExitTime: 1
+    ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -40,7 +40,7 @@ MonoBehaviour:
   - StateName: Trial - Greeting
     DestStateName: Trial - Touch
     HasExitTime: 1
-    ExitTime: 30
+    ExitTime: 20
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
@@ -54,37 +54,37 @@ MonoBehaviour:
     RepeatCount: 1
     qID: 0
   - StateName: Trial - Report
-    DestStateName: Trial - VEQ
+    DestStateName: SocialPresence
     HasExitTime: 0
     ExitTime: 0
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
     qID: 0
+  - StateName: SocialPresence
+    DestStateName: Trial - VEQ
+    HasExitTime: 1
+    ExitTime: 3
+    IsRepeated: 0
+    RepeatDestStateName: 
+    RepeatCount: 1
+    qID: 3
   - StateName: Trial - VEQ
     DestStateName: Trial - Rest
-    HasExitTime: 0
+    HasExitTime: 1
     ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
     qID: 2
   - StateName: Trial - Rest
-    DestStateName: SocialPresence
+    DestStateName: PersonalExperience
     HasExitTime: 1
     ExitTime: 10
     IsRepeated: 0
     RepeatDestStateName: 
     RepeatCount: 1
     qID: 0
-  - StateName: SocialPresence
-    DestStateName: PersonalExperience
-    HasExitTime: 0
-    ExitTime: 5
-    IsRepeated: 0
-    RepeatDestStateName: 
-    RepeatCount: 1
-    qID: 3
   - StateName: PersonalExperience
     DestStateName: Debrief
     HasExitTime: 0

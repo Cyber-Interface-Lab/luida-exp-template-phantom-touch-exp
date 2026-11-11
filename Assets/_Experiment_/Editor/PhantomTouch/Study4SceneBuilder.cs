@@ -72,10 +72,16 @@ public static class Study4SceneBuilder
     const string HeightPlatformName = "HeightPlatform";   // item under the standing spot (NpcController raises its Cube)
 
     // ------------------------------------------------------------------ state ids
+    // SocialPresence is inside the trial loop (Trial - Start .. Trial - Rest): the social condition varies by trial
     const int S_START = 0, S_TSTART = 1, S_POSE = 2, S_GREET = 3, S_TOUCH = 4, S_REPORT = 5,
-              S_VEQ = 6, S_TREST = 7, S_SOCIAL = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+              S_SOCIAL = 6, S_VEQ = 7, S_TREST = 8, S_PERSONAL = 9, S_DEBRIEF = 10, S_END = 11;
+    static readonly string[] StateOrder =
+    {
+        "Start", "Trial - Start", "Trial - PoseCheck", "Trial - Greeting", "Trial - Touch", "Trial - Report",
+        "SocialPresence", "Trial - VEQ", "Trial - Rest", "PersonalExperience", "Debrief", "End",
+    };
     const string PoseStateName = "Trial - PoseCheck";
-    const float GreetingSeconds = 30f;
+    const float GreetingSeconds = 20f;
     const float RestSeconds = 10f;      // pause between trials ("Trial - Rest")
 
     // ------------------------------------------------------------------ entry points
@@ -145,7 +151,7 @@ public static class Study4SceneBuilder
                 ("AvatarGate", AvatarGateListeners, null, AvatarGateLegacy),
                 ("DeviceCheck", DeviceCheckListeners, null, DeviceCheckLegacy),
                 ("ReportPanel", ReportPanelListeners, ReportPanelHandlers, ReportPanelLegacy),
-                ("MirrorPanel", MirrorPanelListeners, null, ""),
+                ("MirrorPanel", MirrorPanelListeners, null, MirrorPanelLegacy(l)),
                 ("ExitPortal", ExitPortalListeners, null, ExitPortalLegacy()),
             };
             foreach (var d in defs)
@@ -240,6 +246,43 @@ public static class Study4SceneBuilder
         AssetDatabase.SaveAssets();
         WriteVariablesJs(sl);
 
+        ApplyStateListToScene(sl);
+        UpdateLayoutAndBehaviours();
+    }
+
+    /// <summary>
+    /// Social cue from between- to within-subject: each avatar block has one trial with and one without social cues
+    /// (random order, one trial per condition), the greeting runs on every trial (GreetingSeconds) and SocialPresence
+    /// moves into the trial loop (after each trial's report). Reorders the state list (keeping each state's other
+    /// settings, e.g. exit times), rewrites the variables JS, renumbers the state objects and their transitions, then
+    /// updates the layout and the item behaviours. Safe to run again.
+    /// </summary>
+    [MenuItem("LUIDA/Study4/Make social within-subject (keep scene)")]
+    public static void MakeSocialWithinSubject()
+    {
+        if (EditorSceneManager.GetActiveScene().name != SceneName)
+            throw new Exception("Open the " + SceneName + " scene first.");
+        var sl = AssetDatabase.LoadAssetAtPath<StateList>(StateListPath);
+        if (sl == null) throw new Exception("StateList asset missing: " + StateListPath);
+        var byName = sl.States.ToDictionary(x => x.StateName);
+        var missing = StateOrder.Where(n => !byName.ContainsKey(n)).ToArray();
+        if (missing.Length > 0 || byName.Count != StateOrder.Length)
+            throw new Exception("unexpected states: " + string.Join(", ", sl.States.Select(x => x.StateName)));
+        var list = StateOrder.Select(n => byName[n]).ToArray();
+        for (int i = 0; i < list.Length; i++) list[i].DestStateName = i < list.Length - 1 ? list[i + 1].StateName : "";
+        sl.States = list;
+        EditorUtility.SetDirty(sl);
+        AssetDatabase.SaveAssets();
+        WriteVariablesJs(sl);
+        ApplyStateListToScene(sl);
+        UpdateLayoutAndBehaviours();
+    }
+
+    // Puts the scene's state objects in the state list's order and renumbers their transitions (current / destination
+    // state, exit time, the Trial - Rest loop back to Trial - Start), the way LUIDA's State Machine tab does but without
+    // regenerating the questionnaire forms.
+    static void ApplyStateListToScene(StateList sl)
+    {
         var managers = FindRoot("LUIDA-ExpManagers", false);
         var statesRoot = managers != null ? managers.Find("States") : FindRoot("States", false);
         if (statesRoot == null) throw new Exception("States container not found");
@@ -276,7 +319,6 @@ public static class Study4SceneBuilder
             Object.DestroyImmediate(tab);
         }
         Debug.Log("[Study4] states: " + string.Join(", ", sl.States.Select(s => s.StateName)));
-        UpdateLayoutAndBehaviours();
     }
 
     [MenuItem("LUIDA/Study4/Build PhantomTouch scene (no prompt)")]
@@ -386,14 +428,14 @@ public static class Study4SceneBuilder
         var states = new[]
         {
             S("Start"),                         // task description + OK button (consent is taken at recruitment)
-            S("Trial - Start"),                 // block setup (avatar switch) when rep == 1
-            S(PoseStateName),                   // head / hand tracking check in front of a mirror (rep == 1)
-            S("Trial - Greeting", hasExit: true, exit: GreetingSeconds), // NPC appears; greeting period (rep == 1)
+            S("Trial - Start"),                 // block setup (avatar switch) on the 1st trial of each block
+            S(PoseStateName),                   // head / hand tracking check in front of a mirror (1st trial of a block)
+            S("Trial - Greeting", hasExit: true, exit: GreetingSeconds), // NPC appears; greeting period (every trial)
             S("Trial - Touch"),                 // NPC reaches toward the face
             S("Trial - Report"),                // 0-10 rating, manipulation check, type, location
-            S("Trial - VEQ", qID: 2),           // VEQ after the 2nd trial of each block (skipped when rep == 1)
+            S("SocialPresence", qID: 3),        // about the NPC, after every trial (its social condition varies)
+            S("Trial - VEQ", qID: 2),           // VEQ after the last trial of each block (skipped otherwise)
             S("Trial - Rest", hasExit: true, exit: RestSeconds),
-            S("SocialPresence", qID: 3),
             S("PersonalExperience", qID: 4),
             S("Debrief"),                       // explanation + "OK" button on the instruction board (no questionnaire)
             S("End"),
@@ -411,11 +453,12 @@ public static class Study4SceneBuilder
         string js =
             "const trialsCountForEachUniqueCondition = 1;\n" +
             "const within_subjects_variables = [\n" +
+            // trials run block by block (non-random variables first); inside each block LUIDA shuffles the random
+            // ones, so each avatar block has one trial with and one without social cues, in random order
             "    { name: \"block\", values: [\"1\", \"2\"], isRandom: false },\n" +
-            "    { name: \"rep\", values: [\"1\", \"2\"], isRandom: false },\n" +
+            "    { name: \"social\", values: [\"with\", \"without\"], isRandom: true },\n" +
             "];\n" +
             "const between_subjects_variables = [\n" +
-            "    { name: \"social\", values: [\"with\", \"without\"], isRandom: true, debugValue: null },\n" +
             "    { name: \"order\", values: [\"daily_first\", \"assigned_first\"], isRandom: true, debugValue: null },\n" +
             "];\n" +
             "const state_names = [" + names + "];\n";
@@ -642,7 +685,7 @@ return {
     // avatar gate and report panels (straight ahead) <= 24. What is shown together, and where:
     //   questionnaire (2.5 x 2 m, 2 m ahead, yaw +-32 deg) + instruction "above" slot (just above its top edge)
     //   greeting: NPC (ahead) + instruction "front" slot (above the NPC's head) + mirror (front-left)
-    //   touch: near mirror "MirrorTouch" (straight ahead, 1 m) + instruction "touch" slot (just above it); the NPC
+    //   touch: near mirror "MirrorTouch" (straight ahead, 1.3 m) + instruction "touch" slot (just above it); the NPC
     //          stands behind-right of the participant and is seen in the mirror
     //   trial start: avatar gate (straight ahead, NPC hidden) + avatar menu photos (right of it) + mirror (front-left)
     //   pose check: front mirror (straight ahead, below the front slot) + device check panel (right)
@@ -666,11 +709,22 @@ return {
     // of the device check panel on the right. Seen from 1.6 m it shows the whole avatar, hands raised above the
     // head included.
     const float PoseMirrorDist = 1.6f, PoseMirrorCenterHeight = 1.1f, PoseMirrorW = 1.2f, PoseMirrorH = 1.8f;
-    // Touch: a third mirror ("MirrorTouch") straight ahead and closer (the NPC stands behind the participant, so
-    // nothing else is in front). It is nearer than the "front" instruction slot, so the touch instruction has its own
-    // slot ("touch"): just in front of this mirror's plane and entirely above its top edge, where the mirror can
-    // neither cover it nor show its reflection; the text size keeps the front slot's angular size.
-    const float TouchMirrorDist = 1.0f, TouchMirrorCenterHeight = 1.05f, TouchMirrorW = 1.2f, TouchMirrorH = 1.8f;
+    // Touch: a third mirror ("MirrorTouch") straight ahead and closer than MirrorFront (the NPC stands behind the
+    // participant, so nothing else is in front). Two limits of Cluster's mirror on standalone headsets (CCK Mirror.cs,
+    // CLUSTER_QUEST): (1) when the eye is nearer the mirror plane than stereoConvergence x 0.1 (1 m with Unity's default
+    // convergence 10) it falls back to a cheap mode that renders avatars only, so the NPC (an item) and the room vanish;
+    // the mirror is therefore 1.3 m away (a step or a lean forward still keeps the eye beyond 1 m). (2) its texture is
+    // at most 768 x 768 for the whole mirror, so the mirror is only as tall as this participant needs: at the start of
+    // each touch the MirrorPanel item (mp_fitTouch) reads their head bone and feet and sets the mirror's height and
+    // size so that both avatars are seen from the floor to above the heads (a plane mirror shows a point at height y
+    // where the eye-to-image line crosses it, at (eye + y) / 2, whatever the distance), within TouchMirrorMinBottom ..
+    // TouchMirrorMaxTop. The values below are the scene's default (about 19 px/deg) until then.
+    // The touch instruction has its own slot ("touch"): just in front of this mirror's plane and entirely above the
+    // highest possible top edge, where the mirror can neither cover it nor show its reflection; the text keeps the
+    // front slot's angular size.
+    const float TouchMirrorDist = 1.3f, TouchMirrorCenterHeight = 1.275f, TouchMirrorW = 0.9f, TouchMirrorH = 0.95f;
+    const float TouchMirrorMinBottom = 0.3f, TouchMirrorMaxTop = 2.1f, TouchMirrorMargin = 0.05f;
+    const float TouchMirrorEyeAboveHead = 0.07f, TouchMirrorTopAboveHead = 0.22f;   // eyes / top of the hair vs the head bone
     const float InsTouchGap = 0.03f, InsTouchSize = InsSize * (TouchMirrorDist - InsTouchGap) / InsDist;
     const int InsTouchLines = 3;
     // Photos of how to switch the avatar ("MenuPhoto1", "MenuPhoto2", children of the AvatarGate item), stacked top to
@@ -698,9 +752,9 @@ return {
 
     static Vector3 InsFrontPos(Layout l) => l.Around(0f, InsDist, EyeHeight + InsDist * Mathf.Tan(InsFrontElevDeg * Mathf.Deg2Rad));
     static Vector3 InsCenterPos(Layout l) => l.Around(0f, InsDist, InsCenterHeight);
-    // bottom edge of the backing of an InsTouchLines-line text InsTouchGap above the touch mirror's top edge
+    // bottom edge of the backing of an InsTouchLines-line text InsTouchGap above the touch mirror's highest top edge
     static Vector3 InsTouchPos(Layout l) => l.Around(0f, TouchMirrorDist - InsTouchGap,
-        TouchMirrorCenterHeight + TouchMirrorH * 0.5f + InsTouchGap + (InsTouchLines * LineH * InsTouchSize + InsBoardPad) * 0.5f);
+        TouchMirrorMaxTop + InsTouchGap + (InsTouchLines * LineH * InsTouchSize + InsBoardPad) * 0.5f);
     static Vector3 InsAbovePos(Layout l) => l.Around(0f, QuestFwd - InsAboveBack, QuestCenterHeight + QuestHeight * 0.5f + InsAboveGap);
 
     /// <summary>
@@ -1737,7 +1791,7 @@ return {
                 mirror.SetActive(false);
             }
             else Debug.LogWarning("[Study4] CCK Mirror prefab not found at " + MirrorPrefabPath);
-            WriteItemData(mirrorPanel, MirrorPanelListeners(), null, "");
+            WriteItemData(mirrorPanel, MirrorPanelListeners(), null, MirrorPanelLegacy(l));
 
             // -- ExitPortal (gate back to the recruitment world, shown at End) -------
             var exitPortal = CreateSli(tab, "ExitPortal");
@@ -1944,13 +1998,13 @@ return {
                 L(Custom("ins_okButton(false);"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
-            Listener(S_POSE, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
-            Listener(S_GREET, L(Custom("if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見ながら\\n挨拶してください。\\n（例：手を振る、少し横に動く）');"))),
+            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
+            Listener(S_GREET, L(Ins("front", "20秒間、目の前のアバターを見ながら\\n挨拶してください。\\n（例：手を振る、少し横に動く）"))),
             // touch: the NPC stands behind-right of the participant; both are seen in the near mirror straight ahead
             // (InsTouchLines lines; the "touch" slot sits just above that mirror)
             Listener(S_TOUCH, L(Ins("touch", "後ろの相手の手がゆっくり顔に近づきます。\\n顔を正面に向けたまま、楽な姿勢で\\n鏡を見ていてください。"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
+            Listener(S_VEQ, L(Custom("if (lastTrialOfBlock()) ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
             Listener(S_SOCIAL, L(Ins("above", "あなたの顔に触れてきた相手についてのアンケートです。"))),
             Listener(S_PERSONAL, L(Ins("above", "最後のアンケートです。"))),
@@ -1995,7 +2049,7 @@ return {
             return "{ p: new Vector3(" + F4(lp.x) + ", " + F4(lp.y) + ", " + F4(lp.z) + "), r: new Quaternion(" +
                    F4(lr.x) + ", " + F4(lr.y) + ", " + F4(lr.z) + ", " + F4(lr.w) + "), size: " + F4(size) + " }";
         }
-        return "// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----\n" +
+        return BlockTrialJs + "// ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----\n" +
                "// slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead,\n" +
                "//        touch = just above the near mirror shown during the touch\n" +
                "const INS_SLOTS = {\n  front: " + Slot(InsFrontPos(l), InsSize) + ",\n  above: " + Slot(InsAbovePos(l), InsAboveSize) +
@@ -2062,8 +2116,6 @@ return {
         // the NPC stands along the marker's facing direction (not wherever the participant happens to look)
         string fwd = "new Vector3(" + F(l.fwd.x) + ", 0, " + F(l.fwd.z) + ")";
         string origin = "new Vector3(" + F(l.origin.x) + ", " + F(l.origin.y) + ", " + F(l.origin.z) + ")";
-        StateListenerAction ResetPos() => Act(T_SetParticipantPos, ("participantIndex", "1"), ("x", F(l.origin.x)), ("y", F(l.origin.y)), ("z", F(l.origin.z)));
-        StateListenerAction ResetRot() => Act(T_SetParticipantRot, ("participantIndex", "1"), ("x", "0"), ("y", F(yaw)), ("z", "0"));
         return new List<StateListener>
         {
             // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period. The NPC is
@@ -2073,24 +2125,23 @@ return {
             // Setup first: it also lowers the previous block's height platform (the participant's avatar, and so
             // their height, changes in this state); then the participant is put on the marker at floor level.
             Listener(S_TSTART, L(
-                If(Custom("$.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + ", origin: " + origin + ", floorY: " + F(l.origin.y) + ", eyes: nd_useEyeBones() });"), "rep", "1"),
+                Custom("$.state.nd_first = firstTrialOfBlock();\n" +
+                       "if ($.state.nd_first) $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: " + fwd + ", origin: " + origin + ", floorY: " + F(l.origin.y) + ", eyes: nd_useEyeBones() });"),
                 Sleep(0.5f),
-                If(ResetPos(), "rep", "1"),
-                If(ResetRot(), "rep", "1"),
-                If(Custom("$.worldItemReference('NPC').send('npc_hide', {});"), "rep", "1")
+                Custom("if ($.state.nd_first) {\n" +
+                       "  PARTICIPANTS[1].setPosition(new Vector3(" + F(l.origin.x) + ", " + F(l.origin.y) + ", " + F(l.origin.z) + "));\n" +
+                       "  PARTICIPANTS[1].setRotation(new Quaternion().setFromEulerAngles(new Vector3(0, " + F(yaw) + ", 0)));\n" +
+                       "  $.worldItemReference('NPC').send('npc_hide', {});\n" +
+                       "}")
             )),
-            // Greeting period: the NPC appears after the avatar switch (rep == 1) and, in the social-cue
-            // condition, reacts to the participant for GreetingSeconds. The participant may walk around here
-            // (and only here). Skipped for the 2nd trial of a block.
+            // Greeting period (every trial, in that trial's social condition): the NPC appears in front and, in the
+            // social-cue condition, reacts to the participant for GreetingSeconds. The participant may walk around
+            // here (and only here).
             Listener(S_GREET,
                 L(Custom(
-                    "if (CONDITION['rep'] === '1') {\n" +
-                    "  nd_setMove(1);\n" +
-                    "  $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });\n" +
-                    "  $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });\n" +
-                    "} else {\n" +
-                    "  ToNextState();\n" +
-                    "}")),
+                    "nd_setMove(1);\n" +
+                    "$.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });\n" +
+                    "$.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });")),
                 null,
                 L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
             // Touch and stroke: freeze; the NPC leaves the greeting spot in front (disappears), puts the participant
@@ -2105,7 +2156,7 @@ return {
                     "SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\n" +
                     "SendDataToCollector('npcTimeout', false);\n" +
                     "$.worldItemReference('NPC').send('npc_trial_start', {\n" +
-                    "  block: CONDITION['block'], rep: CONDITION['rep'], fwd: " + fwd + ", reset: true,\n" +
+                    "  block: CONDITION['block'], rep: String(trialInBlock()), fwd: " + fwd + ", reset: true,\n" +
                     "  avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });")),
                 L(Custom(
                     "if (nd_donePulse()) { ToNextState(); }\n" +
@@ -2116,9 +2167,9 @@ return {
                     "  $.state.nd_touchStartTs = 0;\n" +
                     "  ToNextState();\n" +
                     "}"))),
-            // VEQ is answered once per block (after the 2nd trial); the 1st trial's visit is skipped immediately.
+            // VEQ is answered once per block (after its last trial); the other visits are skipped immediately.
             // (The NPC has already hidden itself at the end of the touch phase.)
-            Listener(S_VEQ, L(Custom("if (CONDITION['rep'] !== '2') ToNextState();"))),
+            Listener(S_VEQ, L(Custom("if (!lastTrialOfBlock()) ToNextState();"))),
             // End: the participant is teleported into the exit gate (ExitPortal), so locomotion stays frozen.
             Listener(S_END, L(Act(T_Upload))),
         };
@@ -2131,7 +2182,21 @@ return {
         return new List<EventHandlerData> { update };
     }
 
-    const string NpcDirectorLegacy = @"// ---- Study 4: NpcDirector helpers (shared by the actions above) ----
+    // Position of the current trial inside its avatar block (1-based). Trials run block by block, TrialsPerBlock per
+    // block (social with / without, shuffled by LUIDA), and the global Integer exp_trialID is the 0-based trial index,
+    // already set when Trial - Start begins (CONDITION is refreshed by the ConditionManager a moment later).
+    const int TrialsPerBlock = 2;
+    const string BlockTrialJs = @"// ---- Study 4: position of this trial in its avatar block ----
+const TRIALS_PER_BLOCK = 2;
+function trialInBlock() {
+  const t = $.getStateCompat('global', 'exp_trialID', 'integer');
+  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK : 0) + 1;
+}
+function firstTrialOfBlock() { return trialInBlock() === 1; }
+function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
+";
+
+    const string NpcDirectorLegacy = BlockTrialJs + @"// ---- Study 4: NpcDirector helpers (shared by the actions above) ----
 function nd_avatarForBlock(block) {
   const dailyFirst = CONDITION && CONDITION['order'] === 'daily_first';
   return (dailyFirst === (String(block) === '1')) ? 'daily' : 'assigned';
@@ -2181,7 +2246,7 @@ function nd_tick(dt) {
         };
     }
 
-    const string AvatarGateLegacy = @"// ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
+    const string AvatarGateLegacy = BlockTrialJs + @"// ---- Study 4: AvatarGate (avatar switch instruction + automatic check + two-step confirmation) ----
 // Bone-length signature of the LUIDA ""Default Avatar"" (participantAvatarMode = DEFAULT; luida_default_avatar).
 // Not measured yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is off and the gate relies on
 // the participant's two-step self-report (recorded as avatarCheckFallback = true). To calibrate, wear the
@@ -2236,8 +2301,8 @@ function ag_targetMatches(sig) {
 }
 function ag_begin() {
   $.state.ag_active = false;
-  if (!CONDITION || CONDITION['rep'] !== '1') {
-    // second trial of a block: no avatar change, skip the setup immediately
+  if (!firstTrialOfBlock()) {
+    // later trial of a block: no avatar change, skip the setup immediately
     HideChild('Text');
     ag_showButtons(false, false);
     ToNextState();
@@ -2365,15 +2430,15 @@ function ag_end() {
         };
     }
 
-    const string DeviceCheckLegacy = @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
+    const string DeviceCheckLegacy = BlockTrialJs + @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
-// with the MirrorPanel's front mirror shown; the 2nd trial of a block skips it immediately.
+// with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
   $.state.dc_active = false;
-  if (!CONDITION || CONDITION['rep'] !== '1') { ToNextState(); return; }
+  if (!firstTrialOfBlock()) { ToNextState(); return; }
   $.state.dc_active = true;
   $.state.dc_start = Date.now();
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
@@ -2638,20 +2703,58 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
             Listener(S_START, L(Act(T_ShowItem), Act(T_HideChild, ("childName", "Mirror")), Act(T_HideChild, ("childName", "MirrorFront")),
                                 Act(T_HideChild, ("childName", "MirrorTouch")))),
             // avatar switch (1st trial of each block): the front-left mirror, so the participant sees the new avatar
-            // load (the gate panel is straight ahead). The 2nd trial passes Start, PoseCheck and Greeting at once.
-            Listener(S_TSTART, L(If(Act(T_ShowChild, ("childName", "Mirror")), "rep", "1"))),
+            // load (the gate panel is straight ahead). Later trials of a block pass Start and PoseCheck at once.
+            Listener(S_TSTART, L(Custom("if (firstTrialOfBlock()) $.subNode('Mirror').setEnabled(true);"))),
             // pose check (1st trial of each block): the mirror straight ahead instead
-            Listener(S_POSE, L(If(Act(T_ShowChild, ("childName", "MirrorFront")), "rep", "1"),
-                               If(Act(T_HideChild, ("childName", "Mirror")), "rep", "1")), null,
+            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) { $.subNode('MirrorFront').setEnabled(true); $.subNode('Mirror').setEnabled(false); }")), null,
                 L(Act(T_HideChild, ("childName", "MirrorFront")))),
-            // greeting (face to face): the front-left mirror again
-            Listener(S_GREET, L(If(Act(T_ShowChild, ("childName", "Mirror")), "rep", "1")), null,
+            // greeting (face to face, every trial): the front-left mirror again
+            Listener(S_GREET, L(Act(T_ShowChild, ("childName", "Mirror"))), null,
                 L(Act(T_HideChild, ("childName", "Mirror")))),
             // touch: the near mirror straight ahead (below the "touch" instruction slot), where the participant sees
             // their own avatar and the NPC standing behind-right of them, and the NPC's hand at their face
-            Listener(S_TOUCH, L(Act(T_ShowChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror"))), null,
+            // (fitted to the participant's height: mp_fitTouch, retried while their bones are not readable)
+            Listener(S_TOUCH, L(Custom("$.state.mp_fitted = mp_fitTouch();"), Act(T_ShowChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror"))),
+                L(Custom("if (!$.state.mp_fitted) $.state.mp_fitted = mp_fitTouch();")),
                 L(Act(T_HideChild, ("childName", "MirrorTouch")), Act(T_HideChild, ("childName", "Mirror")))),
         };
+    }
+
+    // mp_fitTouch(): height and size of MirrorTouch for the current participant (see TouchMirrorDist). The NPC stands
+    // on the floor or on its riser and its head is matched to the participant's, so the floor (the marker's height)
+    // and the participant's head top bound both avatars.
+    static string MirrorPanelLegacy(Layout l)
+    {
+        var mpPos = l.Around(MirrorYawDeg, MirrorDist, MirrorCenterHeight);
+        var mpRot = l.FaceAwayFromViewer(mpPos);
+        var basePos = l.Around(0f, TouchMirrorDist, TouchMirrorCenterHeight);
+        var local = Quaternion.Inverse(mpRot) * (basePos - mpPos);   // the item turns about the vertical only
+        return BlockTrialJs + "// ---- Study 4: MirrorPanel (the touch mirror is fitted to the participant's height) ----\n" +
+               "const MP_TOUCH = { local: new Vector3(" + F4(local.x) + ", " + F4(local.y) + ", " + F4(local.z) + "), baseY: " +
+               F4(TouchMirrorCenterHeight) + ", w: " + F4(TouchMirrorW) + ", floorY: " + F4(l.origin.y) + ",\n" +
+               "  minBottom: " + F4(TouchMirrorMinBottom) + ", maxTop: " + F4(TouchMirrorMaxTop) + ", margin: " + F4(TouchMirrorMargin) +
+               ", eyeAboveHead: " + F4(TouchMirrorEyeAboveHead) + ", topAboveHead: " + F4(TouchMirrorTopAboveHead) + " };\n" +
+               "// returns false while the participant's bones cannot be read (the mirror keeps its previous size)\n" +
+               "function mp_fitTouch() {\n" +
+               "  const p = PARTICIPANTS[1];\n" +
+               "  if (!p || !p.exists()) return false;\n" +
+               "  let head = null;\n" +
+               "  try { head = p.getHumanoidBonePosition(HumanoidBone.Head); } catch (e) { head = null; }\n" +
+               "  const root = p.getPosition();\n" +
+               "  if (!head || !root || head.y - root.y < 0.3) return false;\n" +
+               "  const c = MP_TOUCH;\n" +
+               "  const eye = head.y + c.eyeAboveHead, feet = Math.min(root.y, c.floorY), top = head.y + c.topAboveHead;\n" +
+               "  const bottom = Math.max(c.minBottom, (eye + feet) / 2 - c.margin);\n" +
+               "  const upper = Math.min(c.maxTop, Math.max(bottom + 0.3, (eye + top) / 2 + c.margin));\n" +
+               "  const node = $.subNode('MirrorTouch');\n" +
+               "  if (!node) return true;\n" +
+               "  const mid = (bottom + upper) / 2;\n" +
+               "  node.setPosition(new Vector3(c.local.x, c.local.y + mid - c.baseY, c.local.z));\n" +
+               "  try { node.getUnityComponent('Transform').unityProp.localScale = new Vector3(c.w, upper - bottom, 1); }\n" +
+               "  catch (e) { $.log('[MirrorPanel] mirror size: ' + e); }\n" +
+               "  $.log('[MirrorPanel] touch mirror ' + bottom.toFixed(2) + '..' + upper.toFixed(2) + ' m (head bone ' + head.y.toFixed(2) + ', feet ' + root.y.toFixed(2) + ')');\n" +
+               "  return true;\n" +
+               "}\n";
     }
 
     // ------------------------------------------------------------------ ExitPortal

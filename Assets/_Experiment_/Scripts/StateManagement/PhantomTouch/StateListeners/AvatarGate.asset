@@ -97,27 +97,32 @@ MonoBehaviour:
       _variableKeys: []
       _variableValuesList: []
   eventHandlers: []
-  otherImplementation: "// ---- Study 4: AvatarGate (avatar switch instruction +
-    automatic check + two-step confirmation) ----\n// Bone-length signature of the
-    LUIDA \"Default Avatar\" (participantAvatarMode = DEFAULT; luida_default_avatar).\n//
-    Not measured yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is
-    off and the gate relies on\n// the participant's two-step self-report (recorded
-    as avatarCheckFallback = true). To calibrate, wear the\n// Default Avatar in
-    Cluster, read the \"[AvatarGate] signature\" log line and put its values here.\nconst
-    AG_D_ARM = 0;          // upper arm + forearm (m)\nconst AG_D_SHOULDER = 0;    
-    // distance between the two upper-arm joints (m)\nconst AG_TOL = 0.015;\nconst
-    AG_STABLE_MS = 1000;\n// If the automatic check has not matched after this many
-    seconds, show the button anyway and rely on\n// the participant's two-step self-report
-    (recorded as avatarCheckFallback). 0 disables the fallback.\nconst AG_FALLBACK_SEC
-    = 30;\nconst AG_LOG_SEC = 5;          // log the measured bone-length signature
-    this often (calibration aid)\n\nfunction ag_send(id, cfg) {\n  try { const h
-    = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[AvatarGate]
-    send ' + id + ': ' + e); }\n}\nfunction ag_showButtons(changed, yesNo) {\n  ag_send('AG_Changed',
-    { visible: changed, label: '\u7740\u66FF\u3048\u307E\u3057\u305F' });\n  ag_send('AG_Yes',
-    { visible: yesNo, label: '\u306F\u3044' });\n  ag_send('AG_No', { visible: yesNo,
-    label: '\u3044\u3044\u3048' });\n}\n// Photo 1: open the menu and tap 'Avatar'.
-    Photo 2 picks 'LUIDA Default Avatar', so it is shown only when that is\n// the
-    avatar to wear (in the daily-avatar block it could lead to the wrong choice).\nfunction
+  otherImplementation: "// ---- Study 4: position of this trial in its avatar block
+    ----\nconst TRIALS_PER_BLOCK = 2;\nfunction trialInBlock() {\n  const t = $.getStateCompat('global',
+    'exp_trialID', 'integer');\n  return ((typeof t === 'number' && t >= 0) ? t %
+    TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
+    === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
+    }\n// ---- Study 4: AvatarGate (avatar switch instruction + automatic check +
+    two-step confirmation) ----\n// Bone-length signature of the LUIDA \"Default
+    Avatar\" (participantAvatarMode = DEFAULT; luida_default_avatar).\n// Not measured
+    yet: while AG_D_ARM / AG_D_SHOULDER are 0 the automatic check is off and the
+    gate relies on\n// the participant's two-step self-report (recorded as avatarCheckFallback
+    = true). To calibrate, wear the\n// Default Avatar in Cluster, read the \"[AvatarGate]
+    signature\" log line and put its values here.\nconst AG_D_ARM = 0;          //
+    upper arm + forearm (m)\nconst AG_D_SHOULDER = 0;     // distance between the
+    two upper-arm joints (m)\nconst AG_TOL = 0.015;\nconst AG_STABLE_MS = 1000;\n//
+    If the automatic check has not matched after this many seconds, show the button
+    anyway and rely on\n// the participant's two-step self-report (recorded as avatarCheckFallback).
+    0 disables the fallback.\nconst AG_FALLBACK_SEC = 30;\nconst AG_LOG_SEC = 5;         
+    // log the measured bone-length signature this often (calibration aid)\n\nfunction
+    ag_send(id, cfg) {\n  try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg',
+    cfg); } catch (e) { $.log('[AvatarGate] send ' + id + ': ' + e); }\n}\nfunction
+    ag_showButtons(changed, yesNo) {\n  ag_send('AG_Changed', { visible: changed,
+    label: '\u7740\u66FF\u3048\u307E\u3057\u305F' });\n  ag_send('AG_Yes', { visible:
+    yesNo, label: '\u306F\u3044' });\n  ag_send('AG_No', { visible: yesNo, label:
+    '\u3044\u3044\u3048' });\n}\n// Photo 1: open the menu and tap 'Avatar'. Photo
+    2 picks 'LUIDA Default Avatar', so it is shown only when that is\n// the avatar
+    to wear (in the daily-avatar block it could lead to the wrong choice).\nfunction
     ag_photos(show) {\n  if (show) ShowChild('MenuPhoto1'); else HideChild('MenuPhoto1');\n 
     if (show && $.state.ag_avatar === 'assigned') ShowChild('MenuPhoto2'); else HideChild('MenuPhoto2');\n}\nfunction
     ag_signature(p) {\n  const ua = p.getHumanoidBonePosition(HumanoidBone.LeftUpperArm);\n 
@@ -133,20 +138,20 @@ MonoBehaviour:
     < AG_TOL;\n}\nfunction ag_targetMatches(sig) {\n  if (!sig || !ag_calibrated())
     return false;\n  const isDefault = ag_isDefault(sig);\n  return $.state.ag_avatar
     === 'assigned' ? isDefault : !isDefault;\n}\nfunction ag_begin() {\n  $.state.ag_active
-    = false;\n  if (!CONDITION || CONDITION['rep'] !== '1') {\n    // second trial
-    of a block: no avatar change, skip the setup immediately\n    HideChild('Text');\n   
-    ag_showButtons(false, false);\n    ToNextState();\n    return;\n  }\n  const
-    dailyFirst = CONDITION['order'] === 'daily_first';\n  $.state.ag_avatar = (dailyFirst
-    === (CONDITION['block'] === '1')) ? 'daily' : 'assigned';\n  $.state.ag_step
-    = 1;\n  $.state.ag_active = true;\n  $.state.ag_startTs = Date.now();\n  $.state.ag_retry
-    = 0;\n  $.state.ag_lastMatch = null;\n  $.state.ag_matchSince = Date.now();\n 
-    $.state.ag_okShown = null;\n  $.state.ag_fallback = !ag_calibrated();   // not
-    calibrated: self-report only\n  $.state.ag_logAt = 0;\n  ShowChild('Text');\n 
-    ag_photos(true);   // photos of how to switch the avatar, next to the panel\n 
-    ag_showButtons(false, false);\n  ag_renderText('');\n  $.log('[AvatarGate] block
-    ' + CONDITION['block'] + ' -> ' + $.state.ag_avatar);\n}\nfunction ag_renderText(note)
-    {\n  const daily = $.state.ag_avatar === 'daily';\n  let t;\n  if ($.state.ag_step
-    === 1) {\n    t = daily\n      ? '\u30E1\u30CB\u30E5\u30FC\u304B\u3089\u3001\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u306B\\n\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u5DE6\u306E\u93E1\u306B\u7740\u66FF\u3048\u305F\u30A2\u30D0\u30BF\u30FC\u304C\u6620\u308B\u307E\u3067\u5F85\u3063\u3066\u304B\u3089\u3001\\n\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002'\n     
+    = false;\n  if (!firstTrialOfBlock()) {\n    // later trial of a block: no avatar
+    change, skip the setup immediately\n    HideChild('Text');\n    ag_showButtons(false,
+    false);\n    ToNextState();\n    return;\n  }\n  const dailyFirst = CONDITION['order']
+    === 'daily_first';\n  $.state.ag_avatar = (dailyFirst === (CONDITION['block']
+    === '1')) ? 'daily' : 'assigned';\n  $.state.ag_step = 1;\n  $.state.ag_active
+    = true;\n  $.state.ag_startTs = Date.now();\n  $.state.ag_retry = 0;\n  $.state.ag_lastMatch
+    = null;\n  $.state.ag_matchSince = Date.now();\n  $.state.ag_okShown = null;\n 
+    $.state.ag_fallback = !ag_calibrated();   // not calibrated: self-report only\n 
+    $.state.ag_logAt = 0;\n  ShowChild('Text');\n  ag_photos(true);   // photos of
+    how to switch the avatar, next to the panel\n  ag_showButtons(false, false);\n 
+    ag_renderText('');\n  $.log('[AvatarGate] block ' + CONDITION['block'] + ' ->
+    ' + $.state.ag_avatar);\n}\nfunction ag_renderText(note) {\n  const daily = $.state.ag_avatar
+    === 'daily';\n  let t;\n  if ($.state.ag_step === 1) {\n    t = daily\n     
+    ? '\u30E1\u30CB\u30E5\u30FC\u304B\u3089\u3001\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u306B\\n\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u5DE6\u306E\u93E1\u306B\u7740\u66FF\u3048\u305F\u30A2\u30D0\u30BF\u30FC\u304C\u6620\u308B\u307E\u3067\u5F85\u3063\u3066\u304B\u3089\u3001\\n\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002'\n     
     : '\u30E1\u30CB\u30E5\u30FC\u306E\u30A2\u30D0\u30BF\u30FC\u5909\u66F4\u306B\u8868\u793A\u3055\u308C\u308B\\n\u300CLUIDA
     Default Avatar\u300D\u306B\u7740\u66FF\u3048\u3066\u304F\u3060\u3055\u3044\u3002\\n\u5DE6\u306E\u93E1\u306B\u7740\u66FF\u3048\u305F\u30A2\u30D0\u30BF\u30FC\u304C\u6620\u308B\u307E\u3067\u5F85\u3063\u3066\u304B\u3089\u3001\\n\u300C\u7740\u66FF\u3048\u307E\u3057\u305F\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002';\n 
     } else {\n    t = daily\n      ? '\u3044\u307E\u7740\u3066\u3044\u308B\u30A2\u30D0\u30BF\u30FC\u306F\u3001\\n\u3042\u306A\u305F\u304C\u666E\u6BB5\u3044\u3061\u3070\u3093\u3088\u304F\u4F7F\u3046\u30A2\u30D0\u30BF\u30FC\u3067\u3059\u304B\uFF1F'\n     

@@ -10,36 +10,23 @@ const stateEnterActions = {
     ],
     1: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') {
-              $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1), origin: new Vector3(0, 0, -2), floorY: 0, eyes: nd_useEyeBones() });
-            }
+            $.state.nd_first = firstTrialOfBlock();
+            if ($.state.nd_first) $.worldItemReference('NPC').send('npc_setup', { social: CONDITION['social'] === 'with', fwd: new Vector3(0, 0, 1), origin: new Vector3(0, 0, -2), floorY: 0, eyes: nd_useEyeBones() });
         } },
         { type: "sleep", value: 0.5 },
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') {
+            if ($.state.nd_first) {
               PARTICIPANTS[1].setPosition(new Vector3(0, 0, -2));
-            }
-        } },
-        { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') {
               PARTICIPANTS[1].setRotation(new Quaternion().setFromEulerAngles(new Vector3(0, 0, 0)));
-            }
-        } },
-        { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') {
               $.worldItemReference('NPC').send('npc_hide', {});
             }
         } }
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') {
-              nd_setMove(1);
-              $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });
-              $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });
-            } else {
-              ToNextState();
-            }
+            nd_setMove(1);
+            $.worldItemReference('NPC').send('npc_show', { social: CONDITION['social'] === 'with' });
+            $.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });
         } }
     ],
     4: [
@@ -50,13 +37,13 @@ const stateEnterActions = {
             SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);
             SendDataToCollector('npcTimeout', false);
             $.worldItemReference('NPC').send('npc_trial_start', {
-              block: CONDITION['block'], rep: CONDITION['rep'], fwd: new Vector3(0, 0, 1), reset: true,
+              block: CONDITION['block'], rep: String(trialInBlock()), fwd: new Vector3(0, 0, 1), reset: true,
               avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });
         } }
     ],
-    6: [
+    7: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] !== '2') ToNextState();
+            if (!lastTrialOfBlock()) ToNextState();
         } }
     ],
     11: [
@@ -97,6 +84,14 @@ function Update(deltaTime) {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
+// ---- Study 4: position of this trial in its avatar block ----
+const TRIALS_PER_BLOCK = 2;
+function trialInBlock() {
+  const t = $.getStateCompat('global', 'exp_trialID', 'integer');
+  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK : 0) + 1;
+}
+function firstTrialOfBlock() { return trialInBlock() === 1; }
+function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
 // ---- Study 4: NpcDirector helpers (shared by the actions above) ----
 function nd_avatarForBlock(block) {
   const dailyFirst = CONDITION && CONDITION['order'] === 'daily_first';

@@ -33,15 +33,23 @@ const stateExitActions = {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
+// ---- Study 4: position of this trial in its avatar block ----
+const TRIALS_PER_BLOCK = 2;
+function trialInBlock() {
+  const t = $.getStateCompat('global', 'exp_trialID', 'integer');
+  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK : 0) + 1;
+}
+function firstTrialOfBlock() { return trialInBlock() === 1; }
+function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
 // ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
-// with the MirrorPanel's front mirror shown; the 2nd trial of a block skips it immediately.
+// with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
   $.state.dc_active = false;
-  if (!CONDITION || CONDITION['rep'] !== '1') { ToNextState(); return; }
+  if (!firstTrialOfBlock()) { ToNextState(); return; }
   $.state.dc_active = true;
   $.state.dc_start = Date.now();
   $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;

@@ -17,12 +17,12 @@ const stateEnterActions = {
     ],
     2: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両手を頭より高く上げる');
+            if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両手を頭より高く上げる');
         } }
     ],
     3: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '1') ins_show('front', '30秒間、目の前のアバターを見ながら\n挨拶してください。\n（例：手を振る、少し横に動く）');
+            ins_show('front', '20秒間、目の前のアバターを見ながら\n挨拶してください。\n（例：手を振る、少し横に動く）');
         } }
     ],
     4: [
@@ -37,17 +37,17 @@ const stateEnterActions = {
     ],
     6: [
         { type: "exec", action: (deltaTime) => {
-            if (CONDITION['rep'] === '2') ins_show('above', 'あなたがいま使っているアバター（問題文では\n「仮想身体」と表現されていることがあります）\nについて伺います。');
+            ins_show('above', 'あなたの顔に触れてきた相手についてのアンケートです。');
         } }
     ],
     7: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('front', '少し休憩します…');
+            if (lastTrialOfBlock()) ins_show('above', 'あなたがいま使っているアバター（問題文では\n「仮想身体」と表現されていることがあります）\nについて伺います。');
         } }
     ],
     8: [
         { type: "exec", action: (deltaTime) => {
-            ins_show('above', 'あなたの顔に触れてきた相手についてのアンケートです。');
+            ins_show('front', '少し休憩します…');
         } }
     ],
     9: [
@@ -104,6 +104,14 @@ const stateExitActions = {
 
 // ---- legacy free-form code (migrate to event handlers when possible) ----
 
+// ---- Study 4: position of this trial in its avatar block ----
+const TRIALS_PER_BLOCK = 2;
+function trialInBlock() {
+  const t = $.getStateCompat('global', 'exp_trialID', 'integer');
+  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK : 0) + 1;
+}
+function firstTrialOfBlock() { return trialInBlock() === 1; }
+function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
 // ---- Study 4: Instruction board (placements; backing quad scaled to the text) ----
 // slots: front = above the NPC's head, above = just above the questionnaire form, center = straight ahead,
 //        touch = just above the near mirror shown during the touch
@@ -111,7 +119,7 @@ const INS_SLOTS = {
   front: { p: new Vector3(0, 2.1867, 1.5), r: new Quaternion(-0.1994, 0, 0, 0.9799), size: 0.024 },
   above: { p: new Vector3(0, 2.55, 1.7), r: new Quaternion(-0.2627, 0, 0, 0.9649), size: 0.03 },
   center: { p: new Vector3(0, 1.65, 1.5), r: new Quaternion(-0.0333, 0, 0, 0.9994), size: 0.024 },
-  touch: { p: new Vector3(0, 2.0688, 0.97), r: new Quaternion(-0.2431, 0, 0, 0.97), size: 0.0155 },
+  touch: { p: new Vector3(0, 2.2385, 1.27), r: new Quaternion(-0.2458, 0, 0, 0.9693), size: 0.0203 },
 };
 // CCK TextView metrics (Noto Sans CJK): full-width glyph ~1.85 x size wide, ASCII ~0.56 of that, line ~2.74 x size
 const INS_GLYPH_W = 1.85, INS_LINE_H = 2.74, INS_PAD = 0.05;
