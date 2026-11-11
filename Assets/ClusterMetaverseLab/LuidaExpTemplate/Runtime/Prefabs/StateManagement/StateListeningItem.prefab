@@ -177,7 +177,7 @@ MonoBehaviour:
     {\n            duringStateActions[$.state.state_id][$.state.duringStateActionID].action(deltaTime);\n           
     $.state.duringStateActionID += 1;\n        }\n    }\n    $.state.duringStateActionID
     = 0;\n}\n\nfunction Start() {}\nfunction Update(deltaTime) {}\n\r\nconst stateEnterActions
-    = {}\r\n\r\nconst duringStateActions = {}\r\n\r\nconst stateExitActions = {}\r\n"
+    = {}\n\nconst duringStateActions = {}\n\nconst stateExitActions = {}\n"
 --- !u!114 &5660514857068071924
 MonoBehaviour:
   m_ObjectHideFlags: 0

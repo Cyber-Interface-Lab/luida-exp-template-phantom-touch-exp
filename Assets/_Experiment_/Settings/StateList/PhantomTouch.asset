@@ -31,7 +31,7 @@ MonoBehaviour:
     qID: 0
   - StateName: Trial - PoseCheck
     DestStateName: Trial - Greeting
-    HasExitTime: 1
+    HasExitTime: 0
     ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
@@ -63,7 +63,7 @@ MonoBehaviour:
     qID: 0
   - StateName: SocialPresence
     DestStateName: Trial - VEQ
-    HasExitTime: 1
+    HasExitTime: 0
     ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 
@@ -71,7 +71,7 @@ MonoBehaviour:
     qID: 3
   - StateName: Trial - VEQ
     DestStateName: Trial - Rest
-    HasExitTime: 1
+    HasExitTime: 0
     ExitTime: 3
     IsRepeated: 0
     RepeatDestStateName: 

@@ -223,10 +223,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceCodeAsset: {fileID: 0}
-  sourceCode: "const trialsCountForEachUniqueCondition = 1;\r\nconst within_subjects_variables
-    = [\r\n];\r\nconst between_subjects_variables = [\r\n];\r\nconst state_names
-    = [];\r\n\r\nlet isTestMode = true; // flipped to false by the pre-upload build
-    step\r\n\r\n$.onStart(() => {\r\n  $.state.isServerAssigned = false;\r\n  initializeBetweenSubjectsConditions();\r\n 
+  sourceCode: "const trialsCountForEachUniqueCondition = 1;\nconst within_subjects_variables
+    = [\n];\nconst between_subjects_variables = [\n];\nconst state_names = [];\n\r\nlet
+    isTestMode = true; // flipped to false by the pre-upload build step\r\n\r\n$.onStart(()
+    => {\r\n  $.state.isServerAssigned = false;\r\n  initializeBetweenSubjectsConditions();\r\n 
     reset();\r\n\r\n  // Send between-subjects config to ParticipantManager for eligibility
     checks\r\n  const pm = $.worldItemReference(\"ParticipantManager\");\r\n  if
     (pm) {\r\n    let bsc = [];\r\n    try {\r\n      bsc = between_subjects_variables.map(v

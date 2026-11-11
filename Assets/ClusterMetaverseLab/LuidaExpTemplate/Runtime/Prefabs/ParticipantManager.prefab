@@ -885,52 +885,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceCodeAsset: {fileID: 0}
-  sourceCode: "const haptics = _.hapticsHandle;\r\n\r\n_.onReceive((id, body, sender)
-    => {\r\n    switch (id) {\r\n        case \"haptics\":\r\n            if (haptics.isAvailable())
-    {\r\n                const effect = new HapticsEffect();\r\n                effect.frequency
-    = body.frequency;\r\n                effect.amplitude = body.amplitude;\r\n               
-    effect.duration = body.duration;\r\n                haptics.playEffect(effect,
-    body.target);\r\n            }\r\n            break;\r\n        case \"sendOsc\":\r\n           
-    sendOsc(body.address, body.values);\r\n            break;\r\n        case \"initializeParticipant\":\r\n           
-    _.setMoveSpeedRate(1);\r\n            _.sendTo(sender, \"envInfoResponse\", {\r\n               
-    isAndroid: _.isAndroid,\r\n                isDesktop: _.isDesktop,\r\n               
-    isIos: _.isIos,\r\n                isMacOs: _.isMacOs,\r\n                isMobile:
-    _.isMobile,\r\n                isVr: _.isVr,\r\n                isWindows: _.isWindows\r\n           
-    });\r\n            break;\r\n        case \"setQuestionnaireUI\":\r\n           
-    setQuestionnaireUI(body.n,\r\n                (body.hasOwnProperty(\"e\") ? body.e
-    : null),\r\n                body.p, body.r,\r\n                (body.hasOwnProperty(\"t\")
-    ? body.t.toString() : null));\r\n            break;\r\n        case \"setQuestionnaireUIs\":\r\n           
-    for (const ui of body) {\r\n                setQuestionnaireUI(ui.n,\r\n                   
-    (ui.hasOwnProperty(\"e\") ? ui.e : null),\r\n                    ui.p, ui.r,\r\n                   
-    (ui.hasOwnProperty(\"t\") ? ui.t.toString() : null));\r\n            }\r\n           
-    break;\r\n        case \"clearQuestionnaireAnswerUIs\":\r\n            let targetUI
-    = _.playerLocalObject(\"luida_questionnaire_ui\").findObject(\"AnsText\");\r\n           
-    targetUI.setEnabled(false);\r\n            for (let i = 0; i < 20; i++) {\r\n               
+  sourceCode: "const haptics = _.hapticsHandle;\n\n_.onReceive((id, body, sender)
+    => {\n    switch (id) {\n        case \"haptics\":\n            if (haptics.isAvailable())
+    {\n                const effect = new HapticsEffect();\n                effect.frequency
+    = body.frequency;\n                effect.amplitude = body.amplitude;\n               
+    effect.duration = body.duration;\n                haptics.playEffect(effect,
+    body.target);\n            }\n            break;\n        case \"sendOsc\":\n           
+    sendOsc(body.address, body.values);\n            break;\n        case \"initializeParticipant\":\n           
+    _.setMoveSpeedRate(1);\n            _.sendTo(sender, \"envInfoResponse\", {\n               
+    isAndroid: _.isAndroid,\n                isDesktop: _.isDesktop,\n               
+    isIos: _.isIos,\n                isMacOs: _.isMacOs,\n                isMobile:
+    _.isMobile,\n                isVr: _.isVr,\n                isWindows: _.isWindows\n           
+    });\n            break;\n        case \"setQuestionnaireUI\":\n            setQuestionnaireUI(body.n,\n               
+    (body.hasOwnProperty(\"e\") ? body.e : null),\n                body.p, body.r,\n               
+    (body.hasOwnProperty(\"t\") ? body.t.toString() : null));\n            break;\n       
+    case \"setQuestionnaireUIs\":\n            for (const ui of body) {\n               
+    setQuestionnaireUI(ui.n,\n                    (ui.hasOwnProperty(\"e\") ? ui.e
+    : null),\n                    ui.p, ui.r,\n                    (ui.hasOwnProperty(\"t\")
+    ? ui.t.toString() : null));\n            }\n            break;\n        case
+    \"clearQuestionnaireAnswerUIs\":\n            let targetUI = _.playerLocalObject(\"luida_questionnaire_ui\").findObject(\"AnsText\");\n           
+    targetUI.setEnabled(false);\n            for (let i = 0; i < 20; i++) {\n               
     targetUI = _.playerLocalObject(\"luida_questionnaire_ui\").findObject(\"AnsOptLabel_\"
-    + i);\r\n                if (targetUI) {\r\n                    targetUI.setEnabled(false);\r\n               
-    } else {\r\n                    break;\r\n                }\r\n            }\r\n           
-    break;\r\n        default:\r\n            break;\r\n    }\r\n});\r\n\r\nfunction
-    setQuestionnaireUI(targetName, isEnabled, position, rotation, text) {\r\n   
-    let targetUI = _.playerLocalObject(\"luida_questionnaire_ui\").findObject(targetName);\r\n   
-    if (!targetUI) return;\r\n    if (isEnabled !== null) targetUI.setEnabled(isEnabled);\r\n   
+    + i);\n                if (targetUI) {\n                    targetUI.setEnabled(false);\n               
+    } else {\n                    break;\n                }\n            }\n           
+    break;\n        default:\n            break;\n    }\n});\n\nfunction setQuestionnaireUI(targetName,
+    isEnabled, position, rotation, text) {\n    let targetUI = _.playerLocalObject(\"luida_questionnaire_ui\").findObject(targetName);\n   
+    if (!targetUI) return;\n    if (isEnabled !== null) targetUI.setEnabled(isEnabled);\n   
     if (position) targetUI.getUnityComponent(\"Transform\").unityProp.localPosition
-    = position;\r\n    if (rotation) targetUI.getUnityComponent(\"Transform\").unityProp.localRotation
-    = rotation;\r\n    if (text !== null) targetUI.findObject(\"Text\").getUnityComponent(\"Text\").unityProp.text
-    = text;\r\n}\r\n\r\nfunction sendOsc(address, values) {\r\n    if (typeof _ ===
-    'undefined' || typeof _.oscHandle === 'undefined') {\r\n        _.log(\"Error:
-    PlayerScript environment or oscHandle not found.\");\r\n        return;\r\n   
-    }\r\n\r\n    try {\r\n        const oscValues = values.map(val => {\r\n           
-    const type = typeof val;\r\n            if (type === 'boolean') {\r\n               
-    return OscValue.bool(val);\r\n            } else if (type === 'number') {\r\n               
-    if (Number.isInteger(val)) {\r\n                    return OscValue.int(val);\r\n               
-    } else {\r\n                    return OscValue.float(val);\r\n               
-    }\r\n            } else if (type === 'string') {\r\n                return OscValue.asciiString(val);\r\n           
-    } else {\r\n                _.log(`Warning: Unsupported data type '${type}' for
-    value '${val}'. Skipping.`);\r\n                return null;\r\n            }\r\n       
-    }).filter(v => v !== null);\r\n        const message = new OscMessage(address,
-    oscValues);\r\n        _.oscHandle.send(message);\r\n        // _.log(`OSC message
-    sent to ${address} with ${oscValues.length} value(s).`);\r\n\r\n    } catch (e)
-    {\r\n        _.log(`Error sending OSC message: ${e.message}`);\r\n    }\r\n}\r\n"
+    = position;\n    if (rotation) targetUI.getUnityComponent(\"Transform\").unityProp.localRotation
+    = rotation;\n    if (text !== null) targetUI.findObject(\"Text\").getUnityComponent(\"Text\").unityProp.text
+    = text;\n}\n\nfunction sendOsc(address, values) {\n    if (typeof _ === 'undefined'
+    || typeof _.oscHandle === 'undefined') {\n        _.log(\"Error: PlayerScript
+    environment or oscHandle not found.\");\n        return;\n    }\n\n    try {\n       
+    const oscValues = values.map(val => {\n            const type = typeof val;\n           
+    if (type === 'boolean') {\n                return OscValue.bool(val);\n           
+    } else if (type === 'number') {\n                if (Number.isInteger(val)) {\n                   
+    return OscValue.int(val);\n                } else {\n                    return
+    OscValue.float(val);\n                }\n            } else if (type === 'string')
+    {\n                return OscValue.asciiString(val);\n            } else {\n               
+    _.log(`Warning: Unsupported data type '${type}' for value '${val}'. Skipping.`);\n               
+    return null;\n            }\n        }).filter(v => v !== null);\n        const
+    message = new OscMessage(address, oscValues);\n        _.oscHandle.send(message);\n       
+    // _.log(`OSC message sent to ${address} with ${oscValues.length} value(s).`);\n\n   
+    } catch (e) {\n        _.log(`Error sending OSC message: ${e.message}`);\n   
+    }\n}\n"
 --- !u!114 &5829355734938689256
 MonoBehaviour:
   m_ObjectHideFlags: 0

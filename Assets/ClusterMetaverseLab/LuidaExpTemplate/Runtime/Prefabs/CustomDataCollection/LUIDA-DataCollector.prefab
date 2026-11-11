@@ -169,8 +169,8 @@ MonoBehaviour:
     in the collected data by default (if you have enabled the experiment automation
     feature)\n    someCckState: $.getStateCompat(\"global\", \"someCckState\", \"boolean\"),
     // Replace with your in-scene state triggered by CCK components\n    foo: 'bar'
-    // Replace with your custom collected data\n};\n\r\n    return {};\r\n  }\r\n 
-    returnData.push(saveData());\r\n  return returnData;\r\n}\r\n"
+    // Replace with your custom collected data\n};\n\r\n    return {};\n  }\n  returnData.push(saveData());\n 
+    return returnData;\n}\n"
 --- !u!114 &4976748577095326931
 MonoBehaviour:
   m_ObjectHideFlags: 0
