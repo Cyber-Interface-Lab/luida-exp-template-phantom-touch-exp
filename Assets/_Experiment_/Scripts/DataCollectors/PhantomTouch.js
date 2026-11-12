@@ -23,11 +23,11 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // eye height (same row): the hand held at the participant's own eye height (the higher hand when the button was
-    // pressed), above the head bone (m; '' when the bones were not readable), which hand, the hand's and the head
-    // bone's world heights then, seconds taken
-    eyeCalUp: CD['eyeCalUp'], eyeCalHand: CD['eyeCalHand'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],
-    eyeCalSec: CD['eyeCalSec'],
+    // forehead height (same row): the left hand held at the participant's forehead when the button was clicked, above
+    // the head bone (m; '' when the bones were not readable), the hand's and the head bone's world heights then,
+    // seconds taken
+    foreheadCalUp: CD['foreheadCalUp'], foreheadCalHandY: CD['foreheadCalHandY'], foreheadCalHeadY: CD['foreheadCalHeadY'],
+    foreheadCalSec: CD['foreheadCalSec'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
@@ -46,7 +46,7 @@ return {
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
-    // touch target height above the head bone (m) and where the eye height came from: calibrated / eyeBones / headBone
+    // touch target height above the head bone (m) and where it came from: calibrated (forehead) / eyeBones / headBone
     faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the

@@ -552,11 +552,11 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // eye height (same row): the hand held at the participant's own eye height (the higher hand when the button was
-    // pressed), above the head bone (m; '' when the bones were not readable), which hand, the hand's and the head
-    // bone's world heights then, seconds taken
-    eyeCalUp: CD['eyeCalUp'], eyeCalHand: CD['eyeCalHand'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],
-    eyeCalSec: CD['eyeCalSec'],
+    // forehead height (same row): the left hand held at the participant's forehead when the button was clicked, above
+    // the head bone (m; '' when the bones were not readable), the hand's and the head bone's world heights then,
+    // seconds taken
+    foreheadCalUp: CD['foreheadCalUp'], foreheadCalHandY: CD['foreheadCalHandY'], foreheadCalHeadY: CD['foreheadCalHeadY'],
+    foreheadCalSec: CD['foreheadCalSec'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
@@ -575,7 +575,7 @@ return {
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
-    // touch target height above the head bone (m) and where the eye height came from: calibrated / eyeBones / headBone
+    // touch target height above the head bone (m) and where it came from: calibrated (forehead) / eyeBones / headBone
     faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
@@ -720,12 +720,12 @@ return {
     // The avatar gate (trial start) and the report panel (after each touch) are straight ahead: the NPC is hidden
     // in both states. The device check stays on the right (the participant turns the head left and right there).
     const float PanelTextSize = 0.018f, PanelDist = 1.25f, FrontPanelYawDeg = 0f, RightPanelYawDeg = 40f;
-    // Eye-height measurement (2nd part of the pose check): a large button ("DC_Eye") straight ahead, a little below
-    // eye height, pressed with one hand while the other is held beside the headset. Clicks write 2 to the
-    // DeviceCheck item's Integer state "dc_btn" (the pose check's rescue button DC_Force writes 1).
-    const float EyeBtnDist = 1.2f, EyeBtnHeight = EyeHeight - 0.10f;
-    static readonly Vector3 EyeBtnSize = new Vector3(0.50f, 0.30f, 0.04f);
-    const string EyeBtnLabel = "ここを押す";   // = DC_EYE_LABEL below
+    // Forehead-height measurement (2nd part of the pose check): a large button ("DC_Eye") straight ahead, a little
+    // below eye height, that says what to do: left hand at the forehead, click it with the right hand. Clicks write 2
+    // to the DeviceCheck item's Integer state "dc_btn" (the pose check's rescue button DC_Force writes 1).
+    const float EyeBtnDist = 1.2f, EyeBtnHeight = EyeHeight - 0.10f, EyeBtnLabelSize = 0.024f;
+    static readonly Vector3 EyeBtnSize = new Vector3(0.74f, 0.24f, 0.04f);
+    const string EyeBtnLabel = "左手を額の高さに上げたまま、\n右手でここをクリック";   // = DC_EYE_LABEL below
     const float MirrorYawDeg = -45f, MirrorDist = 1.3f, MirrorCenterHeight = 1.2f, MirrorW = 1.2f, MirrorH = 1.8f;
     // Pose check: a second mirror ("MirrorFront") straight ahead, behind the front instruction slot (1.5 m) and
     // below its text (top edge ~16 deg up vs the 3-line text's bottom ~19 deg), so it never covers the text; clear
@@ -824,9 +824,9 @@ return {
             var eyePos = l.Around(0f, EyeBtnDist, EyeBtnHeight);
             eyeGroup.SetPositionAndRotation(eyePos, l.FaceEye(eyePos));
             if (eyeGroup.Find("DC_Eye") == null)
-                CreateButton(eyeGroup, "DC_Eye", EyeBtnLabel, Vector3.zero, EyeBtnSize, dcItem.GetComponent<Item>(), "dc_btn", 2, m, 0.03f);
+                CreateButton(eyeGroup, "DC_Eye", EyeBtnLabel, Vector3.zero, EyeBtnSize, dcItem.GetComponent<Item>(), "dc_btn", 2, m, EyeBtnLabelSize);
             AddWorldItemReference(dcItem.gameObject, "DC_Eye", eyeGroup.Find("DC_Eye").GetComponent<Item>());
-            SetButton(eyeGroup, "DC_Eye", Vector3.zero, EyeBtnSize, 0.03f, EyeBtnLabel);
+            SetButton(eyeGroup, "DC_Eye", Vector3.zero, EyeBtnSize, EyeBtnLabelSize, EyeBtnLabel);
             var npcForDc = FindRoot("NPC", false);
             if (npcForDc != null) AddWorldItemReference(dcItem.gameObject, "NPC", npcForDc.GetComponent<Item>());
         }
@@ -2074,7 +2074,7 @@ return {
                 L(Custom("ins_okButton(false);"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
-            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる\\n3) 右のパネルの指示に従って、目の高さを測る');"))),
+            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる\\n3) 最後に、正面に出るボタンの指示に従う');"))),
             // greeting: the concrete instructions come one by one on the GreetingGuide's panel in front of the face
             Listener(S_GREET, L(Ins("front", "目の前に赤く表示される指示に、\\nひとつずつ従ってください。"))),
             // the stick moves the participant slowly here (NpcDirector, ND_TOUCH_MOVE_RATE): said in brackets, the same
@@ -2513,17 +2513,17 @@ function ag_end() {
         };
     }
 
-    const string DeviceCheckLegacy = BlockTrialJs + @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head, then the eye height) ----
+    const string DeviceCheckLegacy = BlockTrialJs + @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head, then the forehead height) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
 // with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
-// 1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own eye height in this avatar. Cluster puts
-// the first-person camera a little off the avatar's eye bones, and an item script cannot read the camera. So the
-// participant holds one hand beside the headset (their own eye height) and presses the large button straight ahead
-// (DC_Eye) with the other hand. The higher hand's height above the head bone at that moment is sent to the NPC
-// ('npc_eye_cal'), which aims its hand from it in this block.
+// 1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own forehead height in this avatar, where
+// the NPC's hand goes (Cluster puts the first-person camera a little off the avatar's eye bones, and an item script
+// cannot read the camera). The large button straight ahead (DC_Eye) says what to do: hold the left hand at the
+// forehead and click the button with the right hand. The left hand's height above the head bone at that moment is
+// sent to the NPC ('npc_forehead_cal'), which aims its hand there in this block.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
-const DC_EYE_LABEL = 'ここを押す';
+const DC_EYE_LABEL = '左手を額の高さに上げたまま、\n右手でここをクリック';
 function dc_btnSend(id, cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }
 function dc_send(cfg) { dc_btnSend('DC_Force', cfg); }
 function dc_sendEye(cfg) { dc_btnSend('DC_Eye', cfg); }
@@ -2550,7 +2550,7 @@ function dc_yaw(p) {
 function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }
 function dc_render() {
   const t = $.state.dc_phase === 'eye'
-    ? '目の高さの確認\n片手をヘッドセットの横\n（ご自身の目の高さ）に添えたまま、\nもう片方の手で\n正面のボタンを押してください'
+    ? '額の高さの確認\n正面のボタンに書いてある\nとおりにしてください'
     : 'トラッキングの確認\n' +
       (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
       (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より上に（1秒）';
@@ -2582,7 +2582,7 @@ function dc_update(dt) {
   if (passed || forced) { dc_eyeBegin(elapsed, forced); return; }
   dc_render();
 }
-// 2nd part: the eye-height button replaces the rescue button
+// 2nd part: the forehead-height button replaces the rescue button
 function dc_eyeBegin(elapsed, forced) {
   SendDataToCollector('deviceCheckSec', elapsed);
   SendDataToCollector('deviceCheckForced', !!forced);
@@ -2591,27 +2591,24 @@ function dc_eyeBegin(elapsed, forced) {
   dc_send({ visible: false });
   dc_sendEye({ visible: true, label: DC_EYE_LABEL });
   dc_render();
-  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; eye height next');
+  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height next');
 }
-// The button was pressed: the higher hand is the one held at eye height.
+// The button was clicked (with the right hand): the left hand is the one held at the forehead.
 function dc_finish(head, lh, rh) {
   $.state.dc_active = false;
-  const eyeSec = (Date.now() - ($.state.dc_eyeStart || Date.now())) / 1000;
-  const hand = (lh && rh) ? (lh.y >= rh.y ? lh : rh) : (lh || rh);
-  const side = !hand ? '' : hand === lh ? 'left' : 'right';
-  const up = (head && hand) ? hand.y - head.y : null;
+  const sec = (Date.now() - ($.state.dc_eyeStart || Date.now())) / 1000;
+  const up = (head && lh) ? lh.y - head.y : null;
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  SendDataToCollector('eyeCalUp', up !== null ? r3(up) : '');
-  SendDataToCollector('eyeCalHand', side);
-  SendDataToCollector('eyeCalHandY', hand ? r3(hand.y) : '');
-  SendDataToCollector('eyeCalHeadY', head ? r3(head.y) : '');
-  SendDataToCollector('eyeCalSec', Math.round(eyeSec * 10) / 10);
+  SendDataToCollector('foreheadCalUp', up !== null ? r3(up) : '');
+  SendDataToCollector('foreheadCalHandY', lh ? r3(lh.y) : '');
+  SendDataToCollector('foreheadCalHeadY', head ? r3(head.y) : '');
+  SendDataToCollector('foreheadCalSec', Math.round(sec * 10) / 10);
   if (up !== null) {
-    try { $.worldItemReference('NPC').send('npc_eye_cal', { up: up }); }
-    catch (e) { $.log('[DeviceCheck] npc_eye_cal: ' + e); }
+    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up: up }); }
+    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' + e); }
   }
-  $.log('[DeviceCheck] eye height ' + (up !== null ? r3(up) + ' m above the head bone (' + side + ' hand ' + r3(hand.y) + ', head bone ' + r3(head.y) + ')' : 'not read (bones)') +
-        ' after ' + eyeSec.toFixed(1) + ' s');
+  $.log('[DeviceCheck] forehead height ' + (up !== null ? r3(up) + ' m above the head bone (left hand ' + r3(lh.y) + ', head bone ' + r3(head.y) + ')' : 'not read (bones)') +
+        ' after ' + sec.toFixed(1) + ' s');
   ProcessAndSaveCollectedData();
   dc_sendEye({ visible: false });
   SetText('確認できました。\nありがとうございます。');

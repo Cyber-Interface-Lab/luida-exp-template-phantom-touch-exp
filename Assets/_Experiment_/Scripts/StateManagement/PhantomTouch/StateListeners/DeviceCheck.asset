@@ -89,21 +89,21 @@ MonoBehaviour:
     TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
     === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
     }\n// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head,
-    then the eye height) ----\n// Runs in the pose-check state (after the avatar
+    then the forehead height) ----\n// Runs in the pose-check state (after the avatar
     switch, before the NPC appears) on the 1st trial of each block,\n// with the
     MirrorPanel's front mirror shown; the later trials of a block skip it immediately.\n//
-    1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own eye
-    height in this avatar. Cluster puts\n// the first-person camera a little off
-    the avatar's eye bones, and an item script cannot read the camera. So the\n//
-    participant holds one hand beside the headset (their own eye height) and presses
-    the large button straight ahead\n// (DC_Eye) with the other hand. The higher
-    hand's height above the head bone at that moment is sent to the NPC\n// ('npc_eye_cal'),
-    which aims its hand from it in this block.\nconst DC_YAW_DEG = 25, DC_HANDS_SEC
+    1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own forehead
+    height in this avatar, where\n// the NPC's hand goes (Cluster puts the first-person
+    camera a little off the avatar's eye bones, and an item script\n// cannot read
+    the camera). The large button straight ahead (DC_Eye) says what to do: hold the
+    left hand at the\n// forehead and click the button with the right hand. The left
+    hand's height above the head bone at that moment is\n// sent to the NPC ('npc_forehead_cal'),
+    which aims its hand there in this block.\nconst DC_YAW_DEG = 25, DC_HANDS_SEC
     = 1.0, DC_RESCUE_SEC = 60;\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nconst
-    DC_EYE_LABEL = '\u3053\u3053\u3092\u62BC\u3059';\nfunction dc_btnSend(id, cfg)
-    { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); }
-    catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction dc_send(cfg)
-    { dc_btnSend('DC_Force', cfg); }\nfunction dc_sendEye(cfg) { dc_btnSend('DC_Eye',
+    DC_EYE_LABEL = '\u5DE6\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\u4E0A\u3052\u305F\u307E\u307E\u3001\\n\u53F3\u624B\u3067\u3053\u3053\u3092\u30AF\u30EA\u30C3\u30AF';\nfunction
+    dc_btnSend(id, cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg',
+    cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction
+    dc_send(cfg) { dc_btnSend('DC_Force', cfg); }\nfunction dc_sendEye(cfg) { dc_btnSend('DC_Eye',
     cfg); }\nfunction dc_begin() {\n  $.state.dc_active = false;\n  if (!firstTrialOfBlock())
     { ToNextState(); return; }\n  $.state.dc_active = true;\n  $.state.dc_phase =
     'pose';\n  $.state.dc_start = Date.now();\n  $.state.dc_left = false; $.state.dc_right
@@ -115,7 +115,7 @@ MonoBehaviour:
     (!r) return null;\n  const f = new Vector3(0, 0, 1).applyQuaternion(r);\n  return
     Math.atan2(f.x, f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b) { let d
     = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }\nfunction
-    dc_render() {\n  const t = $.state.dc_phase === 'eye'\n    ? '\u76EE\u306E\u9AD8\u3055\u306E\u78BA\u8A8D\\n\u7247\u624B\u3092\u30D8\u30C3\u30C9\u30BB\u30C3\u30C8\u306E\u6A2A\\n\uFF08\u3054\u81EA\u8EAB\u306E\u76EE\u306E\u9AD8\u3055\uFF09\u306B\u6DFB\u3048\u305F\u307E\u307E\u3001\\n\u3082\u3046\u7247\u65B9\u306E\u624B\u3067\\n\u6B63\u9762\u306E\u30DC\u30BF\u30F3\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044'\n   
+    dc_render() {\n  const t = $.state.dc_phase === 'eye'\n    ? '\u984D\u306E\u9AD8\u3055\u306E\u78BA\u8A8D\\n\u6B63\u9762\u306E\u30DC\u30BF\u30F3\u306B\u66F8\u3044\u3066\u3042\u308B\\n\u3068\u304A\u308A\u306B\u3057\u3066\u304F\u3060\u3055\u3044'\n   
     : '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n' +\n      (($.state.dc_left
     && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n'
     +\n      (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000] ')
@@ -138,26 +138,25 @@ MonoBehaviour:
     dc_send({ visible: true }); }\n  const forced = b === 1 && !!$.state.dc_rescue;\n 
     const passed = $.state.dc_left && $.state.dc_right && ($.state.dc_hands || 0)
     >= DC_HANDS_SEC;\n  if (passed || forced) { dc_eyeBegin(elapsed, forced); return;
-    }\n  dc_render();\n}\n// 2nd part: the eye-height button replaces the rescue
+    }\n  dc_render();\n}\n// 2nd part: the forehead-height button replaces the rescue
     button\nfunction dc_eyeBegin(elapsed, forced) {\n  SendDataToCollector('deviceCheckSec',
     elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  $.state.dc_phase
     = 'eye';\n  $.state.dc_eyeStart = Date.now();\n  dc_send({ visible: false });\n 
     dc_sendEye({ visible: true, label: DC_EYE_LABEL });\n  dc_render();\n  $.log('[DeviceCheck]
     pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1)
-    + ' s; eye height next');\n}\n// The button was pressed: the higher hand is the
-    one held at eye height.\nfunction dc_finish(head, lh, rh) {\n  $.state.dc_active
-    = false;\n  const eyeSec = (Date.now() - ($.state.dc_eyeStart || Date.now()))
-    / 1000;\n  const hand = (lh && rh) ? (lh.y >= rh.y ? lh : rh) : (lh || rh);\n 
-    const side = !hand ? '' : hand === lh ? 'left' : 'right';\n  const up = (head
-    && hand) ? hand.y - head.y : null;\n  const r3 = (x) => Math.round(x * 1000)
-    / 1000;\n  SendDataToCollector('eyeCalUp', up !== null ? r3(up) : '');\n  SendDataToCollector('eyeCalHand',
-    side);\n  SendDataToCollector('eyeCalHandY', hand ? r3(hand.y) : '');\n  SendDataToCollector('eyeCalHeadY',
-    head ? r3(head.y) : '');\n  SendDataToCollector('eyeCalSec', Math.round(eyeSec
-    * 10) / 10);\n  if (up !== null) {\n    try { $.worldItemReference('NPC').send('npc_eye_cal',
-    { up: up }); }\n    catch (e) { $.log('[DeviceCheck] npc_eye_cal: ' + e); }\n 
-    }\n  $.log('[DeviceCheck] eye height ' + (up !== null ? r3(up) + ' m above the
-    head bone (' + side + ' hand ' + r3(hand.y) + ', head bone ' + r3(head.y) + ')'
-    : 'not read (bones)') +\n        ' after ' + eyeSec.toFixed(1) + ' s');\n  ProcessAndSaveCollectedData();\n 
+    + ' s; forehead height next');\n}\n// The button was clicked (with the right
+    hand): the left hand is the one held at the forehead.\nfunction dc_finish(head,
+    lh, rh) {\n  $.state.dc_active = false;\n  const sec = (Date.now() - ($.state.dc_eyeStart
+    || Date.now())) / 1000;\n  const up = (head && lh) ? lh.y - head.y : null;\n 
+    const r3 = (x) => Math.round(x * 1000) / 1000;\n  SendDataToCollector('foreheadCalUp',
+    up !== null ? r3(up) : '');\n  SendDataToCollector('foreheadCalHandY', lh ? r3(lh.y)
+    : '');\n  SendDataToCollector('foreheadCalHeadY', head ? r3(head.y) : '');\n 
+    SendDataToCollector('foreheadCalSec', Math.round(sec * 10) / 10);\n  if (up !==
+    null) {\n    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up:
+    up }); }\n    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' + e); }\n 
+    }\n  $.log('[DeviceCheck] forehead height ' + (up !== null ? r3(up) + ' m above
+    the head bone (left hand ' + r3(lh.y) + ', head bone ' + r3(head.y) + ')' : 'not
+    read (bones)') +\n        ' after ' + sec.toFixed(1) + ' s');\n  ProcessAndSaveCollectedData();\n 
     dc_sendEye({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); dc_sendEye({
     visible: false }); HideChild('Text'); $.state.dc_active = false; }\n"

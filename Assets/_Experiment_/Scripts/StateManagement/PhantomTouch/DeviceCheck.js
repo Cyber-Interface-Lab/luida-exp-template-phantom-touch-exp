@@ -41,17 +41,17 @@ function trialInBlock() {
 }
 function firstTrialOfBlock() { return trialInBlock() === 1; }
 function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
-// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head, then the eye height) ----
+// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head, then the forehead height) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
 // with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
-// 1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own eye height in this avatar. Cluster puts
-// the first-person camera a little off the avatar's eye bones, and an item script cannot read the camera. So the
-// participant holds one hand beside the headset (their own eye height) and presses the large button straight ahead
-// (DC_Eye) with the other hand. The higher hand's height above the head bone at that moment is sent to the NPC
-// ('npc_eye_cal'), which aims its hand from it in this block.
+// 1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own forehead height in this avatar, where
+// the NPC's hand goes (Cluster puts the first-person camera a little off the avatar's eye bones, and an item script
+// cannot read the camera). The large button straight ahead (DC_Eye) says what to do: hold the left hand at the
+// forehead and click the button with the right hand. The left hand's height above the head bone at that moment is
+// sent to the NPC ('npc_forehead_cal'), which aims its hand there in this block.
 const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
-const DC_EYE_LABEL = 'ここを押す';
+const DC_EYE_LABEL = '左手を額の高さに上げたまま、\n右手でここをクリック';
 function dc_btnSend(id, cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }
 function dc_send(cfg) { dc_btnSend('DC_Force', cfg); }
 function dc_sendEye(cfg) { dc_btnSend('DC_Eye', cfg); }
@@ -78,7 +78,7 @@ function dc_yaw(p) {
 function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }
 function dc_render() {
   const t = $.state.dc_phase === 'eye'
-    ? '目の高さの確認\n片手をヘッドセットの横\n（ご自身の目の高さ）に添えたまま、\nもう片方の手で\n正面のボタンを押してください'
+    ? '額の高さの確認\n正面のボタンに書いてある\nとおりにしてください'
     : 'トラッキングの確認\n' +
       (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
       (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より上に（1秒）';
@@ -110,7 +110,7 @@ function dc_update(dt) {
   if (passed || forced) { dc_eyeBegin(elapsed, forced); return; }
   dc_render();
 }
-// 2nd part: the eye-height button replaces the rescue button
+// 2nd part: the forehead-height button replaces the rescue button
 function dc_eyeBegin(elapsed, forced) {
   SendDataToCollector('deviceCheckSec', elapsed);
   SendDataToCollector('deviceCheckForced', !!forced);
@@ -119,27 +119,24 @@ function dc_eyeBegin(elapsed, forced) {
   dc_send({ visible: false });
   dc_sendEye({ visible: true, label: DC_EYE_LABEL });
   dc_render();
-  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; eye height next');
+  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height next');
 }
-// The button was pressed: the higher hand is the one held at eye height.
+// The button was clicked (with the right hand): the left hand is the one held at the forehead.
 function dc_finish(head, lh, rh) {
   $.state.dc_active = false;
-  const eyeSec = (Date.now() - ($.state.dc_eyeStart || Date.now())) / 1000;
-  const hand = (lh && rh) ? (lh.y >= rh.y ? lh : rh) : (lh || rh);
-  const side = !hand ? '' : hand === lh ? 'left' : 'right';
-  const up = (head && hand) ? hand.y - head.y : null;
+  const sec = (Date.now() - ($.state.dc_eyeStart || Date.now())) / 1000;
+  const up = (head && lh) ? lh.y - head.y : null;
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  SendDataToCollector('eyeCalUp', up !== null ? r3(up) : '');
-  SendDataToCollector('eyeCalHand', side);
-  SendDataToCollector('eyeCalHandY', hand ? r3(hand.y) : '');
-  SendDataToCollector('eyeCalHeadY', head ? r3(head.y) : '');
-  SendDataToCollector('eyeCalSec', Math.round(eyeSec * 10) / 10);
+  SendDataToCollector('foreheadCalUp', up !== null ? r3(up) : '');
+  SendDataToCollector('foreheadCalHandY', lh ? r3(lh.y) : '');
+  SendDataToCollector('foreheadCalHeadY', head ? r3(head.y) : '');
+  SendDataToCollector('foreheadCalSec', Math.round(sec * 10) / 10);
   if (up !== null) {
-    try { $.worldItemReference('NPC').send('npc_eye_cal', { up: up }); }
-    catch (e) { $.log('[DeviceCheck] npc_eye_cal: ' + e); }
+    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up: up }); }
+    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' + e); }
   }
-  $.log('[DeviceCheck] eye height ' + (up !== null ? r3(up) + ' m above the head bone (' + side + ' hand ' + r3(hand.y) + ', head bone ' + r3(head.y) + ')' : 'not read (bones)') +
-        ' after ' + eyeSec.toFixed(1) + ' s');
+  $.log('[DeviceCheck] forehead height ' + (up !== null ? r3(up) + ' m above the head bone (left hand ' + r3(lh.y) + ', head bone ' + r3(head.y) + ')' : 'not read (bones)') +
+        ' after ' + sec.toFixed(1) + ' s');
   ProcessAndSaveCollectedData();
   dc_sendEye({ visible: false });
   SetText('確認できました。\nありがとうございます。');

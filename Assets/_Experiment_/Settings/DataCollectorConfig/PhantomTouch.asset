@@ -47,19 +47,19 @@ MonoBehaviour:
     avatarIsDefault: CD['avatarIsDefault'],\n    setupSec: CD['setupSec'], setupRetry:
     CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],\n    // device
     check\n    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
-    // eye height (same row): the hand held at the participant's own eye height (the
-    higher hand when the button was\n    // pressed), above the head bone (m; ''
-    when the bones were not readable), which hand, the hand's and the head\n    //
-    bone's world heights then, seconds taken\n    eyeCalUp: CD['eyeCalUp'], eyeCalHand:
-    CD['eyeCalHand'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],\n   
-    eyeCalSec: CD['eyeCalSec'],\n    // per-trial report\n    rating: CD['rating'],
-    mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n   
-    ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],\n    // NPC measurements\n   
-    social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar:
-    CD['npcAvatar'],\n    trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'],
-    contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs:
-    CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n   
-    strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec:
+    // forehead height (same row): the left hand held at the participant's forehead
+    when the button was clicked, above\n    // the head bone (m; '' when the bones
+    were not readable), the hand's and the head bone's world heights then,\n    //
+    seconds taken\n    foreheadCalUp: CD['foreheadCalUp'], foreheadCalHandY: CD['foreheadCalHandY'],
+    foreheadCalHeadY: CD['foreheadCalHeadY'],\n    foreheadCalSec: CD['foreheadCalSec'],\n   
+    // per-trial report\n    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'],
+    ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'],
+    plocOther: CD['plocOther'],\n    // NPC measurements\n    social: CD['social'],
+    npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n   
+    trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs:
+    CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs: CD['strokeEndTs'],
+    strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack:
+    CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec:
     CD['strokeRampSec'],\n    // guided greeting (every trial): seconds from each
     instruction to the participant following it (0 = already\n    // doing it, -1
     = skipped after the timeout), number skipped, cues the NPC received, and the
@@ -73,7 +73,7 @@ MonoBehaviour:
     CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur:
     CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height
-    above the head bone (m) and where the eye height came from: calibrated / eyeBones
+    above the head bone (m) and where it came from: calibrated (forehead) / eyeBones
     / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n    retreatOnsetDist:
     CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
     // backing away with the stick during the touch (slow, touchMoveRate x the normal
