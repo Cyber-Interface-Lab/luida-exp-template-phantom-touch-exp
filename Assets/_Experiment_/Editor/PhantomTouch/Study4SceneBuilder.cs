@@ -571,6 +571,11 @@ return {
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
+    // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
+    // approach start, its distance from the marker then / at the end of the retract, its retreat like retreatDist,
+    // and whether the participant was put back on the marker after the NPC had gone
+    touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre: CD['rootShiftPre'],
+    rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],
     lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],
     npcTimeout: CD['npcTimeout'],
     trace: CD['trace'],
@@ -2015,6 +2020,8 @@ return {
                     "見ていただきます。そのたびに、感じたことを\\n" +
                     "短い質問にお答えください。\\n" +
                     "途中で、アバターの着替えと機器の確認をお願いします。\\n" +
+                    "スティックでの移動は、必要な場面以外では止めてあります。\\n" +
+                    "（その場で頭や体を動かすのは自由です）\\n" +
                     "読み終わったら、下の「OK」を押してください。")),
                 L(Custom("if (ins_okPressed()) { ins_okButton(false); ToNextState(); }")),
                 L(Custom("ins_okButton(false);"))),
@@ -2023,7 +2030,9 @@ return {
             Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭より高く上げる');"))),
             // greeting: the concrete instructions come one by one on the GreetingGuide's panel in front of the face
             Listener(S_GREET, L(Ins("front", "目の前に赤く表示される指示に、\\nひとつずつ従ってください。"))),
-            Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。"))),
+            // the stick moves the participant slowly here (NpcDirector, ND_TOUCH_MOVE_RATE): said in brackets, the same
+            // in every trial and both social conditions
+            Listener(S_TOUCH, L(Ins("front", "正面の相手の手がゆっくり近づきます。\\n顔を正面に向けたまま、\\n楽な姿勢で見ていてください。\\n（不快に感じたら、スティックで後ろに下がれます）"))),
             Listener(S_REPORT, L(Ins("front", "下のパネルで質問に答えてください。"))),
             Listener(S_VEQ, L(Custom("if (lastTrialOfBlock()) ins_show('above', 'あなたがいま使っているアバター（問題文では\\n「仮想身体」と表現されていることがあります）\\nについて伺います。');"))),
             Listener(S_TREST, L(Ins("front", "少し休憩します…"))),
@@ -2138,8 +2147,8 @@ return {
         string origin = "new Vector3(" + F(l.origin.x) + ", " + F(l.origin.y) + ", " + F(l.origin.z) + ")";
         return new List<StateListener>
         {
-            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period. The NPC is
-            // hidden here too (and the height platform lowered): after a session reset from the middle of a trial it
+            // Locomotion is frozen from entry (nd_tick keeps the rate at 0) except in the greeting period (normal speed)
+            // and the touch (slow: ND_TOUCH_MOVE_RATE, so the participant can back away). The NPC is hidden here too (and the height platform lowered): after a session reset from the middle of a trial it
             // would otherwise stand there until Trial - Start.
             Listener(S_START, L(Act(T_ShowItem), Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_hide', {});"))),
             // Setup first: it also lowers the previous block's height platform (the participant's avatar, and so
@@ -2156,7 +2165,7 @@ return {
             )),
             // Greeting period (every trial, in that trial's social condition): the NPC appears in front; the
             // GreetingGuide item walks the participant through the greeting and ends the state. In the social-cue
-            // condition the NPC answers each step. The participant may walk around here (and only here).
+            // condition the NPC answers each step. The participant may walk around here at normal speed.
             Listener(S_GREET,
                 L(Custom(
                     "nd_setMove(1);\n" +
@@ -2164,16 +2173,19 @@ return {
                     "$.worldItemReference('NPC').send('npc_greeting_begin', { social: CONDITION['social'] === 'with' });")),
                 null,
                 L(Custom("nd_setMove(0);\n$.worldItemReference('NPC').send('npc_greeting_end', {});"))),
-            // Touch and stroke: freeze; the NPC puts the participant back on the marker (position and facing, on
-            // their height platform), waits a moment, then turns to them, steps in and touches. At the end the
-            // NPC steps back to the conversation spot and disappears before npc_done.
+            // Touch and stroke: the stick moves the participant slowly (they may back away from the hand; the hand
+            // keeps its path); the NPC puts the participant back on the marker (position and facing, on their
+            // height platform), waits a moment, then turns to them, steps in and touches. At the end the NPC steps
+            // back to the conversation spot, disappears, puts the participant back on the marker if they moved
+            // away (NpcController RETURN_MIN_DIST) and sends npc_done. The stick is frozen again on exit.
             Listener(S_TOUCH,
                 L(Custom(
-                    "nd_setMove(0);\n" +
+                    "nd_setMove(ND_TOUCH_MOVE_RATE);\n" +
                     "nd_arm();\n" +
                     "$.state.nd_touchStartTs = Date.now();\n" +
                     "SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\n" +
                     "SendDataToCollector('npcTimeout', false);\n" +
+                    "SendDataToCollector('touchMoveRate', ND_TOUCH_MOVE_RATE);\n" +
                     "$.worldItemReference('NPC').send('npc_trial_start', {\n" +
                     "  block: CONDITION['block'], rep: String(trialInBlock()), fwd: " + fwd + ", reset: true,\n" +
                     "  avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });")),
@@ -2185,7 +2197,8 @@ return {
                     "  $.worldItemReference('NPC').send('npc_abort', {});\n" +
                     "  $.state.nd_touchStartTs = 0;\n" +
                     "  ToNextState();\n" +
-                    "}"))),
+                    "}")),
+                L(Custom("nd_setMove(0);"))),
             // VEQ is answered once per block (after its last trial); the other visits are skipped immediately.
             // (The NPC has already hidden itself at the end of the touch phase.)
             Listener(S_VEQ, L(Custom("if (!lastTrialOfBlock()) ToNextState();"))),
@@ -2240,6 +2253,10 @@ function nd_useEyeBones() { return (typeof isTestMode !== 'undefined') ? !isTest
 // not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
 // to 1 when the participant is (re)initialized.
 const ND_MOVE_REAPPLY_SEC = 1.0;
+// Touch: the stick moves the participant at this fraction of the normal speed (0.1: about 0.25 m/s with Cluster's
+// 2.5 m/s), far faster than the NPC's hand (2 cm/s), so someone who feels uncomfortable can back away from the hand,
+// yet slow enough to read as stepping back rather than walking around. The hand keeps its path (it does not follow).
+const ND_TOUCH_MOVE_RATE = 0.1;
 function nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn = 0; }
 function nd_tick(dt) {
   $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn || 0) - dt;

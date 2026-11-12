@@ -68,6 +68,10 @@ const NPC_CFG = {
   GLIDE_SEC: 1.0,          // step closer / step back duration
   REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation spot this long before stepping in
   RESET_SETTLE_SEC: 1.0,   // touch start: wait this long after putting the participant back on the marker
+  RETURN_MIN_DIST: 0.15,   // touch end, once the NPC has gone: put the participant back on the marker (keeping their
+                           //   facing) when their avatar is at least this far from it horizontally. The stick moves
+                           //   them slowly during the touch (NpcDirector), so they can back away from the hand, and
+                           //   it is off again in the report that follows.
   HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights differ by at least this (m):
                            //   participant shorter -> platform under the participant (HeightPlatform item);
                            //   NPC shorter -> the NPC stands on its Riser sub-node
@@ -132,6 +136,7 @@ function vnorm(a) { const l = vlen(a); return l > 1e-9 ? vscale(a, 1 / l) : v3(0
 function vlerp(a, b, t) { return vadd(a, vscale(vsub(b, a), t)); }
 function vhoriz(a) { return vnorm(v3(a.x, 0, a.z)); }
 function vcopy(a) { return v3(a.x, a.y, a.z); }
+function hdist(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx * dx + dz * dz); }
 
 function qmul(a, b) {
   return new Quaternion(
@@ -695,6 +700,7 @@ function startTrial() {
 let traceBuf = [];
 let sampleTimer = 0;
 let baseSamples = [];
+let baseRootSamples = [];
 
 // Ready palm point on the shoulder->face line (local). T = face target (local).
 function readyContact(rest, T) {
@@ -726,6 +732,14 @@ function beginApproach(head, rest, ip) {
   $.state.npc_base = null;
   $.state.npc_away = 0; $.state.npc_latMin = 0; $.state.npc_latMax = 0;
   $.state.npc_onsetDist = -1;
+  // the participant's avatar position: moved by the stick (NpcDirector's slow touch rate), not by leaning
+  const p = participant();
+  const root = p ? p.getPosition() : null;
+  const o = $.state.npc_origin;
+  $.state.npc_rootStart = root ? f3(root.x) + "," + f3(root.y) + "," + f3(root.z) : "";
+  $.state.npc_rootShiftPre = (root && o) ? hdist(root, o) : -1;   // moved off the marker before the reach began
+  $.state.npc_rootBase = null; $.state.npc_rootAway = 0;
+  baseRootSamples = [];
   $.state.npc_axisW = vhoriz(qrot(ip.rot, $.state.npc_dir));
   const H0w = toWorld(H0, ip), Tw = toWorld(T, ip);
   $.state.npc_H0w = f3(H0w.x) + "," + f3(H0w.y) + "," + f3(H0w.z);
@@ -739,6 +753,9 @@ function finishTrial() {
   const traces = ($.state.npc_trace || []).concat(traceBuf);
   traceBuf = [];
   const tr = $.state.npc_trial || {};
+  const pEnd = participant();
+  const rootEnd = pEnd ? pEnd.getPosition() : null;
+  const o = $.state.npc_origin;
   const data = {
     social: $.state.npc_social ? "with" : "without",
     npcBlock: tr.block !== undefined ? String(tr.block) : "",
@@ -764,10 +781,14 @@ function finishTrial() {
     headRot0: $.state.npc_headRot0 || "",
     handStart: $.state.npc_H0w || "",   // fingertip world position at approach start
     faceTarget: $.state.npc_Tw || "",   // face target world position (fixed at approach start)
-    traceFormat: "t,hx,hy,hz,hqx,hqy,hqz,hqw,d",
+    traceFormat: "t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz",   // r = avatar position (moved by the stick)
     retreatOnsetDist: $.state.npc_onsetDist,
     retreatDist: $.state.npc_away || 0,
     oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin || 0),
+    rootStart: $.state.npc_rootStart || "",              // avatar position at approach start
+    rootShiftPre: (typeof $.state.npc_rootShiftPre === "number") ? $.state.npc_rootShiftPre : -1,  // off the marker then (m)
+    rootRetreat: $.state.npc_rootAway || 0,              // like retreatDist, for the avatar position
+    rootShiftEnd: (rootEnd && o) ? hdist(rootEnd, o) : -1, // off the marker at the end of the retract (m)
     lookedAtNpc: !!$.state.npc_lookedAt,
     lookTs: $.state.npc_lookTs || 0,
     greeted: !!$.state.npc_greeted,
@@ -775,8 +796,21 @@ function finishTrial() {
   };
   pushData(data);
   $.state.npc_trace = [];
-  $.log("[NPC] trial done: samples=" + traces.length + " contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist));
+  $.log("[NPC] trial done: samples=" + traces.length + " contactDist=" + f3(data.contactDist) + " retreat=" + f3(data.retreatDist) +
+        " rootRetreat=" + f3(data.rootRetreat) + " rootShiftPre=" + f3(data.rootShiftPre) + " rootShiftEnd=" + f3(data.rootShiftEnd));
   leave(true);
+}
+
+// Touch end, once the NPC has gone: put the participant back on the marker (on their platform, keeping their facing)
+// if they moved away from it with the stick (RETURN_MIN_DIST).
+function returnParticipant() {
+  const p = participant(), o = $.state.npc_origin;
+  const root = p ? p.getPosition() : null;
+  if (!root || !o) return;
+  const dist = hdist(root, o);
+  const back = dist >= NPC_CFG.RETURN_MIN_DIST && resetParticipant(false);
+  pushData({ returnedToMarker: back });
+  if (back) $.log("[NPC] participant put back on the marker from " + f3(dist) + " m away");
 }
 
 // Step back to the conversation spot, then disappear (tick); with signalDone, "npc_done" is sent once hidden.
@@ -1009,6 +1043,7 @@ function tick(dt) {
     $.state.npc_phase = "idle";
     $.state.npc_t = 0;
     setVisible(false);
+    returnParticipant();
     if ($.state.npc_leaveSignal) $.sendSignalCompat("this", "npc_done");
     $.state.npc_leaveSignal = false;
     $.log("[NPC] back at the conversation spot; hidden");
@@ -1019,6 +1054,7 @@ function tick(dt) {
 
   const p = participant();
   const head = p ? headOf(p) : null;
+  const root = p ? p.getPosition() : null;   // avatar position, for the trace
   let ip = itemPose();
   const social = !!$.state.npc_social;
   const phase = $.state.npc_phase || "idle";
@@ -1117,7 +1153,7 @@ function tick(dt) {
     let d = -1;
     if (head) {
       d = vlen(vsub(Fw, facePointWorld(head)));
-      sampleTrace(dt, t, head, Fw, d);
+      sampleTrace(dt, t, head, Fw, d, root);
     }
     const reachedEnd = s >= L;
     const earlyContact = d >= 0 && d <= NPC_CFG.STOP_MARGIN;
@@ -1147,7 +1183,7 @@ function tick(dt) {
     armR = armRots(rest, "R", arm);
     if (head) {
       const Fw = toWorld(contactOf(rest, arm), ip);
-      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw, vlen(vsub(Fw, facePointWorld(head))), root);
     }
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));
     if (t >= dur) {
@@ -1163,7 +1199,7 @@ function tick(dt) {
     const sinceContact = ($.state.npc_strokeSec || 0) + t;
     if (head) {
       const Fw = toWorld(contactOf(rest, arm), ip);
-      sampleTrace(dt, ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))));
+      sampleTrace(dt, ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))), root);
     }
     if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(sinceContact / 1.0)));
     if (t >= NPC_CFG.HOLD_SEC) {
@@ -1198,15 +1234,16 @@ function tick(dt) {
   applyPose(Q);
 }
 
-// 10 Hz head trace plus the in-world retreat estimate.
-function sampleTrace(dt, t, head, Fw, d) {
+// 10 Hz head (and avatar position) trace plus the in-world retreat estimate. root: the avatar position (or null).
+function sampleTrace(dt, t, head, Fw, d, root) {
   sampleTimer += dt;
   if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL) return;
   sampleTimer = 0;
   const h = head.pos, r = head.rot;
   const total = ($.state.npc_trace || []).length + traceBuf.length;
   if (total < NPC_CFG.MAX_SAMPLES) {
-    traceBuf.push([t.toFixed(1), f3(h.x), f3(h.y), f3(h.z), f3(r.x), f3(r.y), f3(r.z), f3(r.w), f3(d)].join(","));
+    traceBuf.push([t.toFixed(1), f3(h.x), f3(h.y), f3(h.z), f3(r.x), f3(r.y), f3(r.z), f3(r.w), f3(d),
+                   root ? f3(root.x) : "", root ? f3(root.y) : "", root ? f3(root.z) : ""].join(","));
   }
   if (traceBuf.length >= 10) {
     $.state.npc_trace = ($.state.npc_trace || []).concat(traceBuf);
@@ -1215,15 +1252,25 @@ function sampleTrace(dt, t, head, Fw, d) {
   // retreat / oscillation estimate (world frame)
   if (!$.state.npc_base) {
     baseSamples.push(vcopy(h));
+    if (root) baseRootSamples.push(vcopy(root));
     if (t >= 1.0) {
       let sum = v3(0, 0, 0);
       for (const b of baseSamples) sum = vadd(sum, b);
       $.state.npc_base = vscale(sum, 1 / Math.max(1, baseSamples.length));
+      if (baseRootSamples.length > 0) {   // same baseline window for the avatar position
+        let rs = v3(0, 0, 0);
+        for (const b of baseRootSamples) rs = vadd(rs, b);
+        $.state.npc_rootBase = vscale(rs, 1 / baseRootSamples.length);
+      }
     }
     return;
   }
   // axis: horizontal approach direction (hand -> face), so moving away from the hand is positive along it
   const axis = $.state.npc_axisW || v3(0, 0, 1);
+  if (root && $.state.npc_rootBase) {
+    const rootAway = vdot(vsub(root, $.state.npc_rootBase), axis);
+    if (rootAway > ($.state.npc_rootAway || 0)) $.state.npc_rootAway = rootAway;
+  }
   const delta = vsub(h, $.state.npc_base);
   const away = vdot(delta, axis);
   const lateral = vdot(delta, vcross(axis, UP));

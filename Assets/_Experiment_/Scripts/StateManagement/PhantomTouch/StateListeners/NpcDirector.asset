@@ -139,8 +139,9 @@ MonoBehaviour:
         codeSnippet: 
         variables: []
         category: 
-      customAction: "nd_setMove(0);\nnd_arm();\n$.state.nd_touchStartTs = Date.now();\nSendDataToCollector('trialStartTs',
-        $.state.nd_touchStartTs);\nSendDataToCollector('npcTimeout', false);\n$.worldItemReference('NPC').send('npc_trial_start',
+      customAction: "nd_setMove(ND_TOUCH_MOVE_RATE);\nnd_arm();\n$.state.nd_touchStartTs
+        = Date.now();\nSendDataToCollector('trialStartTs', $.state.nd_touchStartTs);\nSendDataToCollector('npcTimeout',
+        false);\nSendDataToCollector('touchMoveRate', ND_TOUCH_MOVE_RATE);\n$.worldItemReference('NPC').send('npc_trial_start',
         {\n  block: CONDITION['block'], rep: String(trialInBlock()), fwd: new Vector3(0,
         0, 1), reset: true,\n  avatar: nd_avatarForBlock(CONDITION['block']), social:
         CONDITION['social'] === 'with' });"
@@ -166,7 +167,19 @@ MonoBehaviour:
       conditionValue: 
       _variableKeys: []
       _variableValuesList: []
-    onStateExitedActions: []
+    onStateExitedActions:
+    - predefinedActionTemplate:
+        actionType: Customized Action
+        displayLabel: 
+        codeSnippet: 
+        variables: []
+        category: 
+      customAction: nd_setMove(0);
+      isConditional: 0
+      conditionVariable: 
+      conditionValue: 
+      _variableKeys: []
+      _variableValuesList: []
   - stateID: 7
     onStateStartedActions:
     - predefinedActionTemplate:
@@ -237,10 +250,15 @@ MonoBehaviour:
     keyboard move speed): 0 unless set otherwise; walking in the room is\n// not
     affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script
     sets the rate back\n// to 1 when the participant is (re)initialized.\nconst ND_MOVE_REAPPLY_SEC
-    = 1.0;\nfunction nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn
-    = 0; }\nfunction nd_tick(dt) {\n  $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn
-    || 0) - dt;\n  if ($.state.nd_moveApplyIn > 0) return;\n  $.state.nd_moveApplyIn
-    = ND_MOVE_REAPPLY_SEC;\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists())
-    return;\n  const rate = (typeof $.state.nd_moveRate === 'number') ? $.state.nd_moveRate
-    : 0;\n  try { p.setMoveSpeedRate(rate); } catch (e) { $.log('[NpcDirector] setMoveSpeedRate
+    = 1.0;\n// Touch: the stick moves the participant at this fraction of the normal
+    speed (0.1: about 0.25 m/s with Cluster's\n// 2.5 m/s), far faster than the NPC's
+    hand (2 cm/s), so someone who feels uncomfortable can back away from the hand,\n//
+    yet slow enough to read as stepping back rather than walking around. The hand
+    keeps its path (it does not follow).\nconst ND_TOUCH_MOVE_RATE = 0.1;\nfunction
+    nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn = 0; }\nfunction
+    nd_tick(dt) {\n  $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn || 0) - dt;\n 
+    if ($.state.nd_moveApplyIn > 0) return;\n  $.state.nd_moveApplyIn = ND_MOVE_REAPPLY_SEC;\n 
+    const p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return;\n  const rate =
+    (typeof $.state.nd_moveRate === 'number') ? $.state.nd_moveRate : 0;\n  try {
+    p.setMoveSpeedRate(rate); } catch (e) { $.log('[NpcDirector] setMoveSpeedRate
     failed: ' + e); }\n}\n"

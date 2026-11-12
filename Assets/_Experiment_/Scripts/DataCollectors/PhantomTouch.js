@@ -42,6 +42,11 @@ return {
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
+    // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
+    // approach start, its distance from the marker then / at the end of the retract, its retreat like retreatDist,
+    // and whether the participant was put back on the marker after the NPC had gone
+    touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre: CD['rootShiftPre'],
+    rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],
     lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],
     npcTimeout: CD['npcTimeout'],
     trace: CD['trace'],

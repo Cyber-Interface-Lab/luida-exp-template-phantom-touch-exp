@@ -31,11 +31,12 @@ const stateEnterActions = {
     ],
     4: [
         { type: "exec", action: (deltaTime) => {
-            nd_setMove(0);
+            nd_setMove(ND_TOUCH_MOVE_RATE);
             nd_arm();
             $.state.nd_touchStartTs = Date.now();
             SendDataToCollector('trialStartTs', $.state.nd_touchStartTs);
             SendDataToCollector('npcTimeout', false);
+            SendDataToCollector('touchMoveRate', ND_TOUCH_MOVE_RATE);
             $.worldItemReference('NPC').send('npc_trial_start', {
               block: CONDITION['block'], rep: String(trialInBlock()), fwd: new Vector3(0, 0, 1), reset: true,
               avatar: nd_avatarForBlock(CONDITION['block']), social: CONDITION['social'] === 'with' });
@@ -73,6 +74,11 @@ const stateExitActions = {
         { type: "exec", action: (deltaTime) => {
             nd_setMove(0);
             $.worldItemReference('NPC').send('npc_greeting_end', {});
+        } }
+    ],
+    4: [
+        { type: "exec", action: (deltaTime) => {
+            nd_setMove(0);
         } }
     ]
 };
@@ -117,6 +123,10 @@ function nd_useEyeBones() { return (typeof isTestMode !== 'undefined') ? !isTest
 // not affected. Re-applied every ND_MOVE_REAPPLY_SEC because LUIDA's player script sets the rate back
 // to 1 when the participant is (re)initialized.
 const ND_MOVE_REAPPLY_SEC = 1.0;
+// Touch: the stick moves the participant at this fraction of the normal speed (0.1: about 0.25 m/s with Cluster's
+// 2.5 m/s), far faster than the NPC's hand (2 cm/s), so someone who feels uncomfortable can back away from the hand,
+// yet slow enough to read as stepping back rather than walking around. The hand keeps its path (it does not follow).
+const ND_TOUCH_MOVE_RATE = 0.1;
 function nd_setMove(rate) { $.state.nd_moveRate = rate; $.state.nd_moveApplyIn = 0; }
 function nd_tick(dt) {
   $.state.nd_moveApplyIn = ($.state.nd_moveApplyIn || 0) - dt;

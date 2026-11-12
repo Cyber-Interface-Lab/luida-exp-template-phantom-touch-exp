@@ -290,9 +290,14 @@ MonoBehaviour:
     // step closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial
     of a block: shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
     1.0,   // touch start: wait this long after putting the participant back on the
-    marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights
-    differ by at least this (m):\n                           //   participant shorter
-    -> platform under the participant (HeightPlatform item);\n                          
+    marker\n  RETURN_MIN_DIST: 0.15,   // touch end, once the NPC has gone: put the
+    participant back on the marker (keeping their\n                           //  
+    facing) when their avatar is at least this far from it horizontally. The stick
+    moves\n                           //   them slowly during the touch (NpcDirector),
+    so they can back away from the hand, and\n                           //   it
+    is off again in the report that follows.\n  HEIGHT_MATCH_MIN: 0.05,  // match
+    heights only when the head-bone heights differ by at least this (m):\n                          
+    //   participant shorter -> platform under the participant (HeightPlatform item);\n                          
     //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
     3.0, // keep trying to read the participant's bones this long after npc_show\n 
     // Guided greeting: the participant follows the GreetingGuide item's instructions
@@ -353,16 +358,17 @@ MonoBehaviour:
     vnorm(a) { const l = vlen(a); return l > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1);
     }\nfunction vlerp(a, b, t) { return vadd(a, vscale(vsub(b, a), t)); }\nfunction
     vhoriz(a) { return vnorm(v3(a.x, 0, a.z)); }\nfunction vcopy(a) { return v3(a.x,
-    a.y, a.z); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n    a.w * b.x
-    + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y * b.w +
-    a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w * b.w
-    - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return new Quaternion(-q.x,
-    -q.y, -q.z, q.w); }\nfunction qrot(q, v) {\n  const tx = 2 * (q.y * v.z - q.z
-    * v.y);\n  const ty = 2 * (q.z * v.x - q.x * v.z);\n  const tz = 2 * (q.x * v.y
-    - q.y * v.x);\n  return v3(\n    v.x + q.w * tx + (q.y * tz - q.z * ty),\n   
-    v.y + q.w * ty + (q.z * tx - q.x * tz),\n    v.z + q.w * tz + (q.x * ty - q.y
-    * tx));\n}\nfunction qaxis(axis, deg) {\n  const a = vnorm(axis);\n  const h
-    = deg * Math.PI / 360;\n  const s = Math.sin(h);\n  return new Quaternion(a.x
+    a.y, a.z); }\nfunction hdist(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return
+    Math.sqrt(dx * dx + dz * dz); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n   
+    a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y
+    * b.w + a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w
+    * b.w - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return new
+    Quaternion(-q.x, -q.y, -q.z, q.w); }\nfunction qrot(q, v) {\n  const tx = 2 *
+    (q.y * v.z - q.z * v.y);\n  const ty = 2 * (q.z * v.x - q.x * v.z);\n  const
+    tz = 2 * (q.x * v.y - q.y * v.x);\n  return v3(\n    v.x + q.w * tx + (q.y *
+    tz - q.z * ty),\n    v.y + q.w * ty + (q.z * tx - q.x * tz),\n    v.z + q.w *
+    tz + (q.x * ty - q.y * tx));\n}\nfunction qaxis(axis, deg) {\n  const a = vnorm(axis);\n 
+    const h = deg * Math.PI / 360;\n  const s = Math.sin(h);\n  return new Quaternion(a.x
     * s, a.y * s, a.z * s, Math.cos(h));\n}\n// Minimal rotation taking direction
     a to direction b.\nfunction qfromTo(a, b) {\n  const an = vnorm(a), bn = vnorm(b);\n 
     const d = Math.max(-1, Math.min(1, vdot(an, bn)));\n  if (d > 0.99999) return
@@ -674,36 +680,44 @@ MonoBehaviour:
     = false;\n  $.state.npc_trace = [];\n  traceBuf = [];\n  $.state.npc_trialStartTs
     = Date.now();\n  $.log(\"[NPC] trial start \" + JSON.stringify($.state.npc_trial
     || {}) + \" social=\" + $.state.npc_social);\n}\n\nlet traceBuf = [];\nlet sampleTimer
-    = 0;\nlet baseSamples = [];\n\n// Ready palm point on the shoulder->face line
-    (local). T = face target (local).\nfunction readyContact(rest, T) {\n  return
-    vadd(rest.sR, vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));\n}\n\nfunction beginApproach(head,
-    rest, ip) {\n  const T = toLocal(facePointWorld(head), ip);\n  const H0 = readyContact(rest,
-    T);  // local palm point; the hand is already here after the READY phase\n  const
-    full = vlen(vsub(T, H0));\n  const L = Math.max(0.02, full - NPC_CFG.STOP_MARGIN);\n 
-    $.state.npc_H0 = H0;\n  $.state.npc_T = T;\n  $.state.npc_L = L;\n  $.state.npc_dir
-    = vnorm(vsub(T, H0));\n  const frame = reachHandFrame($.state.npc_dir);\n  $.state.npc_frame
-    = frame;    // hand orientation is kept fixed during the approach\n  const Wend
-    = vsub(vsub(T, vscale($.state.npc_dir, NPC_CFG.STOP_MARGIN)), palmOffset(frame));\n 
-    $.state.npc_reachable = vlen(vsub(Wend, rest.sR)) <= (rest.L1 + rest.L2);\n 
-    $.state.npc_phase = \"approach\";\n  $.state.npc_t = 0;\n  $.state.npc_reachStartTs
-    = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n  $.state.npc_headRot0
-    = head.rot.x + \",\" + head.rot.y + \",\" + head.rot.z + \",\" + head.rot.w;\n 
-    $.state.npc_contactTs = 0;\n  $.state.npc_contactDist = -1;\n  $.state.npc_contactT
-    = 0;\n  $.state.npc_strokeEndTs = 0;\n  $.state.npc_base = null;\n  $.state.npc_away
-    = 0; $.state.npc_latMin = 0; $.state.npc_latMax = 0;\n  $.state.npc_onsetDist
-    = -1;\n  $.state.npc_axisW = vhoriz(qrot(ip.rot, $.state.npc_dir));\n  const
-    H0w = toWorld(H0, ip), Tw = toWorld(T, ip);\n  $.state.npc_H0w = f3(H0w.x) +
-    \",\" + f3(H0w.y) + \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\" +
-    f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n  $.log(\"[NPC]
+    = 0;\nlet baseSamples = [];\nlet baseRootSamples = [];\n\n// Ready palm point
+    on the shoulder->face line (local). T = face target (local).\nfunction readyContact(rest,
+    T) {\n  return vadd(rest.sR, vscale(vsub(T, rest.sR), NPC_CFG.READY_FRAC));\n}\n\nfunction
+    beginApproach(head, rest, ip) {\n  const T = toLocal(facePointWorld(head), ip);\n 
+    const H0 = readyContact(rest, T);  // local palm point; the hand is already here
+    after the READY phase\n  const full = vlen(vsub(T, H0));\n  const L = Math.max(0.02,
+    full - NPC_CFG.STOP_MARGIN);\n  $.state.npc_H0 = H0;\n  $.state.npc_T = T;\n 
+    $.state.npc_L = L;\n  $.state.npc_dir = vnorm(vsub(T, H0));\n  const frame =
+    reachHandFrame($.state.npc_dir);\n  $.state.npc_frame = frame;    // hand orientation
+    is kept fixed during the approach\n  const Wend = vsub(vsub(T, vscale($.state.npc_dir,
+    NPC_CFG.STOP_MARGIN)), palmOffset(frame));\n  $.state.npc_reachable = vlen(vsub(Wend,
+    rest.sR)) <= (rest.L1 + rest.L2);\n  $.state.npc_phase = \"approach\";\n  $.state.npc_t
+    = 0;\n  $.state.npc_reachStartTs = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n 
+    $.state.npc_headRot0 = head.rot.x + \",\" + head.rot.y + \",\" + head.rot.z +
+    \",\" + head.rot.w;\n  $.state.npc_contactTs = 0;\n  $.state.npc_contactDist
+    = -1;\n  $.state.npc_contactT = 0;\n  $.state.npc_strokeEndTs = 0;\n  $.state.npc_base
+    = null;\n  $.state.npc_away = 0; $.state.npc_latMin = 0; $.state.npc_latMax =
+    0;\n  $.state.npc_onsetDist = -1;\n  // the participant's avatar position: moved
+    by the stick (NpcDirector's slow touch rate), not by leaning\n  const p = participant();\n 
+    const root = p ? p.getPosition() : null;\n  const o = $.state.npc_origin;\n 
+    $.state.npc_rootStart = root ? f3(root.x) + \",\" + f3(root.y) + \",\" + f3(root.z)
+    : \"\";\n  $.state.npc_rootShiftPre = (root && o) ? hdist(root, o) : -1;   //
+    moved off the marker before the reach began\n  $.state.npc_rootBase = null; $.state.npc_rootAway
+    = 0;\n  baseRootSamples = [];\n  $.state.npc_axisW = vhoriz(qrot(ip.rot, $.state.npc_dir));\n 
+    const H0w = toWorld(H0, ip), Tw = toWorld(T, ip);\n  $.state.npc_H0w = f3(H0w.x)
+    + \",\" + f3(H0w.y) + \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\"
+    + f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n  $.log(\"[NPC]
     approach: path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED) +
     \" s, reachable=\" + $.state.npc_reachable);\n}\n\nfunction finishTrial() {\n 
     const traces = ($.state.npc_trace || []).concat(traceBuf);\n  traceBuf = [];\n 
-    const tr = $.state.npc_trial || {};\n  const data = {\n    social: $.state.npc_social
-    ? \"with\" : \"without\",\n    npcBlock: tr.block !== undefined ? String(tr.block)
-    : \"\",\n    npcRep: tr.rep !== undefined ? String(tr.rep) : \"\",\n    npcAvatar:
-    tr.avatar !== undefined ? String(tr.avatar) : \"\",\n    trialStartTs: $.state.npc_trialStartTs
-    || 0,\n    reachStartTs: $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs
-    || 0,\n    strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
+    const tr = $.state.npc_trial || {};\n  const pEnd = participant();\n  const rootEnd
+    = pEnd ? pEnd.getPosition() : null;\n  const o = $.state.npc_origin;\n  const
+    data = {\n    social: $.state.npc_social ? \"with\" : \"without\",\n    npcBlock:
+    tr.block !== undefined ? String(tr.block) : \"\",\n    npcRep: tr.rep !== undefined
+    ? String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !== undefined ? String(tr.avatar)
+    : \"\",\n    trialStartTs: $.state.npc_trialStartTs || 0,\n    reachStartTs:
+    $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs || 0,\n   
+    strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
     strokeBack: NPC_CFG.STROKE_BACK,\n    strokeCycles: NPC_CFG.STROKE_CYCLES,\n   
     strokeReturnSpeed: NPC_CFG.STROKE_RETURN_SPEED,\n    strokeRampSec: NPC_CFG.STROKE_RAMP_SEC,\n   
     heightPlatform: $.state.npc_platformH || 0,\n    npcLift: $.state.npc_lift ||
@@ -715,13 +729,28 @@ MonoBehaviour:
     \"\",\n    headRot0: $.state.npc_headRot0 || \"\",\n    handStart: $.state.npc_H0w
     || \"\",   // fingertip world position at approach start\n    faceTarget: $.state.npc_Tw
     || \"\",   // face target world position (fixed at approach start)\n    traceFormat:
-    \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d\",\n    retreatOnsetDist: $.state.npc_onsetDist,\n   
-    retreatDist: $.state.npc_away || 0,\n    oscAmp: ($.state.npc_latMax || 0) -
-    ($.state.npc_latMin || 0),\n    lookedAtNpc: !!$.state.npc_lookedAt,\n    lookTs:
+    \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz\",   // r = avatar position (moved by
+    the stick)\n    retreatOnsetDist: $.state.npc_onsetDist,\n    retreatDist: $.state.npc_away
+    || 0,\n    oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin || 0),\n   
+    rootStart: $.state.npc_rootStart || \"\",              // avatar position at
+    approach start\n    rootShiftPre: (typeof $.state.npc_rootShiftPre === \"number\")
+    ? $.state.npc_rootShiftPre : -1,  // off the marker then (m)\n    rootRetreat:
+    $.state.npc_rootAway || 0,              // like retreatDist, for the avatar position\n   
+    rootShiftEnd: (rootEnd && o) ? hdist(rootEnd, o) : -1, // off the marker at the
+    end of the retract (m)\n    lookedAtNpc: !!$.state.npc_lookedAt,\n    lookTs:
     $.state.npc_lookTs || 0,\n    greeted: !!$.state.npc_greeted,\n    trace: traces.join(\";\"),\n 
     };\n  pushData(data);\n  $.state.npc_trace = [];\n  $.log(\"[NPC] trial done:
     samples=\" + traces.length + \" contactDist=\" + f3(data.contactDist) + \" retreat=\"
-    + f3(data.retreatDist));\n  leave(true);\n}\n\n// Step back to the conversation
+    + f3(data.retreatDist) +\n        \" rootRetreat=\" + f3(data.rootRetreat) +
+    \" rootShiftPre=\" + f3(data.rootShiftPre) + \" rootShiftEnd=\" + f3(data.rootShiftEnd));\n 
+    leave(true);\n}\n\n// Touch end, once the NPC has gone: put the participant back
+    on the marker (on their platform, keeping their facing)\n// if they moved away
+    from it with the stick (RETURN_MIN_DIST).\nfunction returnParticipant() {\n 
+    const p = participant(), o = $.state.npc_origin;\n  const root = p ? p.getPosition()
+    : null;\n  if (!root || !o) return;\n  const dist = hdist(root, o);\n  const
+    back = dist >= NPC_CFG.RETURN_MIN_DIST && resetParticipant(false);\n  pushData({
+    returnedToMarker: back });\n  if (back) $.log(\"[NPC] participant put back on
+    the marker from \" + f3(dist) + \" m away\");\n}\n\n// Step back to the conversation
     spot, then disappear (tick); with signalDone, \"npc_done\" is sent once hidden.\nfunction
     leave(signalDone) {\n  $.state.npc_pendingStart = false;\n  $.state.npc_phase
     = \"leave\";\n  $.state.npc_t = 0;\n  $.state.npc_leaveSignal = !!signalDone;\n 
@@ -849,11 +878,12 @@ MonoBehaviour:
     of the way of the report panel and the\n  // questionnaires), then let the director
     move on.\n  if ($.state.npc_phase === \"leave\" && !$.state.npc_glide) {\n   
     $.state.npc_phase = \"idle\";\n    $.state.npc_t = 0;\n    setVisible(false);\n   
-    if ($.state.npc_leaveSignal) $.sendSignalCompat(\"this\", \"npc_done\");\n   
-    $.state.npc_leaveSignal = false;\n    $.log(\"[NPC] back at the conversation
-    spot; hidden\");\n    return;\n  }\n\n  if (!$.state.npc_visible) return;       
-    // nothing to animate while hidden\n\n  const p = participant();\n  const head
-    = p ? headOf(p) : null;\n  let ip = itemPose();\n  const social = !!$.state.npc_social;\n 
+    returnParticipant();\n    if ($.state.npc_leaveSignal) $.sendSignalCompat(\"this\",
+    \"npc_done\");\n    $.state.npc_leaveSignal = false;\n    $.log(\"[NPC] back
+    at the conversation spot; hidden\");\n    return;\n  }\n\n  if (!$.state.npc_visible)
+    return;        // nothing to animate while hidden\n\n  const p = participant();\n 
+    const head = p ? headOf(p) : null;\n  const root = p ? p.getPosition() : null;  
+    // avatar position, for the trace\n  let ip = itemPose();\n  const social = !!$.state.npc_social;\n 
     const phase = $.state.npc_phase || \"idle\";\n  const greeting = $.state.npc_mode
     === \"greeting\";\n  if (greeting && social && head && !$.state.npc_glide) ip
     = turnBodyToward(head, restGeom(), ip, dt);\n  let t = ($.state.npc_t || 0) +
@@ -912,7 +942,7 @@ MonoBehaviour:
     s));\n    const arm = reachArm(rest, Ft, frame);\n    armR = armRots(rest, \"R\",
     arm);\n    const Fw = toWorld(contactOf(rest, arm), ip);\n    let d = -1;\n   
     if (head) {\n      d = vlen(vsub(Fw, facePointWorld(head)));\n      sampleTrace(dt,
-    t, head, Fw, d);\n    }\n    const reachedEnd = s >= L;\n    const earlyContact
+    t, head, Fw, d, root);\n    }\n    const reachedEnd = s >= L;\n    const earlyContact
     = d >= 0 && d <= NPC_CFG.STOP_MARGIN;\n    if (reachedEnd || earlyContact) {\n     
     $.state.npc_contactTs = Date.now();\n      $.state.npc_contactDist = d;\n     
     $.state.npc_contactT = t;\n      $.state.npc_Fc = Ft;\n      $.state.npc_strokeSec
@@ -931,51 +961,59 @@ MonoBehaviour:
     arm = reachArm(rest, Fs, $.state.npc_frame || reachHandFrame($.state.npc_dir));\n   
     armR = armRots(rest, \"R\", arm);\n    if (head) {\n      const Fw = toWorld(contactOf(rest,
     arm), ip);\n      sampleTrace(dt, ($.state.npc_contactT || 0) + t, head, Fw,
-    vlen(vsub(Fw, facePointWorld(head))));\n    }\n    if (social) nodDeg = Math.max(nodDeg,
-    10 * Math.sin(Math.PI * clamp01(t / 1.0)));\n    if (t >= dur) {\n      $.state.npc_strokeEndTs
-    = Date.now();\n      $.state.npc_Fhold = Fs;              // rest where the last
-    stroke ended\n      $.state.npc_phase = \"hold\";\n      $.state.npc_t = 0;\n   
-    }\n  } else if (phase === \"hold\") {\n    const Fc = $.state.npc_Fhold || $.state.npc_Fc
-    || $.state.npc_T;\n    const arm = reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));\n   
-    armR = armRots(rest, \"R\", arm);\n    const sinceContact = ($.state.npc_strokeSec
-    || 0) + t;\n    if (head) {\n      const Fw = toWorld(contactOf(rest, arm), ip);\n     
-    sampleTrace(dt, ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw,
-    facePointWorld(head))));\n    }\n    if (social) nodDeg = Math.max(nodDeg, 10
-    * Math.sin(Math.PI * clamp01(sinceContact / 1.0)));\n    if (t >= NPC_CFG.HOLD_SEC)
-    {\n      $.state.npc_phase = \"retract\";\n      $.state.npc_t = 0;\n      //
-    duration from the distance back toward the ready point at RETRACT_SPEED (+0.8
-    s to settle)\n      $.state.npc_retractSec = vlen(vsub(Fc, $.state.npc_H0)) /
-    NPC_CFG.RETRACT_SPEED + 0.8;\n    }\n  } else if (phase === \"retract\") {\n   
-    // blend the joint rotations from the hold pose back to the relaxed arm\n   
-    const Fc = $.state.npc_Fhold || $.state.npc_Fc || $.state.npc_T;\n    const holdArm
-    = armRots(rest, \"R\", reachArm(rest, Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir)));\n   
-    const u = clamp01(t / Math.max(0.5, $.state.npc_retractSec || 2.0));\n    armR
-    = slerpArm(holdArm, idleR, easeInOut(u));\n    if (u >= 1) finishTrial();\n 
-    }\n\n  // nod composes with gaze\n  if (nodDeg !== 0) {\n    const qNod = qaxis(R,
-    nodDeg);\n    Q[HumanoidBone.Head] = qmul(Q[HumanoidBone.Head] || IDENT, qNod);\n 
-    }\n\n  Q[HumanoidBone.RightUpperArm] = armR.u;\n  Q[HumanoidBone.RightLowerArm]
-    = armR.l;\n  Q[HumanoidBone.RightHand] = armR.h;\n  for (const b of R_FINGER_BONES)
-    if (nodeByBone[b]) Q[b] = armR.h;\n  Q[HumanoidBone.LeftUpperArm] = armL.u;\n 
-    Q[HumanoidBone.LeftLowerArm] = armL.l;\n  Q[HumanoidBone.LeftHand] = armL.h;\n\n 
-    applyPose(Q);\n}\n\n// 10 Hz head trace plus the in-world retreat estimate.\nfunction
-    sampleTrace(dt, t, head, Fw, d) {\n  sampleTimer += dt;\n  if (sampleTimer <
-    NPC_CFG.SAMPLE_INTERVAL) return;\n  sampleTimer = 0;\n  const h = head.pos, r
-    = head.rot;\n  const total = ($.state.npc_trace || []).length + traceBuf.length;\n 
-    if (total < NPC_CFG.MAX_SAMPLES) {\n    traceBuf.push([t.toFixed(1), f3(h.x),
-    f3(h.y), f3(h.z), f3(r.x), f3(r.y), f3(r.z), f3(r.w), f3(d)].join(\",\"));\n 
+    vlen(vsub(Fw, facePointWorld(head))), root);\n    }\n    if (social) nodDeg =
+    Math.max(nodDeg, 10 * Math.sin(Math.PI * clamp01(t / 1.0)));\n    if (t >= dur)
+    {\n      $.state.npc_strokeEndTs = Date.now();\n      $.state.npc_Fhold = Fs;             
+    // rest where the last stroke ended\n      $.state.npc_phase = \"hold\";\n     
+    $.state.npc_t = 0;\n    }\n  } else if (phase === \"hold\") {\n    const Fc =
+    $.state.npc_Fhold || $.state.npc_Fc || $.state.npc_T;\n    const arm = reachArm(rest,
+    Fc, $.state.npc_frame || reachHandFrame($.state.npc_dir));\n    armR = armRots(rest,
+    \"R\", arm);\n    const sinceContact = ($.state.npc_strokeSec || 0) + t;\n   
+    if (head) {\n      const Fw = toWorld(contactOf(rest, arm), ip);\n      sampleTrace(dt,
+    ($.state.npc_contactT || 0) + sinceContact, head, Fw, vlen(vsub(Fw, facePointWorld(head))),
+    root);\n    }\n    if (social) nodDeg = Math.max(nodDeg, 10 * Math.sin(Math.PI
+    * clamp01(sinceContact / 1.0)));\n    if (t >= NPC_CFG.HOLD_SEC) {\n      $.state.npc_phase
+    = \"retract\";\n      $.state.npc_t = 0;\n      // duration from the distance
+    back toward the ready point at RETRACT_SPEED (+0.8 s to settle)\n      $.state.npc_retractSec
+    = vlen(vsub(Fc, $.state.npc_H0)) / NPC_CFG.RETRACT_SPEED + 0.8;\n    }\n  } else
+    if (phase === \"retract\") {\n    // blend the joint rotations from the hold
+    pose back to the relaxed arm\n    const Fc = $.state.npc_Fhold || $.state.npc_Fc
+    || $.state.npc_T;\n    const holdArm = armRots(rest, \"R\", reachArm(rest, Fc,
+    $.state.npc_frame || reachHandFrame($.state.npc_dir)));\n    const u = clamp01(t
+    / Math.max(0.5, $.state.npc_retractSec || 2.0));\n    armR = slerpArm(holdArm,
+    idleR, easeInOut(u));\n    if (u >= 1) finishTrial();\n  }\n\n  // nod composes
+    with gaze\n  if (nodDeg !== 0) {\n    const qNod = qaxis(R, nodDeg);\n    Q[HumanoidBone.Head]
+    = qmul(Q[HumanoidBone.Head] || IDENT, qNod);\n  }\n\n  Q[HumanoidBone.RightUpperArm]
+    = armR.u;\n  Q[HumanoidBone.RightLowerArm] = armR.l;\n  Q[HumanoidBone.RightHand]
+    = armR.h;\n  for (const b of R_FINGER_BONES) if (nodeByBone[b]) Q[b] = armR.h;\n 
+    Q[HumanoidBone.LeftUpperArm] = armL.u;\n  Q[HumanoidBone.LeftLowerArm] = armL.l;\n 
+    Q[HumanoidBone.LeftHand] = armL.h;\n\n  applyPose(Q);\n}\n\n// 10 Hz head (and
+    avatar position) trace plus the in-world retreat estimate. root: the avatar position
+    (or null).\nfunction sampleTrace(dt, t, head, Fw, d, root) {\n  sampleTimer +=
+    dt;\n  if (sampleTimer < NPC_CFG.SAMPLE_INTERVAL) return;\n  sampleTimer = 0;\n 
+    const h = head.pos, r = head.rot;\n  const total = ($.state.npc_trace || []).length
+    + traceBuf.length;\n  if (total < NPC_CFG.MAX_SAMPLES) {\n    traceBuf.push([t.toFixed(1),
+    f3(h.x), f3(h.y), f3(h.z), f3(r.x), f3(r.y), f3(r.z), f3(r.w), f3(d),\n                  
+    root ? f3(root.x) : \"\", root ? f3(root.y) : \"\", root ? f3(root.z) : \"\"].join(\",\"));\n 
     }\n  if (traceBuf.length >= 10) {\n    $.state.npc_trace = ($.state.npc_trace
     || []).concat(traceBuf);\n    traceBuf = [];\n  }\n  // retreat / oscillation
     estimate (world frame)\n  if (!$.state.npc_base) {\n    baseSamples.push(vcopy(h));\n   
-    if (t >= 1.0) {\n      let sum = v3(0, 0, 0);\n      for (const b of baseSamples)
-    sum = vadd(sum, b);\n      $.state.npc_base = vscale(sum, 1 / Math.max(1, baseSamples.length));\n   
-    }\n    return;\n  }\n  // axis: horizontal approach direction (hand -> face),
-    so moving away from the hand is positive along it\n  const axis = $.state.npc_axisW
-    || v3(0, 0, 1);\n  const delta = vsub(h, $.state.npc_base);\n  const away = vdot(delta,
-    axis);\n  const lateral = vdot(delta, vcross(axis, UP));\n  if (away > ($.state.npc_away
-    || 0)) $.state.npc_away = away;\n  if (lateral < ($.state.npc_latMin || 0)) $.state.npc_latMin
-    = lateral;\n  if (lateral > ($.state.npc_latMax || 0)) $.state.npc_latMax = lateral;\n 
-    if ($.state.npc_onsetDist < 0 && away > NPC_CFG.RETREAT_THRESHOLD) $.state.npc_onsetDist
-    = d;\n}\n"
+    if (root) baseRootSamples.push(vcopy(root));\n    if (t >= 1.0) {\n      let
+    sum = v3(0, 0, 0);\n      for (const b of baseSamples) sum = vadd(sum, b);\n     
+    $.state.npc_base = vscale(sum, 1 / Math.max(1, baseSamples.length));\n      if
+    (baseRootSamples.length > 0) {   // same baseline window for the avatar position\n       
+    let rs = v3(0, 0, 0);\n        for (const b of baseRootSamples) rs = vadd(rs,
+    b);\n        $.state.npc_rootBase = vscale(rs, 1 / baseRootSamples.length);\n     
+    }\n    }\n    return;\n  }\n  // axis: horizontal approach direction (hand ->
+    face), so moving away from the hand is positive along it\n  const axis = $.state.npc_axisW
+    || v3(0, 0, 1);\n  if (root && $.state.npc_rootBase) {\n    const rootAway =
+    vdot(vsub(root, $.state.npc_rootBase), axis);\n    if (rootAway > ($.state.npc_rootAway
+    || 0)) $.state.npc_rootAway = rootAway;\n  }\n  const delta = vsub(h, $.state.npc_base);\n 
+    const away = vdot(delta, axis);\n  const lateral = vdot(delta, vcross(axis, UP));\n 
+    if (away > ($.state.npc_away || 0)) $.state.npc_away = away;\n  if (lateral <
+    ($.state.npc_latMin || 0)) $.state.npc_latMin = lateral;\n  if (lateral > ($.state.npc_latMax
+    || 0)) $.state.npc_latMax = lateral;\n  if ($.state.npc_onsetDist < 0 && away
+    > NPC_CFG.RETREAT_THRESHOLD) $.state.npc_onsetDist = d;\n}\n"
 --- !u!114 &1253492613041733097
 MonoBehaviour:
   m_ObjectHideFlags: 0
