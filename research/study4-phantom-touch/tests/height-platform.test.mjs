@@ -17,9 +17,18 @@ test("the blue mark is shown on the raised platform's top and hidden with it", (
   item.receive("platform_set", { h: 0.08 }, null);
   assert.equal(cube.enabled, true);
   assert.equal(mark.enabled, true);
-  assert.ok(Math.abs(cube.pos.y - (0.08 - 0.5)) < 1e-9, "cube top at h");
+  assert.ok(Math.abs(cube.pos.y - (0.08 - 2.5)) < 1e-9, "cube top at h (5 m tall cube)");
   assert.ok(Math.abs(mark.pos.y - 0.09) < 1e-9, "mark just above the top");
   item.receive("platform_set", { h: 0 }, null);
   assert.equal(cube.enabled, false);
   assert.equal(mark.enabled, false);
+});
+
+test("a very small avatar's height is read (it used to count as unreadable below 0.5 m and got no platform)", () => {
+  const NPC_JS = path.join(ROOT, "Assets/_Experiment_/Scripts/PhantomTouch/NpcController.js");
+  const p = { exists: () => true, getPosition: () => ({ x: 0, y: 0, z: -2 }), getHumanoidBonePosition: (b) => (b === 10 ? { x: 0, y: 0.45, z: -2 } : null) };
+  const item = loadItem([NPC_JS], { world: { global: {}, players: [p] }, groupState: { participants: [p] }, name: "NPC", globals: { HumanoidBone: { Head: 10 } } });
+  assert.equal(item.ctx.participantHeight(p), 0.45);
+  p.getHumanoidBonePosition = () => null;
+  assert.equal(item.ctx.participantHeight(p), null, "bones not readable");
 });

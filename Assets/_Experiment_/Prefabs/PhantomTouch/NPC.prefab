@@ -354,7 +354,7 @@ MonoBehaviour:
     Bool \"joy\"\n  SURPRISED_KEY: \"npc_surprised\", // item signal -> gimmick ->
     Animator Trigger \"surprised\" (1 s clip)\n                           // (Joy:
     Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)\n 
-    RISER_NODE: \"Riser\",     // 1 m cube under the NPC's feet (top at the feet);
+    RISER_NODE: \"Riser\",     // 5 m cube under the NPC's feet (top at the feet);
     shown while the NPC is lifted\n  PLATFORM_ITEM: \"HeightPlatform\", // world
     item reference: the platform under the participant's standing spot\n};\n\nconst
     IDENT = new Quaternion(0, 0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n// Right-hand
@@ -603,34 +603,35 @@ MonoBehaviour:
     failed: \" + e); }\n}\nfunction applyRiser() {\n  const r = $.subNode(NPC_CFG.RISER_NODE);\n 
     if (!r) return;\n  try { r.setEnabled(!!$.state.npc_visible && ($.state.npc_lift
     || 0) > 0); } catch (e) { $.log(\"[NPC] riser: \" + e); }\n}\n// Head-bone height
-    above the feet, or null while the avatar's bones are not readable.\nfunction
-    participantHeight(p) {\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n 
-    const root = p.getPosition();\n  if (!head || !root) return null;\n  const h
-    = head.y - root.y;\n  return h > 0.5 ? h : null;\n}\nfunction beginHeightMatch()
-    {\n  $.state.npc_heightPending = true;\n  $.state.npc_heightDeadline = nowSec()
-    + NPC_CFG.HEIGHT_MEASURE_SEC;\n  tryHeightMatch();\n}\nfunction tryHeightMatch()
-    {\n  if (!$.state.npc_heightPending) return;\n  const rest = restGeom();\n  const
-    p = participant();\n  const pHeadH = (rest && p) ? participantHeight(p) : null;\n 
-    if (pHeadH === null) {\n    if (nowSec() < ($.state.npc_heightDeadline || 0))
-    return;\n    $.state.npc_heightPending = false;\n    $.log(\"[NPC] height match
-    skipped: participant bones not readable\");\n    return;\n  }\n  $.state.npc_heightPending
-    = false;\n  const diff = rest.head.y - pHeadH;          // > 0: the participant
-    is shorter\n  const platformH = diff >= NPC_CFG.HEIGHT_MATCH_MIN ? diff : 0;\n 
-    const lift = -diff >= NPC_CFG.HEIGHT_MATCH_MIN ? -diff : 0;\n  $.state.npc_platformH
-    = platformH;\n  $.state.npc_lift = lift;\n  sendPlatform(platformH);\n  applyRiser();\n 
-    if (platformH > 0) resetParticipant(false);   // lift the participant onto the
-    platform (keeps their facing)\n  if ($.state.npc_visible) moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
-    true);\n  pushData({ participantHeadH: pHeadH, npcHeadH: rest.head.y, heightPlatform:
-    platformH, npcLift: lift });\n  $.log(\"[NPC] height match: participant head
-    \" + f3(pHeadH) + \" m, NPC head \" + f3(rest.head.y) +\n        \" m -> platform
-    \" + f3(platformH) + \", riser \" + f3(lift));\n}\n// Put the participant on
-    the marker (on their platform); withRotation also turns them to face along it.\nfunction
-    resetParticipant(withRotation) {\n  const p = participant();\n  const o = $.state.npc_origin;\n 
-    if (!p || !o) return false;\n  try {\n    p.setPosition(v3(o.x, o.y + ($.state.npc_platformH
-    || 0), o.z));\n    if (withRotation && $.state.npc_fwd) p.setRotation(qaxis(UP,
-    Math.atan2($.state.npc_fwd.x, $.state.npc_fwd.z) * 180 / Math.PI));\n    return
-    true;\n  } catch (e) { $.log(\"[NPC] resetParticipant failed: \" + e); return
-    false; }\n}\n\n// ----------------------------------------------------------------
+    above the feet, or null while the avatar's bones are not readable (very small
+    avatars count: until\n// 2026-11-12 anything up to 0.5 m was taken for unreadable
+    bones, so they got no height platform).\nfunction participantHeight(p) {\n  const
+    head = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const root = p.getPosition();\n 
+    if (!head || !root) return null;\n  const h = head.y - root.y;\n  return h >
+    0.05 ? h : null;\n}\nfunction beginHeightMatch() {\n  $.state.npc_heightPending
+    = true;\n  $.state.npc_heightDeadline = nowSec() + NPC_CFG.HEIGHT_MEASURE_SEC;\n 
+    tryHeightMatch();\n}\nfunction tryHeightMatch() {\n  if (!$.state.npc_heightPending)
+    return;\n  const rest = restGeom();\n  const p = participant();\n  const pHeadH
+    = (rest && p) ? participantHeight(p) : null;\n  if (pHeadH === null) {\n    if
+    (nowSec() < ($.state.npc_heightDeadline || 0)) return;\n    $.state.npc_heightPending
+    = false;\n    $.log(\"[NPC] height match skipped: participant bones not readable\");\n   
+    return;\n  }\n  $.state.npc_heightPending = false;\n  const diff = rest.head.y
+    - pHeadH;          // > 0: the participant is shorter\n  const platformH = diff
+    >= NPC_CFG.HEIGHT_MATCH_MIN ? diff : 0;\n  const lift = -diff >= NPC_CFG.HEIGHT_MATCH_MIN
+    ? -diff : 0;\n  $.state.npc_platformH = platformH;\n  $.state.npc_lift = lift;\n 
+    sendPlatform(platformH);\n  applyRiser();\n  if (platformH > 0) resetParticipant(false);  
+    // lift the participant onto the platform (keeps their facing)\n  if ($.state.npc_visible)
+    moveToStand(NPC_CFG.IDLE_EXTRA_DIST, true);\n  pushData({ participantHeadH: pHeadH,
+    npcHeadH: rest.head.y, heightPlatform: platformH, npcLift: lift });\n  $.log(\"[NPC]
+    height match: participant head \" + f3(pHeadH) + \" m, NPC head \" + f3(rest.head.y)
+    +\n        \" m -> platform \" + f3(platformH) + \", riser \" + f3(lift));\n}\n//
+    Put the participant on the marker (on their platform); withRotation also turns
+    them to face along it.\nfunction resetParticipant(withRotation) {\n  const p
+    = participant();\n  const o = $.state.npc_origin;\n  if (!p || !o) return false;\n 
+    try {\n    p.setPosition(v3(o.x, o.y + ($.state.npc_platformH || 0), o.z));\n   
+    if (withRotation && $.state.npc_fwd) p.setRotation(qaxis(UP, Math.atan2($.state.npc_fwd.x,
+    $.state.npc_fwd.z) * 180 / Math.PI));\n    return true;\n  } catch (e) { $.log(\"[NPC]
+    resetParticipant failed: \" + e); return false; }\n}\n\n// ----------------------------------------------------------------
     greeting period\nfunction beginGreeting() {\n  $.state.npc_mode = \"greeting\";\n 
     $.state.npc_greetStartTs = Date.now();\n  $.state.npc_gGaze = 0; $.state.npc_gHand
     = 0; $.state.npc_gWaves = 0; $.state.npc_gNods = 0;\n  $.state.npc_gReact = 0;

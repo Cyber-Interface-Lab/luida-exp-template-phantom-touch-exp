@@ -991,10 +991,11 @@ return {
 
     // Height matching (NpcController.js, npc_show): head-bone heights are compared per block. A shorter
     // participant stands on the HeightPlatform item's "Cube" (raised by the message "platform_set" { h },
-    // Study4Platform.js); a shorter NPC stands on its "Riser" sub-node. Both cubes are 1 m tall with the top at
+    // Study4Platform.js); a shorter NPC stands on its "Riser" sub-node. Both cubes are 5 m tall (1 m until 2026-11-12,
+    // which left a very small participant's platform or a very large participant's riser floating) with the top at
     // the feet when not raised (fully underground), so only the raised part ever shows.
-    static readonly Vector3 PlatformSize = new Vector3(1.6f, 1f, 1.6f);
-    static readonly Vector3 RiserSize = new Vector3(0.8f, 1f, 0.8f);
+    static readonly Vector3 PlatformSize = new Vector3(1.6f, 5f, 1.6f);   // y = CUBE_HEIGHT in Study4Platform.js
+    static readonly Vector3 RiserSize = new Vector3(0.8f, 5f, 0.8f);
 
     static void EnsureHeightObjects(Layout l, Materials m)
     {
@@ -1218,7 +1219,8 @@ return {
     const float RoomCell = 2.5f, RoomKitHeight = 4f, RoomKitMoldingHeight = 0.368f;
     const int RoomCellsX = 2, RoomCellsZ = 2;        // 5 x 5 m (4.7 m between the wall faces)
     const float RoomFrontDist = 3.0f;                // standing spot -> outer edge of the front cells (the wall face is 0.1 m nearer)
-    const float RoomHeight = 2.9f;                   // the "above" instruction slot's text ends at ~2.66 m
+    const float RoomHeight = 5.0f;                   // room for very large avatars (2.9 m until 2026-11-12; the "above"
+                                                     // instruction slot's text ends at ~2.66 m)
     const float RoomBaseboardHeight = 0.07f, RoomFloorLift = 0.005f, RoomFloorTile = 0.9f;   // m of floor per texture repeat
     const float RoomLit = 0.3f, RoomGlow = 0.8f;
     static readonly Color RoomWallTint = new Color(1f, 0.96f, 0.89f);   // warms the kit's beige (also the ceiling's white)

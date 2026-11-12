@@ -124,7 +124,7 @@ const NPC_CFG = {
   JOY_KEY: "npc_joy",      // item Bool state -> Set Animator Value gimmick on the face mesh -> Animator Bool "joy"
   SURPRISED_KEY: "npc_surprised", // item signal -> gimmick -> Animator Trigger "surprised" (1 s clip)
                            // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)
-  RISER_NODE: "Riser",     // 1 m cube under the NPC's feet (top at the feet); shown while the NPC is lifted
+  RISER_NODE: "Riser",     // 5 m cube under the NPC's feet (top at the feet); shown while the NPC is lifted
   PLATFORM_ITEM: "HeightPlatform", // world item reference: the platform under the participant's standing spot
 };
 
@@ -536,13 +536,14 @@ function applyRiser() {
   if (!r) return;
   try { r.setEnabled(!!$.state.npc_visible && ($.state.npc_lift || 0) > 0); } catch (e) { $.log("[NPC] riser: " + e); }
 }
-// Head-bone height above the feet, or null while the avatar's bones are not readable.
+// Head-bone height above the feet, or null while the avatar's bones are not readable (very small avatars count: until
+// 2026-11-12 anything up to 0.5 m was taken for unreadable bones, so they got no height platform).
 function participantHeight(p) {
   const head = p.getHumanoidBonePosition(HumanoidBone.Head);
   const root = p.getPosition();
   if (!head || !root) return null;
   const h = head.y - root.y;
-  return h > 0.5 ? h : null;
+  return h > 0.05 ? h : null;
 }
 function beginHeightMatch() {
   $.state.npc_heightPending = true;

@@ -1,11 +1,11 @@
 // ===== Study 4: height platform under the participant's standing spot =====
 // The NPC (NpcController.js) compares head-bone heights at the start of each block's greeting and, when the
 // participant is the shorter one, sends "platform_set" { h } so that the participant stands h metres higher.
-// Sub-node "Cube": 1 m tall; its top is at the item origin (floor) when h = 0, i.e. fully underground, so it
-// is hidden then and shown only while raised. Sub-node "TopMarker": the blue standing mark (like the scene's
+// Sub-node "Cube": 5 m tall (so that it reaches the floor for any platform a very small avatar needs); its top is at
+// the item origin (floor) when h = 0, i.e. fully underground, so it is hidden then and shown only while raised. Sub-node "TopMarker": the blue standing mark (like the scene's
 // FloorMarker, which the raised cube covers), shown on the cube's top while raised.
 
-const CUBE_HEIGHT = 1.0;
+const CUBE_HEIGHT = 5.0;   // = PlatformSize.y in Study4SceneBuilder.cs
 
 $.onStart(() => {
   apply(0);
