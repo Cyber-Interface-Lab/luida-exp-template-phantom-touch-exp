@@ -69,6 +69,8 @@ public static class Study4SceneBuilder
     const string NpcControllerJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/NpcController.js";
     const string ButtonJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Button.js";
     const string PlatformJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4Platform.js";
+    const string StartBlockerJsPath = "Assets/_Experiment_/Scripts/PhantomTouch/Study4StartBlocker.js";
+    const string StartBlockerName = "StartBlocker";
     const string HeightPlatformName = "HeightPlatform";   // item under the standing spot (NpcController raises its Cube)
 
     // ------------------------------------------------------------------ state ids
@@ -626,7 +628,7 @@ return {
         return l;
     }
 
-    class Materials { public Material btn, btnOn, marker, panel, riser, insBg, gateBg, dcBg, rpBg, guideBg; }
+    class Materials { public Material btn, btnOn, marker, panel, riser, insBg, gateBg, dcBg, rpBg, guideBg, blocker; }
 
     static Materials CreateMaterials()
     {
@@ -638,6 +640,7 @@ return {
             marker = MakeMaterial("FloorMarker", new Color(0.35f, 0.60f, 0.90f)),
             panel = MakeMaterial("Panel", new Color(0.10f, 0.10f, 0.12f)),
             riser = MakeMaterial("Riser", new Color(0.42f, 0.44f, 0.48f)),   // height platform / NPC riser
+            blocker = MakeMaterial("StartBlocker", new Color(0.78f, 0.74f, 0.66f)),   // like the room's walls
             // semi-transparent backings, one hue per text group so texts shown together are easy to tell apart
             insBg = MakeTransparentMaterial("BgInstruction", new Color(0.06f, 0.12f, 0.30f, 0.70f)),
             gateBg = MakeTransparentMaterial("BgAvatarGate", new Color(0.26f, 0.08f, 0.30f, 0.70f)),
@@ -886,6 +889,7 @@ return {
         }
 
         EnsureHeightObjects(l, m);
+        EnsureStartBlocker(l, m);
 
         // Face expressions on whatever model the scene's NPC carries now (the prefab's model may have been replaced)
         var npcRoot = FindRoot("NPC", false);
@@ -1034,6 +1038,46 @@ return {
             EnsureCube(npc, "Riser", RiserSize, m.riser, false);
             AddWorldItemReference(npc.gameObject, HeightPlatformName, platform.GetComponent<Item>());
         }
+    }
+
+    // Wall in front of the standing spot until the experiment session starts (Study4StartBlocker.js hides it once LUIDA's
+    // global "exp_arePlayersEnough" is set and shows it again after a session reset), so that nobody sees or clicks the
+    // panels and buttons before the Start state. StartBlockerDist ahead of the marker, nearer than anything in front (the
+    // mirror and the right panel begin ~0.9 m ahead), wall to wall and floor to ceiling, with a collider.
+    const float StartBlockerDist = 0.8f, StartBlockerThick = 0.05f;
+
+    static void EnsureStartBlocker(Layout l, Materials m)
+    {
+        var blocker = FindRoot(StartBlockerName, false);
+        if (blocker == null)
+        {
+            var go = new GameObject(StartBlockerName);
+            blocker = go.transform;
+            SetItemName(go.AddComponent<Item>(), StartBlockerName);
+            var js = AssetDatabase.LoadAssetAtPath<JavaScriptAsset>(StartBlockerJsPath);
+            if (js == null) throw new Exception("Study4StartBlocker.js not importable: " + StartBlockerJsPath);
+            var so = new SerializedObject(go.AddComponent<ScriptableItem>());
+            so.FindProperty("sourceCodeAsset").objectReferenceValue = js;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        blocker.SetPositionAndRotation(l.origin + l.fwd * StartBlockerDist, l.Frame);
+        var wall = blocker.Find("Wall");
+        if (wall == null)
+        {
+            var c = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            c.name = "Wall";
+            wall = c.transform;
+            wall.SetParent(blocker, false);
+        }
+        float width = RoomCellsX * RoomCell - 0.2f;   // between the side walls' faces
+        wall.localPosition = new Vector3(0f, RoomHeight * 0.5f, StartBlockerThick * 0.5f);
+        wall.localRotation = Quaternion.identity;
+        wall.localScale = new Vector3(width, RoomHeight, StartBlockerThick);
+        var r = wall.GetComponent<MeshRenderer>();
+        r.sharedMaterial = m.blocker;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        wall.gameObject.SetActive(true);   // shown in the scene: hidden by the script once the session runs
     }
 
     // A cube whose top is at the parent's origin (local y from -height to 0); inactive until a script raises it.
