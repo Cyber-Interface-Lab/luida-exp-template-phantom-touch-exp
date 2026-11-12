@@ -54,10 +54,3 @@ function trialInBlock() {
 }
 function firstTrialOfBlock() { return trialInBlock() === 1; }
 function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
-// A mirror shown or hidden by another item (the DeviceCheck hides the front mirror for the pose check's
-// last step): { name, visible }
-$.onReceive((messageType, arg) => {
-  if (messageType !== 'mp_mirror' || !arg) return;
-  const n = $.subNode(String(arg.name));
-  if (n) n.setEnabled(!!arg.visible);
-});

@@ -23,10 +23,6 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // hands put on the head for 3 s at the end of the pose check (same row): mean height of both hands above the head
-    // bone (m; '' when not measured: rescue button), and each hand's mean. The NPC aims a little below it (faceUp in the
-    // trial rows).
-    poseHandsUp: CD['poseHandsUp'], poseHandsLeftUp: CD['poseHandsLeftUp'], poseHandsRightUp: CD['poseHandsRightUp'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
@@ -45,10 +41,10 @@ return {
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
-    // touch target height above the head bone (m) and where it came from (hands: a little below the hands on the head;
-    // eyeBones: the eyes + 4.5 cm, because the hands' height was below the eyes or not measured; headBone: neither),
-    // the hands' candidate and the eye bones' height ('' when unknown)
-    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'], faceUpHands: CD['faceUpHands'], eyeUp: CD['eyeUp'],
+    // touch target height above the head bone (m): eyes + (eyes - mouth), the mouth at the head bone's height; where the
+    // eye height came from (eyeBones / EYE_UP: 6.3 cm, when the eye bones are not read), and the eye bones' height ('' when
+    // not read)
+    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'], eyeUp: CD['eyeUp'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
     // approach start, its distance from the marker then / at the end of the retract, its retreat like retreatDist,
