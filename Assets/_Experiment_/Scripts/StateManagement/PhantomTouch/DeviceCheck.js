@@ -4,7 +4,7 @@ const stateEnterActions = {
             $.setStateCompat('this', 'exp_showItem', true);
         } },
         { type: "exec", action: (deltaTime) => {
-            dc_send({ visible: false, label: DC_FORCE_LABEL }); dc_sendEye({ visible: false, label: DC_EYE_LABEL }); HideChild('Text');
+            dc_send({ visible: false, label: DC_FORCE_LABEL }); HideChild('Text');
         } }
     ],
     2: [
@@ -41,32 +41,34 @@ function trialInBlock() {
 }
 function firstTrialOfBlock() { return trialInBlock() === 1; }
 function lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK; }
-// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the head, then the forehead height) ----
+// ---- Study 4: DeviceCheck (head yaw left/right + both hands held at the forehead) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
 // with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
-// 1st part ('pose'): tracking check. 2nd part ('eye'): the participant's own forehead height in this avatar, where
-// the NPC's hand goes (Cluster puts the first-person camera a little off the avatar's eye bones, and an item script
-// cannot read the camera). The large button straight ahead (DC_Eye) says what to do: hold the left hand at the
-// forehead and click the button with the right hand. The left hand's height above the head bone at that moment is
-// sent to the NPC ('npc_forehead_cal'), which aims its hand there in this block.
-const DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC = 60;
+// The hands-at-the-forehead hold also measures the participant's own forehead height in this avatar, where the NPC's
+// hand goes (Cluster puts the first-person camera a little off the avatar's eye bones, and an item script cannot read
+// the camera): both hands above the eyes (head bone + DC_EYE_UP) and below DC_HANDS_MAX_UP, each staying within
+// DC_HANDS_STILL of where it was when the hold began, for DC_HANDS_SEC. The mean height of both hands above the head
+// bone over the hold is sent to the NPC ('npc_forehead_cal'), which aims its hand there in this block.
+const DC_YAW_DEG = 25, DC_RESCUE_SEC = 60;
+const DC_HANDS_SEC = 3.0;        // hold this long ...
+const DC_EYE_UP = 0.06;          // ... both hands higher than the eyes (head bone + this; the eye bones of the project's
+                                 //     VRoid models; not read: the editor emulator throws for avatars without them) ...
+const DC_HANDS_MAX_UP = 0.25;    // ... but not raised above the head (head bone + this) ...
+const DC_HANDS_STILL = 0.05;     // ... each hand within this of where it was when the hold began (m)
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
-const DC_EYE_LABEL = '左手を額の高さに上げたまま、\n右手でここをクリック';
-function dc_btnSend(id, cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }
-function dc_send(cfg) { dc_btnSend('DC_Force', cfg); }
-function dc_sendEye(cfg) { dc_btnSend('DC_Eye', cfg); }
+function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
 function dc_begin() {
   $.state.dc_active = false;
   if (!firstTrialOfBlock()) { ToNextState(); return; }
   $.state.dc_active = true;
-  $.state.dc_phase = 'pose';
   $.state.dc_start = Date.now();
-  $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;
+  $.state.dc_left = false; $.state.dc_right = false;
+  $.state.dc_hold = 0; $.state.dc_anchorL = null; $.state.dc_anchorR = null; $.state.dc_sum = null;
+  $.state.dc_cal = null;           // { up, left, right } once a hold has been completed
   $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText = '';
   $.setStateCompat('this', 'dc_btn', 0);
   ShowChild('Text');
   dc_send({ visible: false, label: DC_FORCE_LABEL });
-  dc_sendEye({ visible: false, label: DC_EYE_LABEL });
   dc_render();
 }
 function dc_yaw(p) {
@@ -77,23 +79,34 @@ function dc_yaw(p) {
 }
 function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }
 function dc_render() {
-  const t = $.state.dc_phase === 'eye'
-    ? '額の高さの確認\n正面のボタンに書いてある\nとおりにしてください'
-    : 'トラッキングの確認\n' +
-      (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
-      (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[済] ' : '[　] ') + '両手を頭より上に（1秒）';
+  const t = 'トラッキングの確認\n' +
+    (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
+    ($.state.dc_cal ? '[済] ' : '[　] ') + '両手を額の高さに（3秒）';
   if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }
+}
+// Both hands at the forehead, held still: accumulate; any break starts the hold again from the current position.
+function dc_holdHands(head, lh, rh, dt) {
+  if ($.state.dc_cal) return;
+  const at = (h) => h && h.y > head.y + DC_EYE_UP && h.y < head.y + DC_HANDS_MAX_UP;
+  const near = (h, a) => a && h.clone().sub(a).length() <= DC_HANDS_STILL;
+  if (!(head && at(lh) && at(rh))) { $.state.dc_hold = 0; $.state.dc_anchorL = null; return; }
+  if (!near(lh, $.state.dc_anchorL) || !near(rh, $.state.dc_anchorR)) {
+    $.state.dc_anchorL = lh; $.state.dc_anchorR = rh; $.state.dc_hold = 0; $.state.dc_sum = { l: 0, r: 0, w: 0 };
+  }
+  const s = $.state.dc_sum;
+  s.l += (lh.y - head.y) * dt; s.r += (rh.y - head.y) * dt; s.w += dt;
+  $.state.dc_sum = s;
+  $.state.dc_hold = ($.state.dc_hold || 0) + dt;
+  if ($.state.dc_hold >= DC_HANDS_SEC && s.w > 0) {
+    const l = s.l / s.w, r = s.r / s.w;
+    $.state.dc_cal = { up: (l + r) / 2, left: l, right: r };
+    $.log('[DeviceCheck] hands held at the forehead: ' + ((l + r) / 2).toFixed(3) + ' m above the head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3) + ')');
+  }
 }
 function dc_update(dt) {
   if (!$.state.dc_active) return;
   const p = PARTICIPANTS[1];
   if (!p || !p.exists()) return;
-  const b = $.getStateCompat('this', 'dc_btn', 'integer');   // 1: rescue button, 2: eye-height button
-  if (b > 0) $.setStateCompat('this', 'dc_btn', 0);
-  const head = p.getHumanoidBonePosition(HumanoidBone.Head);
-  const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);
-  const rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);
-  if ($.state.dc_phase === 'eye') { if (b === 2) dc_finish(head, lh, rh); return; }
   const yaw = dc_yaw(p);
   if (yaw !== null) {
     if ($.state.dc_yaw0 === null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;
@@ -101,45 +114,37 @@ function dc_update(dt) {
     if (d <= -DC_YAW_DEG) $.state.dc_left = true;
     if (d >= DC_YAW_DEG) $.state.dc_right = true;
   }
-  if (head && lh && rh && lh.y > head.y && rh.y > head.y) $.state.dc_hands = ($.state.dc_hands || 0) + dt;
-  else if (($.state.dc_hands || 0) < DC_HANDS_SEC) $.state.dc_hands = 0;
+  dc_holdHands(p.getHumanoidBonePosition(HumanoidBone.Head), p.getHumanoidBonePosition(HumanoidBone.LeftHand),
+    p.getHumanoidBonePosition(HumanoidBone.RightHand), dt);
   const elapsed = (Date.now() - ($.state.dc_start || Date.now())) / 1000;
   if (elapsed > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({ visible: true }); }
-  const forced = b === 1 && !!$.state.dc_rescue;
-  const passed = $.state.dc_left && $.state.dc_right && ($.state.dc_hands || 0) >= DC_HANDS_SEC;
-  if (passed || forced) { dc_eyeBegin(elapsed, forced); return; }
+  let forced = false;
+  const b = $.getStateCompat('this', 'dc_btn', 'integer');
+  if (b > 0) { $.setStateCompat('this', 'dc_btn', 0); if ($.state.dc_rescue) forced = true; }
+  const passed = $.state.dc_left && $.state.dc_right && !!$.state.dc_cal;
+  if (passed || forced) { dc_finish(elapsed, forced); return; }
   dc_render();
 }
-// 2nd part: the forehead-height button replaces the rescue button
-function dc_eyeBegin(elapsed, forced) {
+// The forehead height goes to the NPC when the hold was completed (also when the rest was passed with the rescue
+// button); without it the NPC uses the avatar's eye bones.
+function dc_finish(elapsed, forced) {
+  $.state.dc_active = false;
+  const c = $.state.dc_cal;
+  const r3 = (x) => Math.round(x * 1000) / 1000;
   SendDataToCollector('deviceCheckSec', elapsed);
   SendDataToCollector('deviceCheckForced', !!forced);
-  $.state.dc_phase = 'eye';
-  $.state.dc_eyeStart = Date.now();
-  dc_send({ visible: false });
-  dc_sendEye({ visible: true, label: DC_EYE_LABEL });
-  dc_render();
-  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height next');
-}
-// The button was clicked (with the right hand): the left hand is the one held at the forehead.
-function dc_finish(head, lh, rh) {
-  $.state.dc_active = false;
-  const sec = (Date.now() - ($.state.dc_eyeStart || Date.now())) / 1000;
-  const up = (head && lh) ? lh.y - head.y : null;
-  const r3 = (x) => Math.round(x * 1000) / 1000;
-  SendDataToCollector('foreheadCalUp', up !== null ? r3(up) : '');
-  SendDataToCollector('foreheadCalHandY', lh ? r3(lh.y) : '');
-  SendDataToCollector('foreheadCalHeadY', head ? r3(head.y) : '');
-  SendDataToCollector('foreheadCalSec', Math.round(sec * 10) / 10);
-  if (up !== null) {
-    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up: up }); }
+  SendDataToCollector('foreheadCalUp', c ? r3(c.up) : '');
+  SendDataToCollector('foreheadCalLeftUp', c ? r3(c.left) : '');
+  SendDataToCollector('foreheadCalRightUp', c ? r3(c.right) : '');
+  if (c) {
+    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up: c.up }); }
     catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' + e); }
   }
-  $.log('[DeviceCheck] forehead height ' + (up !== null ? r3(up) + ' m above the head bone (left hand ' + r3(lh.y) + ', head bone ' + r3(head.y) + ')' : 'not read (bones)') +
-        ' after ' + sec.toFixed(1) + ' s');
+  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height ' +
+        (c ? r3(c.up) + ' m above the head bone' : 'not measured'));
   ProcessAndSaveCollectedData();
-  dc_sendEye({ visible: false });
+  dc_send({ visible: false });
   SetText('確認できました。\nありがとうございます。');
   ToNextState();
 }
-function dc_end() { dc_send({ visible: false }); dc_sendEye({ visible: false }); HideChild('Text'); $.state.dc_active = false; }
+function dc_end() { dc_send({ visible: false }); HideChild('Text'); $.state.dc_active = false; }

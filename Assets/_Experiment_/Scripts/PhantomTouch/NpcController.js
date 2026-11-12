@@ -387,8 +387,8 @@ $.onReceive((messageType, arg, sender) => {
       if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }
       beginGreeting();
     } else if (messageType === "npc_forehead_cal") {
-      // a value no forehead can have (e.g. the left hand still down when the button was pressed) is ignored: the eye
-      // bones are used
+      // a value no forehead can have is ignored (the pose check only accepts hands between the eyes and above the
+      // head, so this is a safeguard): the eye bones are used
       const up = (arg && typeof arg.up === "number") ? arg.up : null;
       const ok = up !== null && up >= NPC_CFG.FOREHEAD_CAL_MIN && up <= NPC_CFG.FOREHEAD_CAL_MAX;
       $.state.npc_foreheadUp = ok ? up : null;

@@ -300,38 +300,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5045805}
   m_Mesh: {fileID: -1092524167751542735, guid: c31198774d98d9f43be2ca79cb0a84dc, type: 3}
---- !u!1 &12138606
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 12138607}
-  m_Layer: 0
-  m_Name: EyeCalUI
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &12138607
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 12138606}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.04155865, y: 0, z: 0, w: 0.9991361}
-  m_LocalPosition: {x: 0, y: 1.4499999, z: -0.79999995}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 47343018}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &17337377
 GameObject:
   m_ObjectHideFlags: 0
@@ -776,98 +744,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 46874668}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &47343017
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 47343018}
-  - component: {fileID: 47343021}
-  - component: {fileID: 47343020}
-  - component: {fileID: 47343019}
-  m_Layer: 14
-  m_Name: DC_Eye
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &47343018
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47343017}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1273061108}
-  - {fileID: 1367183793}
-  - {fileID: 2096078437}
-  m_Father: {fileID: 12138607}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &47343019
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47343017}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2872ae1873cd4546a4cf7dae626612b5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ClusterVR.CreatorKit.Trigger.Implements::ClusterVR.CreatorKit.Trigger.Implements.InteractItemTrigger
-  item: {fileID: 47343021}
-  triggers:
-  - target: 1
-    specifiedTargetItem: {fileID: 849929378}
-    key: dc_btn
-    type: 3
-    value:
-      boolValue: 0
-      floatValue: 0
-      integerValue: 2
-      vector2Value: {x: 0, y: 0}
-      vector3Value: {x: 0, y: 0, z: 0}
---- !u!114 &47343020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47343017}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e61061896c654489a41575fc291bf4a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ClusterVR.CreatorKit.Item.Implements::ClusterVR.CreatorKit.Item.Implements.ScriptableItem
-  sourceCodeAsset: {fileID: 5022602860645237092, guid: f1f8876f2b6cc10499c2b47cfb2da6f6,
-    type: 3}
-  sourceCode: 
---- !u!114 &47343021
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47343017}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3977a5e65e72f4db4b85ddba10d48dd4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ClusterVR.CreatorKit.Item.Implements::ClusterVR.CreatorKit.Item.Implements.Item
-  id:
-    value: 2668255934127605232
-  itemName: DC_Eye
-  size: {x: 0, y: 0, z: 0}
 --- !u!1001 &54783766
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1500,7 +1376,7 @@ PrefabInstance:
         2');\n        } }\n    ],\n    2: [\n        { type: \"exec\", action: (deltaTime)
         => {\n            if (firstTrialOfBlock()) ins_show('front', '\u93E1\u3092\u898B\u306A\u304C\u3089\u3001\u6B21\u306E\u52D5\u304D\u3092\u3057\u3066\u304F\u3060\u3055\u3044\u3002\\n1)
         \u982D\u3092\u3086\u3063\u304F\u308A\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n2)
-        \u4E21\u624B\u3092\u982D\u3088\u308A\u9AD8\u304F\u4E0A\u3052\u308B\\n3) \u6700\u5F8C\u306B\u3001\u6B63\u9762\u306B\u51FA\u308B\u30DC\u30BF\u30F3\u306E\u6307\u793A\u306B\u5F93\u3046');\n       
+        \u4E21\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\u4E0A\u3052\u3066\u30013\u79D2\u305D\u306E\u307E\u307E');\n       
         } }\n    ],\n    3: [\n        { type: \"exec\", action: (deltaTime) => {\n           
         ins_show('front', '\u76EE\u306E\u524D\u306B\u8D64\u304F\u8868\u793A\u3055\u308C\u308B\u6307\u793A\u306B\u3001\\n\u3072\u3068\u3064\u305A\u3064\u5F93\u3063\u3066\u304F\u3060\u3055\u3044\u3002');\n       
         } }\n    ],\n    4: [\n        { type: \"exec\", action: (deltaTime) => {\n           
@@ -7013,21 +6889,22 @@ PrefabInstance:
         !== undefined) $.state.npc_social = !!arg.social;\n      if (!$.state.npc_visible)
         { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }\n     
         beginGreeting();\n    } else if (messageType === \"npc_forehead_cal\") {\n     
-        // a value no forehead can have (e.g. the left hand still down when the button
-        was pressed) is ignored: the eye\n      // bones are used\n      const up
-        = (arg && typeof arg.up === \"number\") ? arg.up : null;\n      const ok
-        = up !== null && up >= NPC_CFG.FOREHEAD_CAL_MIN && up <= NPC_CFG.FOREHEAD_CAL_MAX;\n     
-        $.state.npc_foreheadUp = ok ? up : null;\n      $.log(\"[NPC] forehead height
-        above the head bone: \" + (up === null ? \"none\" : f3(up) + \" m (measured\"
-        + (ok ? \")\" : \", implausible: ignored)\")));\n    } else if (messageType
-        === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue : \"\");\n    } else
-        if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n    }
-        else if (messageType === \"npc_trial_start\") {\n      $.state.npc_trial
-        = arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social
-        = !!arg.social;\n      if ($.state.npc_mode === \"greeting\") endGreeting();\n     
-        // put the participant back on the marker (facing along it, on their platform),
-        then wait a moment\n      const reset = !!(arg && arg.reset) && resetParticipant(true);\n     
-        let delay = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible)
+        // a value no forehead can have is ignored (the pose check only accepts hands
+        between the eyes and above the\n      // head, so this is a safeguard): the
+        eye bones are used\n      const up = (arg && typeof arg.up === \"number\")
+        ? arg.up : null;\n      const ok = up !== null && up >= NPC_CFG.FOREHEAD_CAL_MIN
+        && up <= NPC_CFG.FOREHEAD_CAL_MAX;\n      $.state.npc_foreheadUp = ok ? up
+        : null;\n      $.log(\"[NPC] forehead height above the head bone: \" + (up
+        === null ? \"none\" : f3(up) + \" m (measured\" + (ok ? \")\" : \", implausible:
+        ignored)\")));\n    } else if (messageType === \"npc_greet_cue\") {\n     
+        greetCue(arg ? arg.cue : \"\");\n    } else if (messageType === \"npc_greeting_end\")
+        {\n      endGreeting();\n    } else if (messageType === \"npc_trial_start\")
+        {\n      $.state.npc_trial = arg || {};\n      if (arg && arg.social !==
+        undefined) $.state.npc_social = !!arg.social;\n      if ($.state.npc_mode
+        === \"greeting\") endGreeting();\n      // put the participant back on the
+        marker (facing along it, on their platform), then wait a moment\n      const
+        reset = !!(arg && arg.reset) && resetParticipant(true);\n      let delay
+        = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible)
         {\n        // hidden since the previous trial: reappear at the conversation
         spot, then step in a moment later\n        moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
         false);\n        setVisible(true);\n        delay = Math.max(delay, NPC_CFG.REAPPEAR_SEC);\n     
@@ -9447,7 +9324,7 @@ PrefabInstance:
     - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
       propertyPath: worldItemReferences.Array.size
-      value: 4
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -9462,7 +9339,7 @@ PrefabInstance:
     - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
       propertyPath: worldItemReferences.Array.data[2].id
-      value: DC_Eye
+      value: NPC
       objectReference: {fileID: 0}
     - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -9483,7 +9360,7 @@ PrefabInstance:
         type: 3}
       propertyPath: worldItemReferences.Array.data[2].item
       value: 
-      objectReference: {fileID: 47343021}
+      objectReference: {fileID: 580053179}
     - target: {fileID: 161685276529953077, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
       propertyPath: worldItemReferences.Array.data[3].item
@@ -9614,11 +9491,10 @@ PrefabInstance:
         stateEnterActions = {\n    0: [\n        { type: \"exec\", action: (deltaTime)
         => {\n            $.setStateCompat('this', 'exp_showItem', true);\n       
         } },\n        { type: \"exec\", action: (deltaTime) => {\n            dc_send({
-        visible: false, label: DC_FORCE_LABEL }); dc_sendEye({ visible: false, label:
-        DC_EYE_LABEL }); HideChild('Text');\n        } }\n    ],\n    2: [\n       
-        { type: \"exec\", action: (deltaTime) => {\n            dc_begin();\n       
-        } }\n    ]\n};\n\nconst duringStateActions = {\n    2: [\n        { type:
-        \"exec\", action: (deltaTime) => {\n            dc_update(deltaTime);\n       
+        visible: false, label: DC_FORCE_LABEL }); HideChild('Text');\n        } }\n   
+        ],\n    2: [\n        { type: \"exec\", action: (deltaTime) => {\n           
+        dc_begin();\n        } }\n    ]\n};\n\nconst duringStateActions = {\n   
+        2: [\n        { type: \"exec\", action: (deltaTime) => {\n            dc_update(deltaTime);\n       
         } }\n    ]\n};\n\nconst stateExitActions = {\n    2: [\n        { type: \"exec\",
         action: (deltaTime) => {\n            dc_end();\n        } }\n    ]\n};\n\n\n//
         ---- legacy free-form code (migrate to event handlers when possible) ----\n\n//
@@ -9627,81 +9503,88 @@ PrefabInstance:
         'integer');\n  return ((typeof t === 'number' && t >= 0) ? t % TRIALS_PER_BLOCK
         : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock() === 1;
         }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
-        }\n// ---- Study 4: DeviceCheck (head yaw left/right + both hands above the
-        head, then the forehead height) ----\n// Runs in the pose-check state (after
-        the avatar switch, before the NPC appears) on the 1st trial of each block,\n//
-        with the MirrorPanel's front mirror shown; the later trials of a block skip
-        it immediately.\n// 1st part ('pose'): tracking check. 2nd part ('eye'):
-        the participant's own forehead height in this avatar, where\n// the NPC's
-        hand goes (Cluster puts the first-person camera a little off the avatar's
-        eye bones, and an item script\n// cannot read the camera). The large button
-        straight ahead (DC_Eye) says what to do: hold the left hand at the\n// forehead
-        and click the button with the right hand. The left hand's height above the
-        head bone at that moment is\n// sent to the NPC ('npc_forehead_cal'), which
-        aims its hand there in this block.\nconst DC_YAW_DEG = 25, DC_HANDS_SEC =
-        1.0, DC_RESCUE_SEC = 60;\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nconst
-        DC_EYE_LABEL = '\u5DE6\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\u4E0A\u3052\u305F\u307E\u307E\u3001\\n\u53F3\u624B\u3067\u3053\u3053\u3092\u30AF\u30EA\u30C3\u30AF';\nfunction
-        dc_btnSend(id, cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg',
-        cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction
-        dc_send(cfg) { dc_btnSend('DC_Force', cfg); }\nfunction dc_sendEye(cfg) {
-        dc_btnSend('DC_Eye', cfg); }\nfunction dc_begin() {\n  $.state.dc_active
-        = false;\n  if (!firstTrialOfBlock()) { ToNextState(); return; }\n  $.state.dc_active
-        = true;\n  $.state.dc_phase = 'pose';\n  $.state.dc_start = Date.now();\n 
-        $.state.dc_left = false; $.state.dc_right = false; $.state.dc_hands = 0;\n 
-        $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText =
-        '';\n  $.setStateCompat('this', 'dc_btn', 0);\n  ShowChild('Text');\n  dc_send({
-        visible: false, label: DC_FORCE_LABEL });\n  dc_sendEye({ visible: false,
-        label: DC_EYE_LABEL });\n  dc_render();\n}\nfunction dc_yaw(p) {\n  const
-        r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  if (!r) return null;\n 
-        const f = new Vector3(0, 0, 1).applyQuaternion(r);\n  return Math.atan2(f.x,
-        f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b) { let d = a - b; while
-        (d > 180) d -= 360; while (d < -180) d += 360; return d; }\nfunction dc_render()
-        {\n  const t = $.state.dc_phase === 'eye'\n    ? '\u984D\u306E\u9AD8\u3055\u306E\u78BA\u8A8D\\n\u6B63\u9762\u306E\u30DC\u30BF\u30F3\u306B\u66F8\u3044\u3066\u3042\u308B\\n\u3068\u304A\u308A\u306B\u3057\u3066\u304F\u3060\u3055\u3044'\n   
-        : '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n' +\n      (($.state.dc_left
-        && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n'
-        +\n      (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000]
-        ') + '\u4E21\u624B\u3092\u982D\u3088\u308A\u4E0A\u306B\uFF081\u79D2\uFF09';\n 
-        if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\nfunction
+        }\n// ---- Study 4: DeviceCheck (head yaw left/right + both hands held at
+        the forehead) ----\n// Runs in the pose-check state (after the avatar switch,
+        before the NPC appears) on the 1st trial of each block,\n// with the MirrorPanel's
+        front mirror shown; the later trials of a block skip it immediately.\n//
+        The hands-at-the-forehead hold also measures the participant's own forehead
+        height in this avatar, where the NPC's\n// hand goes (Cluster puts the first-person
+        camera a little off the avatar's eye bones, and an item script cannot read\n//
+        the camera): both hands above the eyes (head bone + DC_EYE_UP) and below
+        DC_HANDS_MAX_UP, each staying within\n// DC_HANDS_STILL of where it was when
+        the hold began, for DC_HANDS_SEC. The mean height of both hands above the
+        head\n// bone over the hold is sent to the NPC ('npc_forehead_cal'), which
+        aims its hand there in this block.\nconst DC_YAW_DEG = 25, DC_RESCUE_SEC
+        = 60;\nconst DC_HANDS_SEC = 3.0;        // hold this long ...\nconst DC_EYE_UP
+        = 0.06;          // ... both hands higher than the eyes (head bone + this;
+        the eye bones of the project's\n                                 //     VRoid
+        models; not read: the editor emulator throws for avatars without them) ...\nconst
+        DC_HANDS_MAX_UP = 0.25;    // ... but not raised above the head (head bone
+        + this) ...\nconst DC_HANDS_STILL = 0.05;     // ... each hand within this
+        of where it was when the hold began (m)\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
+        dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg',
+        cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }\nfunction dc_begin()
+        {\n  $.state.dc_active = false;\n  if (!firstTrialOfBlock()) { ToNextState();
+        return; }\n  $.state.dc_active = true;\n  $.state.dc_start = Date.now();\n 
+        $.state.dc_left = false; $.state.dc_right = false;\n  $.state.dc_hold = 0;
+        $.state.dc_anchorL = null; $.state.dc_anchorR = null; $.state.dc_sum = null;\n 
+        $.state.dc_cal = null;           // { up, left, right } once a hold has been
+        completed\n  $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText
+        = '';\n  $.setStateCompat('this', 'dc_btn', 0);\n  ShowChild('Text');\n 
+        dc_send({ visible: false, label: DC_FORCE_LABEL });\n  dc_render();\n}\nfunction
+        dc_yaw(p) {\n  const r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
+        if (!r) return null;\n  const f = new Vector3(0, 0, 1).applyQuaternion(r);\n 
+        return Math.atan2(f.x, f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a,
+        b) { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360;
+        return d; }\nfunction dc_render() {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
+        +\n    (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ')
+        + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n' +\n    ($.state.dc_cal
+        ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\uFF083\u79D2\uFF09';\n 
+        if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\n//
+        Both hands at the forehead, held still: accumulate; any break starts the
+        hold again from the current position.\nfunction dc_holdHands(head, lh, rh,
+        dt) {\n  if ($.state.dc_cal) return;\n  const at = (h) => h && h.y > head.y
+        + DC_EYE_UP && h.y < head.y + DC_HANDS_MAX_UP;\n  const near = (h, a) =>
+        a && h.clone().sub(a).length() <= DC_HANDS_STILL;\n  if (!(head && at(lh)
+        && at(rh))) { $.state.dc_hold = 0; $.state.dc_anchorL = null; return; }\n 
+        if (!near(lh, $.state.dc_anchorL) || !near(rh, $.state.dc_anchorR)) {\n   
+        $.state.dc_anchorL = lh; $.state.dc_anchorR = rh; $.state.dc_hold = 0; $.state.dc_sum
+        = { l: 0, r: 0, w: 0 };\n  }\n  const s = $.state.dc_sum;\n  s.l += (lh.y
+        - head.y) * dt; s.r += (rh.y - head.y) * dt; s.w += dt;\n  $.state.dc_sum
+        = s;\n  $.state.dc_hold = ($.state.dc_hold || 0) + dt;\n  if ($.state.dc_hold
+        >= DC_HANDS_SEC && s.w > 0) {\n    const l = s.l / s.w, r = s.r / s.w;\n   
+        $.state.dc_cal = { up: (l + r) / 2, left: l, right: r };\n    $.log('[DeviceCheck]
+        hands held at the forehead: ' + ((l + r) / 2).toFixed(3) + ' m above the
+        head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3) + ')');\n  }\n}\nfunction
         dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n 
-        if (!p || !p.exists()) return;\n  const b = $.getStateCompat('this', 'dc_btn',
-        'integer');   // 1: rescue button, 2: eye-height button\n  if (b > 0) $.setStateCompat('this',
-        'dc_btn', 0);\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n 
-        const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n  const rh
-        = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  if ($.state.dc_phase
-        === 'eye') { if (b === 2) dc_finish(head, lh, rh); return; }\n  const yaw
-        = dc_yaw(p);\n  if (yaw !== null) {\n    if ($.state.dc_yaw0 === null ||
-        $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;\n    const d = dc_angleDiff(yaw,
-        $.state.dc_yaw0);\n    if (d <= -DC_YAW_DEG) $.state.dc_left = true;\n   
-        if (d >= DC_YAW_DEG) $.state.dc_right = true;\n  }\n  if (head && lh && rh
-        && lh.y > head.y && rh.y > head.y) $.state.dc_hands = ($.state.dc_hands ||
-        0) + dt;\n  else if (($.state.dc_hands || 0) < DC_HANDS_SEC) $.state.dc_hands
-        = 0;\n  const elapsed = (Date.now() - ($.state.dc_start || Date.now())) /
-        1000;\n  if (elapsed > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue
-        = true; dc_send({ visible: true }); }\n  const forced = b === 1 && !!$.state.dc_rescue;\n 
-        const passed = $.state.dc_left && $.state.dc_right && ($.state.dc_hands ||
-        0) >= DC_HANDS_SEC;\n  if (passed || forced) { dc_eyeBegin(elapsed, forced);
-        return; }\n  dc_render();\n}\n// 2nd part: the forehead-height button replaces
-        the rescue button\nfunction dc_eyeBegin(elapsed, forced) {\n  SendDataToCollector('deviceCheckSec',
-        elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  $.state.dc_phase
-        = 'eye';\n  $.state.dc_eyeStart = Date.now();\n  dc_send({ visible: false
-        });\n  dc_sendEye({ visible: true, label: DC_EYE_LABEL });\n  dc_render();\n 
-        $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after
-        ' + elapsed.toFixed(1) + ' s; forehead height next');\n}\n// The button was
-        clicked (with the right hand): the left hand is the one held at the forehead.\nfunction
-        dc_finish(head, lh, rh) {\n  $.state.dc_active = false;\n  const sec = (Date.now()
-        - ($.state.dc_eyeStart || Date.now())) / 1000;\n  const up = (head && lh)
-        ? lh.y - head.y : null;\n  const r3 = (x) => Math.round(x * 1000) / 1000;\n 
-        SendDataToCollector('foreheadCalUp', up !== null ? r3(up) : '');\n  SendDataToCollector('foreheadCalHandY',
-        lh ? r3(lh.y) : '');\n  SendDataToCollector('foreheadCalHeadY', head ? r3(head.y)
-        : '');\n  SendDataToCollector('foreheadCalSec', Math.round(sec * 10) / 10);\n 
-        if (up !== null) {\n    try { $.worldItemReference('NPC').send('npc_forehead_cal',
-        { up: up }); }\n    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: '
-        + e); }\n  }\n  $.log('[DeviceCheck] forehead height ' + (up !== null ? r3(up)
-        + ' m above the head bone (left hand ' + r3(lh.y) + ', head bone ' + r3(head.y)
-        + ')' : 'not read (bones)') +\n        ' after ' + sec.toFixed(1) + ' s');\n 
-        ProcessAndSaveCollectedData();\n  dc_sendEye({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
-        ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); dc_sendEye({
-        visible: false }); HideChild('Text'); $.state.dc_active = false; }"
+        if (!p || !p.exists()) return;\n  const yaw = dc_yaw(p);\n  if (yaw !== null)
+        {\n    if ($.state.dc_yaw0 === null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0
+        = yaw;\n    const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n    if (d <= -DC_YAW_DEG)
+        $.state.dc_left = true;\n    if (d >= DC_YAW_DEG) $.state.dc_right = true;\n 
+        }\n  dc_holdHands(p.getHumanoidBonePosition(HumanoidBone.Head), p.getHumanoidBonePosition(HumanoidBone.LeftHand),\n   
+        p.getHumanoidBonePosition(HumanoidBone.RightHand), dt);\n  const elapsed
+        = (Date.now() - ($.state.dc_start || Date.now())) / 1000;\n  if (elapsed
+        > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({
+        visible: true }); }\n  let forced = false;\n  const b = $.getStateCompat('this',
+        'dc_btn', 'integer');\n  if (b > 0) { $.setStateCompat('this', 'dc_btn',
+        0); if ($.state.dc_rescue) forced = true; }\n  const passed = $.state.dc_left
+        && $.state.dc_right && !!$.state.dc_cal;\n  if (passed || forced) { dc_finish(elapsed,
+        forced); return; }\n  dc_render();\n}\n// The forehead height goes to the
+        NPC when the hold was completed (also when the rest was passed with the rescue\n//
+        button); without it the NPC uses the avatar's eye bones.\nfunction dc_finish(elapsed,
+        forced) {\n  $.state.dc_active = false;\n  const c = $.state.dc_cal;\n  const
+        r3 = (x) => Math.round(x * 1000) / 1000;\n  SendDataToCollector('deviceCheckSec',
+        elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  SendDataToCollector('foreheadCalUp',
+        c ? r3(c.up) : '');\n  SendDataToCollector('foreheadCalLeftUp', c ? r3(c.left)
+        : '');\n  SendDataToCollector('foreheadCalRightUp', c ? r3(c.right) : '');\n 
+        if (c) {\n    try { $.worldItemReference('NPC').send('npc_forehead_cal',
+        { up: c.up }); }\n    catch (e) { $.log('[DeviceCheck] npc_forehead_cal:
+        ' + e); }\n  }\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced'
+        : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height ' +\n       
+        (c ? r3(c.up) + ' m above the head bone' : 'not measured'));\n  ProcessAndSaveCollectedData();\n 
+        dc_send({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
+        ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); HideChild('Text');
+        $.state.dc_active = false; }"
       objectReference: {fileID: 0}
     - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -14801,117 +14684,6 @@ MonoBehaviour:
     value: 11020241310079839181
   itemName: DB_Ok
   size: {x: 0, y: 0, z: 0}
---- !u!1 &1273061107
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1273061108}
-  - component: {fileID: 1273061111}
-  - component: {fileID: 1273061110}
-  - component: {fileID: 1273061109}
-  m_Layer: 14
-  m_Name: Visual
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1273061108
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1273061107}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.74, y: 0.24, z: 0.04}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 47343018}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!23 &1273061109
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1273061107}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a4b7f18cdaf559144ae7d453c681c641, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 1
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1273061110
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1273061107}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!33 &1273061111
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1273061107}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1279125366
 GameObject:
   m_ObjectHideFlags: 0
@@ -15732,117 +15504,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1349534476}
   m_Mesh: {fileID: -1092524167751542735, guid: c31198774d98d9f43be2ca79cb0a84dc, type: 3}
---- !u!1 &1367183792
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1367183793}
-  - component: {fileID: 1367183796}
-  - component: {fileID: 1367183795}
-  - component: {fileID: 1367183794}
-  m_Layer: 14
-  m_Name: VisualOn
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1367183793
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1367183792}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.7844, y: 0.25439999, z: 0.042399995}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 47343018}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!23 &1367183794
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1367183792}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 1e131ba3b67823948b234d7baabfa4d2, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 1
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1367183795
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1367183792}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!33 &1367183796
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1367183792}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1376853016
 GameObject:
   m_ObjectHideFlags: 0
@@ -21589,56 +21250,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2094820753}
   m_Mesh: {fileID: -1092524167751542735, guid: c31198774d98d9f43be2ca79cb0a84dc, type: 3}
---- !u!1 &2096078436
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2096078437}
-  - component: {fileID: 2096078438}
-  m_Layer: 14
-  m_Name: Label
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &2096078437
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2096078436}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.024999999}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 47343018}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2096078438
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2096078436}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 661c45a344104837b0ee4901951c608c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ClusterVR.CreatorKit.World.Implements::ClusterVR.CreatorKit.World.Implements.TextView.TextView
-  textMesh: {fileID: 0}
-  text: "\u5DE6\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\u4E0A\u3052\u305F\u307E\u307E\u3001\n\u53F3\u624B\u3067\u3053\u3053\u3092\u30AF\u30EA\u30C3\u30AF"
-  size: 0.024
-  textAnchor: 4
-  textAlignment: 1
-  color: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1001 &2120968065
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21812,12 +21423,11 @@ PrefabInstance:
         CD['avatarIsDefault'],\n    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'],
         avatarCheckFallback: CD['avatarCheckFallback'],\n    // device check\n   
         deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
-        // forehead height (same row): the left hand held at the participant's forehead
-        when the button was clicked, above\n    // the head bone (m; '' when the
-        bones were not readable), the hand's and the head bone's world heights then,\n   
-        // seconds taken\n    foreheadCalUp: CD['foreheadCalUp'], foreheadCalHandY:
-        CD['foreheadCalHandY'], foreheadCalHeadY: CD['foreheadCalHeadY'],\n    foreheadCalSec:
-        CD['foreheadCalSec'],\n    // per-trial report\n    rating: CD['rating'],
+        // forehead height (same row): both hands held at the forehead for 3 s in
+        the pose check, mean height above the\n    // head bone (m; '' when the check
+        was passed with the rescue button), and each hand's mean\n    foreheadCalUp:
+        CD['foreheadCalUp'], foreheadCalLeftUp: CD['foreheadCalLeftUp'], foreheadCalRightUp:
+        CD['foreheadCalRightUp'],\n    // per-trial report\n    rating: CD['rating'],
         mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n   
         ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],\n    // NPC measurements\n   
         social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar:
@@ -21940,4 +21550,3 @@ SceneRoots:
   - {fileID: 1507153327}
   - {fileID: 1147145462}
   - {fileID: 2064370637}
-  - {fileID: 12138607}

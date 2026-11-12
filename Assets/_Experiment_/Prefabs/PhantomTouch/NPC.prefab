@@ -502,23 +502,23 @@ MonoBehaviour:
     === \"npc_greeting_begin\") {\n      if (arg && arg.social !== undefined) $.state.npc_social
     = !!arg.social;\n      if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
     false); setVisible(true); }\n      beginGreeting();\n    } else if (messageType
-    === \"npc_forehead_cal\") {\n      // a value no forehead can have (e.g. the
-    left hand still down when the button was pressed) is ignored: the eye\n     
-    // bones are used\n      const up = (arg && typeof arg.up === \"number\") ? arg.up
-    : null;\n      const ok = up !== null && up >= NPC_CFG.FOREHEAD_CAL_MIN && up
-    <= NPC_CFG.FOREHEAD_CAL_MAX;\n      $.state.npc_foreheadUp = ok ? up : null;\n     
-    $.log(\"[NPC] forehead height above the head bone: \" + (up === null ? \"none\"
-    : f3(up) + \" m (measured\" + (ok ? \")\" : \", implausible: ignored)\")));\n   
-    } else if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue
-    : \"\");\n    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
-    } else if (messageType === \"npc_trial_start\") {\n      $.state.npc_trial =
-    arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n     
-    if ($.state.npc_mode === \"greeting\") endGreeting();\n      // put the participant
-    back on the marker (facing along it, on their platform), then wait a moment\n     
-    const reset = !!(arg && arg.reset) && resetParticipant(true);\n      let delay
-    = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible) {\n       
-    // hidden since the previous trial: reappear at the conversation spot, then step
-    in a moment later\n        moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n       
+    === \"npc_forehead_cal\") {\n      // a value no forehead can have is ignored
+    (the pose check only accepts hands between the eyes and above the\n      // head,
+    so this is a safeguard): the eye bones are used\n      const up = (arg && typeof
+    arg.up === \"number\") ? arg.up : null;\n      const ok = up !== null && up >=
+    NPC_CFG.FOREHEAD_CAL_MIN && up <= NPC_CFG.FOREHEAD_CAL_MAX;\n      $.state.npc_foreheadUp
+    = ok ? up : null;\n      $.log(\"[NPC] forehead height above the head bone: \"
+    + (up === null ? \"none\" : f3(up) + \" m (measured\" + (ok ? \")\" : \", implausible:
+    ignored)\")));\n    } else if (messageType === \"npc_greet_cue\") {\n      greetCue(arg
+    ? arg.cue : \"\");\n    } else if (messageType === \"npc_greeting_end\") {\n     
+    endGreeting();\n    } else if (messageType === \"npc_trial_start\") {\n     
+    $.state.npc_trial = arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social
+    = !!arg.social;\n      if ($.state.npc_mode === \"greeting\") endGreeting();\n     
+    // put the participant back on the marker (facing along it, on their platform),
+    then wait a moment\n      const reset = !!(arg && arg.reset) && resetParticipant(true);\n     
+    let delay = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible)
+    {\n        // hidden since the previous trial: reappear at the conversation spot,
+    then step in a moment later\n        moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n       
     setVisible(true);\n        delay = Math.max(delay, NPC_CFG.REAPPEAR_SEC);\n     
     }\n      if (delay > 0) { $.state.npc_startDelay = delay; $.state.npc_pendingStart
     = true; }\n      else startTrial();\n    } else if (messageType === \"npc_abort\")

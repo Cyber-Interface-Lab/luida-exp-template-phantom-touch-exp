@@ -23,11 +23,9 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // forehead height (same row): the left hand held at the participant's forehead when the button was clicked, above
-    // the head bone (m; '' when the bones were not readable), the hand's and the head bone's world heights then,
-    // seconds taken
-    foreheadCalUp: CD['foreheadCalUp'], foreheadCalHandY: CD['foreheadCalHandY'], foreheadCalHeadY: CD['foreheadCalHeadY'],
-    foreheadCalSec: CD['foreheadCalSec'],
+    // forehead height (same row): both hands held at the forehead for 3 s in the pose check, mean height above the
+    // head bone (m; '' when the check was passed with the rescue button), and each hand's mean
+    foreheadCalUp: CD['foreheadCalUp'], foreheadCalLeftUp: CD['foreheadCalLeftUp'], foreheadCalRightUp: CD['foreheadCalRightUp'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
