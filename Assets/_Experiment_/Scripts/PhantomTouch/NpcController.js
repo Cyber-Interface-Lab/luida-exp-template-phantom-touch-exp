@@ -75,7 +75,7 @@ const NPC_CFG = {
 
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
   PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
-  HAND_PITCH_DEG: 30,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12); palm turned toward the face
+  HAND_PITCH_DEG: 60,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12; 30 made the hand tilt further toward the face); palm turned toward the face
   SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
   STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
   MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)

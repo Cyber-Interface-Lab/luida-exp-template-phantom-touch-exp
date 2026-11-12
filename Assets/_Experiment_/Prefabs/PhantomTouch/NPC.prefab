@@ -299,18 +299,19 @@ MonoBehaviour:
     fingers still went into the face in a test on 2026-11-12\n\n  CONTACT_LEN: 0.12,      
     // wrist -> contact point along the fingers (finger pads) (m)\n  PALM_OFF: 0.015,        
     // palm-side offset of the contact point along the palm normal (m)\n  HAND_PITCH_DEG:
-    30,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12);
-    palm turned toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR:
-    0.93,      // usable fraction of (upper arm + forearm + finger) when choosing
-    the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head
-    distance at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation distance
-    = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace cap (10 Hz ->
-    40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back duration\n  REAPPEAR_SEC:
-    0.5,       // 2nd trial of a block: shown at the conversation spot this long
-    before stepping in\n  RESET_SETTLE_SEC: 1.0,   // touch start: wait this long
-    after putting the participant back on the marker\n  HEIGHT_MATCH_MIN: 0.05, 
-    // match heights only when the head-bone heights differ by at least this (m):\n                          
-    //   participant shorter -> platform under the participant (HeightPlatform item);\n                          
+    60,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12;
+    30 made the hand tilt further toward the face); palm turned toward the face\n 
+    SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR: 0.93,      // usable
+    fraction of (upper arm + forearm + finger) when choosing the reach spot\n  MIN_STAND_DIST:
+    0.40,    // minimum horizontal root-to-head distance at the reach spot (m)\n 
+    IDLE_EXTRA_DIST: 0.45,   // conversation distance = reach distance + this (m)\n 
+    MAX_SAMPLES: 400,        // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,         
+    // step closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial
+    of a block: shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
+    1.0,   // touch start: wait this long after putting the participant back on the
+    marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights
+    differ by at least this (m):\n                           //   participant shorter
+    -> platform under the participant (HeightPlatform item);\n                          
     //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
     3.0, // keep trying to read the participant's bones this long after npc_show\n 
     // Guided greeting: the participant follows the GreetingGuide item's instructions
