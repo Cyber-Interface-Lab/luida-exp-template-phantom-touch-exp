@@ -54,7 +54,7 @@ const NPC_CFG = {
   STOP_MARGIN: 0.02,       // stop this far before the face surface
   // Touch target in the participant's head frame: a little above the eyes (close to the first-person camera, which
   // Cluster places at about the eyes), on the side the NPC's right hand comes from.
-  ABOVE_EYES: 0.02,        //   height: the eye bones' midpoint plus this ...
+  ABOVE_EYES: 0.02,        //   height: the measured eye height (npc_eye_cal) or the eye bones' midpoint plus this ...
   FACE_UP: 0.083,          //   ... or, for avatars without eye bones, head bone + this (the eye bones sit 6.2-6.4 cm
                            //   above the head bone on the project's VRoid models, so the same height there)
   USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null for missing bones, but the editor
@@ -62,6 +62,8 @@ const NPC_CFG = {
                            //   director turns this on only outside LUIDA's test mode (npc_setup { eyes })
   FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline of the face)
   FACE_FWD: 0.09,          //   forward of the head bone (face surface)
+  EYE_CAL_MIN: -0.05,      // a measured eye height (above the head bone, m) outside this range is ignored
+  EYE_CAL_MAX: 0.30,
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
   PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
   HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above horizontal; palm turned toward the face
@@ -377,8 +379,11 @@ $.onReceive((messageType, arg, sender) => {
       if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }
       beginGreeting();
     } else if (messageType === "npc_eye_cal") {
-      $.state.npc_camUp = (arg && typeof arg.up === "number") ? arg.up : null;
-      $.log("[NPC] eye height above the head bone: " + ($.state.npc_camUp === null ? "none" : f3($.state.npc_camUp) + " m (measured)"));
+      // a value no eye can have (e.g. both hands down when the button was pressed) is ignored: the eye bones are used
+      const up = (arg && typeof arg.up === "number") ? arg.up : null;
+      const ok = up !== null && up >= NPC_CFG.EYE_CAL_MIN && up <= NPC_CFG.EYE_CAL_MAX;
+      $.state.npc_camUp = ok ? up : null;
+      $.log("[NPC] eye height above the head bone: " + (up === null ? "none" : f3(up) + " m (measured" + (ok ? ")" : ", implausible: ignored)")));
     } else if (messageType === "npc_greet_cue") {
       greetCue(arg ? arg.cue : "");
     } else if (messageType === "npc_greeting_end") {

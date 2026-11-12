@@ -2456,7 +2456,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &177876355
+--- !u!114 &177876359
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2476,7 +2476,7 @@ MonoBehaviour:
     item: {fileID: 580053179}
   parameterType: 0
   animatorParameterName: surprised
---- !u!114 &177876356
+--- !u!114 &177876360
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3603,11 +3603,11 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -4732165671218428268, guid: 92e1944495da5054c844a1ab50108e8e,
         type: 3}
       insertIndex: -1
-      addedObject: {fileID: 177876356}
+      addedObject: {fileID: 177876360}
     - targetCorrespondingSourceObject: {fileID: -4732165671218428268, guid: 92e1944495da5054c844a1ab50108e8e,
         type: 3}
       insertIndex: -1
-      addedObject: {fileID: 177876355}
+      addedObject: {fileID: 177876359}
   m_SourcePrefab: {fileID: -3956505258223990651, guid: 92e1944495da5054c844a1ab50108e8e,
     type: 3}
 --- !u!4 &254264555 stripped
@@ -6774,32 +6774,34 @@ PrefabInstance:
         // Touch target in the participant's head frame: a little above the eyes
         (close to the first-person camera, which\n  // Cluster places at about the
         eyes), on the side the NPC's right hand comes from.\n  ABOVE_EYES: 0.02,       
-        //   height: the eye bones' midpoint plus this ...\n  FACE_UP: 0.083,         
-        //   ... or, for avatars without eye bones, head bone + this (the eye bones
-        sit 6.2-6.4 cm\n                           //   above the head bone on the
-        project's VRoid models, so the same height there)\n  USE_EYE_BONES: false,   
-        //   query the eye bones at all? Cluster returns null for missing bones,
-        but the editor\n                           //   emulator (CSEmulator) throws
-        a .NET exception that aborts the whole handler, so the\n                          
-        //   director turns this on only outside LUIDA's test mode (npc_setup { eyes
-        })\n  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline
-        of the face)\n  FACE_FWD: 0.09,          //   forward of the head bone (face
-        surface)\n  CONTACT_LEN: 0.12,       // wrist -> contact point along the
-        fingers (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side offset
-        of the contact point along the palm normal (m)\n  HAND_PITCH_DEG: 45,     
-        // reaching hand: fingers this far above horizontal; palm turned toward the
-        face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR: 0.93,     
-        // usable fraction of (upper arm + forearm + finger) when choosing the reach
-        spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance
-        at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation distance
-        = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace cap (10
-        Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back duration\n 
-        REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation
-        spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,   // touch start:
-        wait this long after putting the participant back on the marker\n  HEIGHT_MATCH_MIN:
-        0.05,  // match heights only when the head-bone heights differ by at least
-        this (m):\n                           //   participant shorter -> platform
-        under the participant (HeightPlatform item);\n                          
+        //   height: the measured eye height (npc_eye_cal) or the eye bones' midpoint
+        plus this ...\n  FACE_UP: 0.083,          //   ... or, for avatars without
+        eye bones, head bone + this (the eye bones sit 6.2-6.4 cm\n                          
+        //   above the head bone on the project's VRoid models, so the same height
+        there)\n  USE_EYE_BONES: false,    //   query the eye bones at all? Cluster
+        returns null for missing bones, but the editor\n                          
+        //   emulator (CSEmulator) throws a .NET exception that aborts the whole
+        handler, so the\n                           //   director turns this on only
+        outside LUIDA's test mode (npc_setup { eyes })\n  FACE_SIDE: 0.04,        
+        //   toward the participant's left (0 = midline of the face)\n  FACE_FWD:
+        0.09,          //   forward of the head bone (face surface)\n  EYE_CAL_MIN:
+        -0.05,      // a measured eye height (above the head bone, m) outside this
+        range is ignored\n  EYE_CAL_MAX: 0.30,\n  CONTACT_LEN: 0.12,       // wrist
+        -> contact point along the fingers (finger pads) (m)\n  PALM_OFF: 0.015,        
+        // palm-side offset of the contact point along the palm normal (m)\n  HAND_PITCH_DEG:
+        45,      // reaching hand: fingers this far above horizontal; palm turned
+        toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR:
+        0.93,      // usable fraction of (upper arm + forearm + finger) when choosing
+        the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head
+        distance at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation
+        distance = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace
+        cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back
+        duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the
+        conversation spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,  
+        // touch start: wait this long after putting the participant back on the
+        marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone
+        heights differ by at least this (m):\n                           //   participant
+        shorter -> platform under the participant (HeightPlatform item);\n                          
         //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
         3.0, // keep trying to read the participant's bones this long after npc_show\n 
         // Guided greeting: the participant follows the GreetingGuide item's instructions
@@ -7000,11 +7002,14 @@ PrefabInstance:
         !== undefined) $.state.npc_social = !!arg.social;\n      if (!$.state.npc_visible)
         { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }\n     
         beginGreeting();\n    } else if (messageType === \"npc_eye_cal\") {\n     
-        $.state.npc_camUp = (arg && typeof arg.up === \"number\") ? arg.up : null;\n     
-        $.log(\"[NPC] eye height above the head bone: \" + ($.state.npc_camUp ===
-        null ? \"none\" : f3($.state.npc_camUp) + \" m (measured)\"));\n    } else
-        if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue :
-        \"\");\n    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
+        // a value no eye can have (e.g. both hands down when the button was pressed)
+        is ignored: the eye bones are used\n      const up = (arg && typeof arg.up
+        === \"number\") ? arg.up : null;\n      const ok = up !== null && up >= NPC_CFG.EYE_CAL_MIN
+        && up <= NPC_CFG.EYE_CAL_MAX;\n      $.state.npc_camUp = ok ? up : null;\n     
+        $.log(\"[NPC] eye height above the head bone: \" + (up === null ? \"none\"
+        : f3(up) + \" m (measured\" + (ok ? \")\" : \", implausible: ignored)\")));\n   
+        } else if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue
+        : \"\");\n    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
         } else if (messageType === \"npc_trial_start\") {\n      $.state.npc_trial
         = arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social
         = !!arg.social;\n      if ($.state.npc_mode === \"greeting\") endGreeting();\n     
@@ -9618,22 +9623,15 @@ PrefabInstance:
         it immediately.\n// 1st part ('pose'): tracking check. 2nd part ('eye'):
         the participant's own eye height in this avatar. Cluster puts\n// the first-person
         camera a little off the avatar's eye bones, and an item script cannot read
-        the camera. So the\n// participant holds the right hand beside the headset
-        (their own eye height) and clicks the large button straight\n// ahead (DC_Eye;
-        an item script cannot see a bare trigger pull, only Interact / Use on an
-        item). The right hand's\n// height above the head bone, averaged over the
-        last DC_EYE_WINDOW_SEC, is sent to the NPC ('npc_eye_cal'), which\n// aims
-        its hand from it in this block.\nconst DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0,
-        DC_RESCUE_SEC = 60;\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nconst
-        DC_EYE_LABEL = '\u3053\u3053\u306B\u5411\u3051\u3066\\n\u30C8\u30EA\u30AC\u30FC\u3092\u5F15\u304F';\nconst
-        DC_EYE_WINDOW_SEC = 0.5;                  // the hand height is averaged
-        over this long before the click ...\nconst DC_EYE_STILL = 0.03;                     
-        // ... and must not have varied by more than this (m)\nconst DC_EYE_MIN =
-        -0.05, DC_EYE_MAX = 0.30;    // accepted eye height above the head bone (m)\nconst
-        DC_EYE_RESCUE_SEC = 45, DC_EYE_RESCUE_TRIES = 3;   // then the rescue button
-        skips the measurement\nlet dcEyeSamples = [];\nfunction dc_btnSend(id, cfg)
-        { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg', cfg);
-        } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction
+        the camera. So the\n// participant holds one hand beside the headset (their
+        own eye height) and presses the large button straight ahead\n// (DC_Eye)
+        with the other hand. The higher hand's height above the head bone at that
+        moment is sent to the NPC\n// ('npc_eye_cal'), which aims its hand from it
+        in this block.\nconst DC_YAW_DEG = 25, DC_HANDS_SEC = 1.0, DC_RESCUE_SEC
+        = 60;\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nconst
+        DC_EYE_LABEL = '\u3053\u3053\u3092\u62BC\u3059';\nfunction dc_btnSend(id,
+        cfg) { try { const h = $.worldItemReference(id); if (h) h.send('btn_cfg',
+        cfg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction
         dc_send(cfg) { dc_btnSend('DC_Force', cfg); }\nfunction dc_sendEye(cfg) {
         dc_btnSend('DC_Eye', cfg); }\nfunction dc_begin() {\n  $.state.dc_active
         = false;\n  if (!firstTrialOfBlock()) { ToNextState(); return; }\n  $.state.dc_active
@@ -9647,78 +9645,53 @@ PrefabInstance:
         const f = new Vector3(0, 0, 1).applyQuaternion(r);\n  return Math.atan2(f.x,
         f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b) { let d = a - b; while
         (d > 180) d -= 360; while (d < -180) d += 360; return d; }\nfunction dc_render()
-        {\n  let t;\n  if ($.state.dc_phase === 'eye') {\n    const why = $.state.dc_eyeWhy;\n   
-        t = (why === 'moving' ? '\u624B\u3092\u6B62\u3081\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6'
-        : why ? '\u624B\u3092\u76EE\u306E\u9AD8\u3055\u306B\u4E0A\u3052\u3066\u3001\u3082\u3046\u4E00\u5EA6'
-        : '\u76EE\u306E\u9AD8\u3055\u306E\u78BA\u8A8D') + '\\n' +\n      '\u53F3\u624B\u3092\u30D8\u30C3\u30C9\u30BB\u30C3\u30C8\u306E\u53F3\u6A2A\\n\uFF08\u3054\u81EA\u8EAB\u306E\u76EE\u306E\u9AD8\u3055\uFF09\u306B\u6DFB\u3048\u3066\u3001\\n\u6B63\u9762\u306E\u30DC\u30BF\u30F3\u306B\u5411\u3051\u3066\\n\u30C8\u30EA\u30AC\u30FC\u3092\u5F15\u3044\u3066\u304F\u3060\u3055\u3044';\n 
-        } else {\n    t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
-        +\n      (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000]
-        ') + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n' +\n      (($.state.dc_hands
-        || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u982D\u3088\u308A\u4E0A\u306B\uFF081\u79D2\uFF09';\n 
-        }\n  if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t);
-        }\n}\nfunction dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const
-        p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return;\n  const b = $.getStateCompat('this',
-        'dc_btn', 'integer');   // 1: rescue button, 2: eye-height button\n  if (b
-        > 0) $.setStateCompat('this', 'dc_btn', 0);\n  if ($.state.dc_phase === 'eye')
-        { dc_eyeUpdate(p, b); return; }\n  const yaw = dc_yaw(p);\n  if (yaw !==
-        null) {\n    if ($.state.dc_yaw0 === null || $.state.dc_yaw0 === undefined)
-        $.state.dc_yaw0 = yaw;\n    const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n   
-        if (d <= -DC_YAW_DEG) $.state.dc_left = true;\n    if (d >= DC_YAW_DEG) $.state.dc_right
-        = true;\n  }\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n 
+        {\n  const t = $.state.dc_phase === 'eye'\n    ? '\u76EE\u306E\u9AD8\u3055\u306E\u78BA\u8A8D\\n\u7247\u624B\u3092\u30D8\u30C3\u30C9\u30BB\u30C3\u30C8\u306E\u6A2A\\n\uFF08\u3054\u81EA\u8EAB\u306E\u76EE\u306E\u9AD8\u3055\uFF09\u306B\u6DFB\u3048\u305F\u307E\u307E\u3001\\n\u3082\u3046\u7247\u65B9\u306E\u624B\u3067\\n\u6B63\u9762\u306E\u30DC\u30BF\u30F3\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044'\n   
+        : '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n' +\n      (($.state.dc_left
+        && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n'
+        +\n      (($.state.dc_hands || 0) >= DC_HANDS_SEC ? '[\u6E08] ' : '[\u3000]
+        ') + '\u4E21\u624B\u3092\u982D\u3088\u308A\u4E0A\u306B\uFF081\u79D2\uFF09';\n 
+        if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\nfunction
+        dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n 
+        if (!p || !p.exists()) return;\n  const b = $.getStateCompat('this', 'dc_btn',
+        'integer');   // 1: rescue button, 2: eye-height button\n  if (b > 0) $.setStateCompat('this',
+        'dc_btn', 0);\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head);\n 
         const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand);\n  const rh
-        = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  if (head && lh &&
-        rh && lh.y > head.y && rh.y > head.y) $.state.dc_hands = ($.state.dc_hands
-        || 0) + dt;\n  else if (($.state.dc_hands || 0) < DC_HANDS_SEC) $.state.dc_hands
+        = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  if ($.state.dc_phase
+        === 'eye') { if (b === 2) dc_finish(head, lh, rh); return; }\n  const yaw
+        = dc_yaw(p);\n  if (yaw !== null) {\n    if ($.state.dc_yaw0 === null ||
+        $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;\n    const d = dc_angleDiff(yaw,
+        $.state.dc_yaw0);\n    if (d <= -DC_YAW_DEG) $.state.dc_left = true;\n   
+        if (d >= DC_YAW_DEG) $.state.dc_right = true;\n  }\n  if (head && lh && rh
+        && lh.y > head.y && rh.y > head.y) $.state.dc_hands = ($.state.dc_hands ||
+        0) + dt;\n  else if (($.state.dc_hands || 0) < DC_HANDS_SEC) $.state.dc_hands
         = 0;\n  const elapsed = (Date.now() - ($.state.dc_start || Date.now())) /
         1000;\n  if (elapsed > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue
         = true; dc_send({ visible: true }); }\n  const forced = b === 1 && !!$.state.dc_rescue;\n 
         const passed = $.state.dc_left && $.state.dc_right && ($.state.dc_hands ||
         0) >= DC_HANDS_SEC;\n  if (passed || forced) { dc_eyeBegin(elapsed, forced);
-        return; }\n  dc_render();\n}\n// 2nd part. After a forced pose check (tracking
-        trouble) the rescue button stays, so this part can be skipped at once.\nfunction
-        dc_eyeBegin(elapsed, forced) {\n  SendDataToCollector('deviceCheckSec', elapsed);\n 
-        SendDataToCollector('deviceCheckForced', !!forced);\n  $.state.dc_phase =
-        'eye';\n  $.state.dc_eyeStart = Date.now();\n  $.state.dc_eyeTries = 0; $.state.dc_eyeWhy
-        = '';\n  $.state.dc_rescue = !!forced;\n  dcEyeSamples = [];\n  dc_send({
-        visible: !!forced });\n  dc_sendEye({ visible: true, label: DC_EYE_LABEL
-        });\n  dc_render();\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced'
-        : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; eye height next');\n}\nfunction
-        dc_eyeUpdate(p, b) {\n  const now = Date.now();\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head),
-        rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  if (head && rh)
-        dcEyeSamples.push({ t: now, up: rh.y - head.y, hand: rh.y, head: head.y });\n 
-        while (dcEyeSamples.length > 0 && now - dcEyeSamples[0].t > DC_EYE_WINDOW_SEC
-        * 1000) dcEyeSamples.shift();\n  const elapsed = (now - ($.state.dc_eyeStart
-        || now)) / 1000;\n  if (!$.state.dc_rescue && (elapsed > DC_EYE_RESCUE_SEC
-        || ($.state.dc_eyeTries || 0) >= DC_EYE_RESCUE_TRIES)) {\n    $.state.dc_rescue
-        = true; dc_send({ visible: true });\n  }\n  if (b === 1 && $.state.dc_rescue)
-        { dc_finish(null, elapsed); return; }\n  if (b === 2) {\n    const m = dc_eyeMeasure();\n   
-        if (m.ok) { dc_finish(m, elapsed); return; }\n    $.state.dc_eyeTries = ($.state.dc_eyeTries
-        || 0) + 1;\n    $.state.dc_eyeWhy = m.why;\n    $.log('[DeviceCheck] eye
-        height not taken (' + m.why + (m.up !== undefined ? ', hand ' + m.up.toFixed(3)
-        + ' m above the head bone' : '') +\n          '); attempt ' + $.state.dc_eyeTries);\n 
-        }\n  dc_render();\n}\n// The right hand's height above the head bone over
-        the last DC_EYE_WINDOW_SEC: still enough and plausible?\nfunction dc_eyeMeasure()
-        {\n  const n = dcEyeSamples.length;\n  if (n < 2) return { ok: false, why:
-        'bones' };\n  let up = 0, hand = 0, head = 0, lo = Infinity, hi = -Infinity;\n 
-        for (const s of dcEyeSamples) { up += s.up; hand += s.hand; head += s.head;
-        if (s.up < lo) lo = s.up; if (s.up > hi) hi = s.up; }\n  up /= n; hand /=
-        n; head /= n;\n  if (hi - lo > DC_EYE_STILL) return { ok: false, why: 'moving',
-        up: up };\n  if (up < DC_EYE_MIN || up > DC_EYE_MAX) return { ok: false,
-        why: 'range', up: up };\n  return { ok: true, up: up, hand: hand, head: head
-        };\n}\n// m: the measurement, or null when skipped with the rescue button
-        (the NPC then uses the avatar's eye bones).\nfunction dc_finish(m, eyeSec)
-        {\n  $.state.dc_active = false;\n  const r3 = (x) => Math.round(x * 1000)
-        / 1000;\n  SendDataToCollector('eyeCalUp', m ? r3(m.up) : '');\n  SendDataToCollector('eyeCalHandY',
-        m ? r3(m.hand) : '');\n  SendDataToCollector('eyeCalHeadY', m ? r3(m.head)
+        return; }\n  dc_render();\n}\n// 2nd part: the eye-height button replaces
+        the rescue button\nfunction dc_eyeBegin(elapsed, forced) {\n  SendDataToCollector('deviceCheckSec',
+        elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  $.state.dc_phase
+        = 'eye';\n  $.state.dc_eyeStart = Date.now();\n  dc_send({ visible: false
+        });\n  dc_sendEye({ visible: true, label: DC_EYE_LABEL });\n  dc_render();\n 
+        $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after
+        ' + elapsed.toFixed(1) + ' s; eye height next');\n}\n// The button was pressed:
+        the higher hand is the one held at eye height.\nfunction dc_finish(head,
+        lh, rh) {\n  $.state.dc_active = false;\n  const eyeSec = (Date.now() - ($.state.dc_eyeStart
+        || Date.now())) / 1000;\n  const hand = (lh && rh) ? (lh.y >= rh.y ? lh :
+        rh) : (lh || rh);\n  const side = !hand ? '' : hand === lh ? 'left' : 'right';\n 
+        const up = (head && hand) ? hand.y - head.y : null;\n  const r3 = (x) =>
+        Math.round(x * 1000) / 1000;\n  SendDataToCollector('eyeCalUp', up !== null
+        ? r3(up) : '');\n  SendDataToCollector('eyeCalHand', side);\n  SendDataToCollector('eyeCalHandY',
+        hand ? r3(hand.y) : '');\n  SendDataToCollector('eyeCalHeadY', head ? r3(head.y)
         : '');\n  SendDataToCollector('eyeCalSec', Math.round(eyeSec * 10) / 10);\n 
-        SendDataToCollector('eyeCalRetries', $.state.dc_eyeTries || 0);\n  SendDataToCollector('eyeCalSkipped',
-        !m);\n  if (m) {\n    try { $.worldItemReference('NPC').send('npc_eye_cal',
-        { up: m.up }); }\n    catch (e) { $.log('[DeviceCheck] npc_eye_cal: ' + e);
-        }\n  }\n  $.log('[DeviceCheck] eye height ' + (m ? r3(m.up) + ' m above the
-        head bone (hand ' + r3(m.hand) + ', head bone ' + r3(m.head) + ')' : 'skipped')
-        +\n        ' after ' + eyeSec.toFixed(1) + ' s, ' + ($.state.dc_eyeTries
-        || 0) + ' failed attempt(s)');\n  ProcessAndSaveCollectedData();\n  dc_send({
-        visible: false }); dc_sendEye({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
+        if (up !== null) {\n    try { $.worldItemReference('NPC').send('npc_eye_cal',
+        { up: up }); }\n    catch (e) { $.log('[DeviceCheck] npc_eye_cal: ' + e);
+        }\n  }\n  $.log('[DeviceCheck] eye height ' + (up !== null ? r3(up) + ' m
+        above the head bone (' + side + ' hand ' + r3(hand.y) + ', head bone ' +
+        r3(head.y) + ')' : 'not read (bones)') +\n        ' after ' + eyeSec.toFixed(1)
+        + ' s');\n  ProcessAndSaveCollectedData();\n  dc_sendEye({ visible: false
+        });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
         ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); dc_sendEye({
         visible: false }); HideChild('Text'); $.state.dc_active = false; }"
       objectReference: {fileID: 0}
@@ -21561,7 +21534,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: ClusterVR.CreatorKit.World.Implements::ClusterVR.CreatorKit.World.Implements.TextView.TextView
   textMesh: {fileID: 0}
-  text: "\u3053\u3053\u306B\u5411\u3051\u3066\n\u30C8\u30EA\u30AC\u30FC\u3092\u5F15\u304F"
+  text: "\u3053\u3053\u3092\u62BC\u3059"
   size: 0.03
   textAnchor: 4
   textAlignment: 1
@@ -21739,46 +21712,46 @@ PrefabInstance:
         CD['avatarIsDefault'],\n    setupSec: CD['setupSec'], setupRetry: CD['setupRetry'],
         avatarCheckFallback: CD['avatarCheckFallback'],\n    // device check\n   
         deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
-        // eye height (same row): the right hand held at the participant's own eye
-        height, above the head bone (m; '' when\n    // skipped), the hand's and
-        the head bone's world heights then, seconds taken, failed attempts, skipped?\n   
-        eyeCalUp: CD['eyeCalUp'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],\n   
-        eyeCalSec: CD['eyeCalSec'], eyeCalRetries: CD['eyeCalRetries'], eyeCalSkipped:
-        CD['eyeCalSkipped'],\n    // per-trial report\n    rating: CD['rating'],
-        mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n   
-        ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],\n    // NPC measurements\n   
-        social: CD['social'], npcBlock: CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar:
-        CD['npcAvatar'],\n    trialStartTs: CD['trialStartTs'], reachStartTs: CD['reachStartTs'],
-        contactTs: CD['contactTs'], retractEndTs: CD['retractEndTs'],\n    strokeEndTs:
-        CD['strokeEndTs'], strokeAmp: CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n   
-        strokeBack: CD['strokeBack'], strokeReturnSpeed: CD['strokeReturnSpeed'],
-        strokeRampSec: CD['strokeRampSec'],\n    // guided greeting (every trial):
-        seconds from each instruction to the participant following it (0 = already\n   
-        // doing it, -1 = skipped after the timeout), number skipped, cues the NPC
-        received, and the NPC's counters\n    greetStepSec: CD['greetStepSec'], greetTimeouts:
-        CD['greetTimeouts'], greetCues: CD['greetCues'],\n    greetSec: CD['greetSec'],
-        greetGazeEvents: CD['greetGazeEvents'], greetHandRaises: CD['greetHandRaises'],\n   
-        greetNpcReactions: CD['greetNpcReactions'], greetNpcNods: CD['greetNpcNods'],
-        greetNpcWaves: CD['greetNpcWaves'],\n    greetNpcSmiles: CD['greetNpcSmiles'],
-        greetTouches: CD['greetTouches'],\n    // height matching (head-bone heights,
-        m; platform under the participant / riser under the NPC)\n    participantHeadH:
-        CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'],
-        npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur: CD['reachDur'],
-        contactDist: CD['contactDist'], reachable: CD['reachable'],\n    headPos0:
-        CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height above
-        the head bone (m) and where the eye height came from: calibrated / eyeBones
-        / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n    retreatOnsetDist:
-        CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
-        // backing away with the stick during the touch (slow, touchMoveRate x the
-        normal speed): avatar position at the\n    // approach start, its distance
-        from the marker then / at the end of the retract, its retreat like retreatDist,\n   
-        // and whether the participant was put back on the marker after the NPC had
-        gone\n    touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'],
-        rootShiftPre: CD['rootShiftPre'],\n    rootRetreat: CD['rootRetreat'], rootShiftEnd:
-        CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],\n    lookedAtNpc:
-        CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout:
-        CD['npcTimeout'],\n    trace: CD['trace'],\n};\n\r\n    return {};\n  }\n 
-        returnData.push(saveData());\n  return returnData;\n}\n"
+        // eye height (same row): the hand held at the participant's own eye height
+        (the higher hand when the button was\n    // pressed), above the head bone
+        (m; '' when the bones were not readable), which hand, the hand's and the
+        head\n    // bone's world heights then, seconds taken\n    eyeCalUp: CD['eyeCalUp'],
+        eyeCalHand: CD['eyeCalHand'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY:
+        CD['eyeCalHeadY'],\n    eyeCalSec: CD['eyeCalSec'],\n    // per-trial report\n   
+        rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'],
+        reportDoneTs: CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'], plocOther:
+        CD['plocOther'],\n    // NPC measurements\n    social: CD['social'], npcBlock:
+        CD['npcBlock'], npcRep: CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs:
+        CD['trialStartTs'], reachStartTs: CD['reachStartTs'], contactTs: CD['contactTs'],
+        retractEndTs: CD['retractEndTs'],\n    strokeEndTs: CD['strokeEndTs'], strokeAmp:
+        CD['strokeAmp'], strokeCycles: CD['strokeCycles'],\n    strokeBack: CD['strokeBack'],
+        strokeReturnSpeed: CD['strokeReturnSpeed'], strokeRampSec: CD['strokeRampSec'],\n   
+        // guided greeting (every trial): seconds from each instruction to the participant
+        following it (0 = already\n    // doing it, -1 = skipped after the timeout),
+        number skipped, cues the NPC received, and the NPC's counters\n    greetStepSec:
+        CD['greetStepSec'], greetTimeouts: CD['greetTimeouts'], greetCues: CD['greetCues'],\n   
+        greetSec: CD['greetSec'], greetGazeEvents: CD['greetGazeEvents'], greetHandRaises:
+        CD['greetHandRaises'],\n    greetNpcReactions: CD['greetNpcReactions'], greetNpcNods:
+        CD['greetNpcNods'], greetNpcWaves: CD['greetNpcWaves'],\n    greetNpcSmiles:
+        CD['greetNpcSmiles'], greetTouches: CD['greetTouches'],\n    // height matching
+        (head-bone heights, m; platform under the participant / riser under the NPC)\n   
+        participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform:
+        CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'],
+        reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
+        headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target
+        height above the head bone (m) and where the eye height came from: calibrated
+        / eyeBones / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n   
+        retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'],
+        oscAmp: CD['oscAmp'],\n    // backing away with the stick during the touch
+        (slow, touchMoveRate x the normal speed): avatar position at the\n    //
+        approach start, its distance from the marker then / at the end of the retract,
+        its retreat like retreatDist,\n    // and whether the participant was put
+        back on the marker after the NPC had gone\n    touchMoveRate: CD['touchMoveRate'],
+        rootStart: CD['rootStart'], rootShiftPre: CD['rootShiftPre'],\n    rootRetreat:
+        CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],\n   
+        lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],\n   
+        npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n\r\n    return
+        {};\n  }\n  returnData.push(saveData());\n  return returnData;\n}\n"
       objectReference: {fileID: 0}
     - target: {fileID: 5964733846762761527, guid: 964d6187f971a8f43b4ee67279f1ef90,
         type: 3}

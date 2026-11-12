@@ -23,10 +23,11 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // eye height (same row): the right hand held at the participant's own eye height, above the head bone (m; '' when
-    // skipped), the hand's and the head bone's world heights then, seconds taken, failed attempts, skipped?
-    eyeCalUp: CD['eyeCalUp'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],
-    eyeCalSec: CD['eyeCalSec'], eyeCalRetries: CD['eyeCalRetries'], eyeCalSkipped: CD['eyeCalSkipped'],
+    // eye height (same row): the hand held at the participant's own eye height (the higher hand when the button was
+    // pressed), above the head bone (m; '' when the bones were not readable), which hand, the hand's and the head
+    // bone's world heights then, seconds taken
+    eyeCalUp: CD['eyeCalUp'], eyeCalHand: CD['eyeCalHand'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],
+    eyeCalSec: CD['eyeCalSec'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],

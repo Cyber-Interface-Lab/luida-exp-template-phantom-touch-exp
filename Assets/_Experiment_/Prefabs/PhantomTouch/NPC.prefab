@@ -275,31 +275,33 @@ MonoBehaviour:
     this far before the face surface\n  // Touch target in the participant's head
     frame: a little above the eyes (close to the first-person camera, which\n  //
     Cluster places at about the eyes), on the side the NPC's right hand comes from.\n 
-    ABOVE_EYES: 0.02,        //   height: the eye bones' midpoint plus this ...\n 
-    FACE_UP: 0.083,          //   ... or, for avatars without eye bones, head bone
-    + this (the eye bones sit 6.2-6.4 cm\n                           //   above the
-    head bone on the project's VRoid models, so the same height there)\n  USE_EYE_BONES:
-    false,    //   query the eye bones at all? Cluster returns null for missing bones,
-    but the editor\n                           //   emulator (CSEmulator) throws
-    a .NET exception that aborts the whole handler, so the\n                          
+    ABOVE_EYES: 0.02,        //   height: the measured eye height (npc_eye_cal) or
+    the eye bones' midpoint plus this ...\n  FACE_UP: 0.083,          //   ... or,
+    for avatars without eye bones, head bone + this (the eye bones sit 6.2-6.4 cm\n                          
+    //   above the head bone on the project's VRoid models, so the same height there)\n 
+    USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null
+    for missing bones, but the editor\n                           //   emulator (CSEmulator)
+    throws a .NET exception that aborts the whole handler, so the\n                          
     //   director turns this on only outside LUIDA's test mode (npc_setup { eyes
     })\n  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline
     of the face)\n  FACE_FWD: 0.09,          //   forward of the head bone (face
-    surface)\n  CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers
-    (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side offset of the contact
-    point along the palm normal (m)\n  HAND_PITCH_DEG: 45,      // reaching hand:
-    fingers this far above horizontal; palm turned toward the face\n  SAMPLE_INTERVAL:
-    0.1,    // 10 Hz trace\n  STAND_FACTOR: 0.93,      // usable fraction of (upper
-    arm + forearm + finger) when choosing the reach spot\n  MIN_STAND_DIST: 0.40,   
-    // minimum horizontal root-to-head distance at the reach spot (m)\n  IDLE_EXTRA_DIST:
-    0.45,   // conversation distance = reach distance + this (m)\n  MAX_SAMPLES:
-    400,        // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step
-    closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block:
-    shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
-    1.0,   // touch start: wait this long after putting the participant back on the
-    marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights
-    differ by at least this (m):\n                           //   participant shorter
-    -> platform under the participant (HeightPlatform item);\n                          
+    surface)\n  EYE_CAL_MIN: -0.05,      // a measured eye height (above the head
+    bone, m) outside this range is ignored\n  EYE_CAL_MAX: 0.30,\n  CONTACT_LEN:
+    0.12,       // wrist -> contact point along the fingers (finger pads) (m)\n 
+    PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm
+    normal (m)\n  HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above
+    horizontal; palm turned toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz
+    trace\n  STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm
+    + finger) when choosing the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum
+    horizontal root-to-head distance at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,  
+    // conversation distance = reach distance + this (m)\n  MAX_SAMPLES: 400,       
+    // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step closer / step
+    back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the
+    conversation spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,   //
+    touch start: wait this long after putting the participant back on the marker\n 
+    HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights differ
+    by at least this (m):\n                           //   participant shorter ->
+    platform under the participant (HeightPlatform item);\n                          
     //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
     3.0, // keep trying to read the participant's bones this long after npc_show\n 
     // Guided greeting: the participant follows the GreetingGuide item's instructions
@@ -490,41 +492,45 @@ MonoBehaviour:
     === \"npc_greeting_begin\") {\n      if (arg && arg.social !== undefined) $.state.npc_social
     = !!arg.social;\n      if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
     false); setVisible(true); }\n      beginGreeting();\n    } else if (messageType
-    === \"npc_eye_cal\") {\n      $.state.npc_camUp = (arg && typeof arg.up === \"number\")
-    ? arg.up : null;\n      $.log(\"[NPC] eye height above the head bone: \" + ($.state.npc_camUp
-    === null ? \"none\" : f3($.state.npc_camUp) + \" m (measured)\"));\n    } else
-    if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue : \"\");\n   
-    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
-    } else if (messageType === \"npc_trial_start\") {\n      $.state.npc_trial =
-    arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n     
-    if ($.state.npc_mode === \"greeting\") endGreeting();\n      // put the participant
-    back on the marker (facing along it, on their platform), then wait a moment\n     
-    const reset = !!(arg && arg.reset) && resetParticipant(true);\n      let delay
-    = reset ? NPC_CFG.RESET_SETTLE_SEC : 0;\n      if (!$.state.npc_visible) {\n       
-    // hidden since the previous trial: reappear at the conversation spot, then step
-    in a moment later\n        moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n       
-    setVisible(true);\n        delay = Math.max(delay, NPC_CFG.REAPPEAR_SEC);\n     
-    }\n      if (delay > 0) { $.state.npc_startDelay = delay; $.state.npc_pendingStart
-    = true; }\n      else startTrial();\n    } else if (messageType === \"npc_abort\")
-    {\n      leave(false);\n    }\n  } catch (e) {\n    $.log(\"[NPC] onReceive error:
-    \" + e);\n  }\n});\n\n// ----------------------------------------------------------------
-    participant\nfunction participant() {\n  try {\n    const ps = $.groupState ?
-    $.groupState.participants : null;\n    // An enrolled participant who left is
-    not replaced by a bystander (for example the next person, who is\n    // being
-    asked by LUIDA whether they are a new participant): the trial stalls until the
-    director's timeout\n    // or the session reset. The nearby-player fallback is
-    only for a world without enrolled participants.\n    if (ps && ps.length > 0)
-    return (ps[0] && ps[0].exists()) ? ps[0] : null;\n  } catch (e) { /* not a group
-    member */ }\n  const near = $.getPlayersNear($.getPosition(), 50);\n  return
-    near && near.length > 0 ? near[0] : null;\n}\n\nfunction headOf(p) {\n  const
-    pos = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
-    if (!pos || !rot) return null;\n  // eye height in the head frame: the height
-    measured in the pose check (npc_eye_cal) when there is one, else the\n  // eye
-    bones (null when they are not queried, missing or implausible)\n  let eyeUp =
-    null, eyeSrc = \"headBone\";\n  if (typeof $.state.npc_camUp === \"number\")
-    { eyeUp = $.state.npc_camUp; eyeSrc = \"calibrated\"; }\n  const useEyes = ($.state.npc_useEyes
-    === undefined || $.state.npc_useEyes === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;\n 
-    if (eyeUp === null && useEyes) {\n    const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye),
+    === \"npc_eye_cal\") {\n      // a value no eye can have (e.g. both hands down
+    when the button was pressed) is ignored: the eye bones are used\n      const
+    up = (arg && typeof arg.up === \"number\") ? arg.up : null;\n      const ok =
+    up !== null && up >= NPC_CFG.EYE_CAL_MIN && up <= NPC_CFG.EYE_CAL_MAX;\n     
+    $.state.npc_camUp = ok ? up : null;\n      $.log(\"[NPC] eye height above the
+    head bone: \" + (up === null ? \"none\" : f3(up) + \" m (measured\" + (ok ? \")\"
+    : \", implausible: ignored)\")));\n    } else if (messageType === \"npc_greet_cue\")
+    {\n      greetCue(arg ? arg.cue : \"\");\n    } else if (messageType === \"npc_greeting_end\")
+    {\n      endGreeting();\n    } else if (messageType === \"npc_trial_start\")
+    {\n      $.state.npc_trial = arg || {};\n      if (arg && arg.social !== undefined)
+    $.state.npc_social = !!arg.social;\n      if ($.state.npc_mode === \"greeting\")
+    endGreeting();\n      // put the participant back on the marker (facing along
+    it, on their platform), then wait a moment\n      const reset = !!(arg && arg.reset)
+    && resetParticipant(true);\n      let delay = reset ? NPC_CFG.RESET_SETTLE_SEC
+    : 0;\n      if (!$.state.npc_visible) {\n        // hidden since the previous
+    trial: reappear at the conversation spot, then step in a moment later\n       
+    moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n        setVisible(true);\n       
+    delay = Math.max(delay, NPC_CFG.REAPPEAR_SEC);\n      }\n      if (delay > 0)
+    { $.state.npc_startDelay = delay; $.state.npc_pendingStart = true; }\n      else
+    startTrial();\n    } else if (messageType === \"npc_abort\") {\n      leave(false);\n   
+    }\n  } catch (e) {\n    $.log(\"[NPC] onReceive error: \" + e);\n  }\n});\n\n//
+    ---------------------------------------------------------------- participant\nfunction
+    participant() {\n  try {\n    const ps = $.groupState ? $.groupState.participants
+    : null;\n    // An enrolled participant who left is not replaced by a bystander
+    (for example the next person, who is\n    // being asked by LUIDA whether they
+    are a new participant): the trial stalls until the director's timeout\n    //
+    or the session reset. The nearby-player fallback is only for a world without
+    enrolled participants.\n    if (ps && ps.length > 0) return (ps[0] && ps[0].exists())
+    ? ps[0] : null;\n  } catch (e) { /* not a group member */ }\n  const near = $.getPlayersNear($.getPosition(),
+    50);\n  return near && near.length > 0 ? near[0] : null;\n}\n\nfunction headOf(p)
+    {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const rot =
+    p.getHumanoidBoneRotation(HumanoidBone.Head);\n  if (!pos || !rot) return null;\n 
+    // eye height in the head frame: the height measured in the pose check (npc_eye_cal)
+    when there is one, else the\n  // eye bones (null when they are not queried,
+    missing or implausible)\n  let eyeUp = null, eyeSrc = \"headBone\";\n  if (typeof
+    $.state.npc_camUp === \"number\") { eyeUp = $.state.npc_camUp; eyeSrc = \"calibrated\";
+    }\n  const useEyes = ($.state.npc_useEyes === undefined || $.state.npc_useEyes
+    === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;\n  if (eyeUp === null
+    && useEyes) {\n    const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye),
     re = p.getHumanoidBonePosition(HumanoidBone.RightEye);\n    const eye = (le &&
     re) ? vscale(vadd(le, re), 0.5) : (le || re);\n    if (eye) { const local = qrot(qinv(rot),
     vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) { eyeUp = local.y; eyeSrc

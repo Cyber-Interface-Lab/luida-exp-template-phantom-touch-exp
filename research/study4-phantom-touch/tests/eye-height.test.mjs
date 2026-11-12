@@ -1,6 +1,7 @@
 // Eye height (2nd part of the pose check, generated DeviceCheck item): after the tracking check the participant holds
-// the right hand at their own eye height and clicks the large button straight ahead (DC_Eye writes 2 to "dc_btn"). The
-// hand's height above the head bone is sent to the NPC ("npc_eye_cal"), which aims its hand from it in this block.
+// one hand at their own eye height and presses the large button straight ahead with the other (DC_Eye writes 2 to
+// "dc_btn"). The higher hand's height above the head bone is sent to the NPC ("npc_eye_cal"), which aims its hand from
+// it in this block.
 // Run: node --test "research/study4-phantom-touch/tests/*.test.mjs"
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -45,7 +46,7 @@ function start(t, trialId = 0) {
   return { item, p, refs, group, run, visible, text, click, passPose, eyeCal };
 }
 
-test("after the tracking check, the right hand held at eye height and a click on the button give the eye height", (t) => {
+test("after the tracking check, one hand at eye height and a press with the other give the eye height", (t) => {
   const g = start(t);
   g.run(0.1);
   assert.match(g.text(), /トラッキングの確認/);
@@ -53,45 +54,42 @@ test("after the tracking check, the right hand held at eye height and a click on
   g.click(2);
   assert.match(g.text(), /トラッキングの確認/, "the eye button does nothing during the tracking check");
   g.passPose();
-  assert.match(g.text(), /目の高さの確認[\s\S]*ヘッドセットの右横[\s\S]*トリガーを引いて/);
+  assert.match(g.text(), /目の高さの確認[\s\S]*片手をヘッドセットの横[\s\S]*もう片方の手で[\s\S]*ボタンを押して/);
   assert.equal(g.visible("DC_Eye"), true);
   assert.equal(g.item.signals.includes("state_triggerTransition"), false, "the state goes on only after the eye height");
-  // hand still moving up when the button is clicked: asked again
-  for (let i = 0; i < 6; i++) { g.p.rh = new V3(0.2, 1.50 + 0.02 * i, -1.9); g.run(DT); }
+  g.p.lh = new V3(-0.15, 1.585, -1.9);   // left hand beside the headset, 8.5 cm above the head bone
+  g.p.rh = new V3(0.2, 1.3, -1.7);       // right hand pointing at the button
+  g.run(0.3);
   g.click(2);
-  assert.match(g.text(), /手を止めてから、もう一度/);
-  // hand held still, but far below the eyes: asked again
-  g.p.rh = new V3(0.2, 1.2, -1.9); g.run(0.6);
-  g.click(2);
-  assert.match(g.text(), /手を目の高さに上げて、もう一度/);
-  assert.deepEqual(g.eyeCal(), []);
-  // hand held still 8.5 cm above the head bone
-  g.p.rh = new V3(0.2, 1.585, -1.9); g.run(0.6);
-  g.click(2);
-  assert.equal(g.eyeCal().length, 1);
-  assert.ok(Math.abs(g.eyeCal()[0] - 0.085) < 1e-9);
+  assert.deepEqual(g.eyeCal(), [1.585 - 1.5]);
   const cd = g.group.collectedData;
-  assert.deepEqual([cd.eyeCalUp, cd.eyeCalHandY, cd.eyeCalHeadY, cd.eyeCalRetries, cd.eyeCalSkipped, cd.deviceCheckForced], [0.085, 1.585, 1.5, 2, false, false]);
+  assert.deepEqual([cd.eyeCalUp, cd.eyeCalHand, cd.eyeCalHandY, cd.eyeCalHeadY, cd.deviceCheckForced], [0.085, "left", 1.585, 1.5, false]);
   assert.equal(g.visible("DC_Eye"), false);
   assert.deepEqual(g.item.signals, ["exp_recordCustomData", "state_triggerTransition"]);
 });
 
-test("after three failed attempts the rescue button skips the eye height (the NPC keeps the avatar's eye bones)", (t) => {
+test("either hand can be the one at eye height: the higher one counts", (t) => {
   const g = start(t);
   g.passPose();
-  assert.equal(g.visible("DC_Force"), false);
-  g.click(1);
-  assert.equal(g.item.signals.length, 0, "no rescue button yet: nothing happens");
-  for (let i = 0; i < 3; i++) { g.run(0.6); g.click(2); }   // hand hanging at the side
-  g.run(DT);
+  g.p.rh = new V3(0.15, 1.57, -1.9); g.p.lh = new V3(-0.2, 1.25, -1.7);
+  g.click(2);
+  assert.equal(g.group.collectedData.eyeCalHand, "right");
+  assert.equal(g.group.collectedData.eyeCalUp, 0.07);
+});
+
+test("after a pose check passed with the rescue button, the eye height is still measured (no rescue for it)", (t) => {
+  const g = start(t);
+  g.run(61);
   assert.equal(g.visible("DC_Force"), true);
   g.click(1);
-  const cd = g.group.collectedData;
-  assert.deepEqual([cd.eyeCalUp, cd.eyeCalRetries, cd.eyeCalSkipped], ["", 3, true]);
-  assert.deepEqual(g.eyeCal(), []);
-  assert.deepEqual(g.item.signals, ["exp_recordCustomData", "state_triggerTransition"]);
-  assert.equal(g.visible("DC_Eye"), false);
+  assert.equal(g.group.collectedData.deviceCheckForced, true);
   assert.equal(g.visible("DC_Force"), false);
+  assert.equal(g.visible("DC_Eye"), true);
+  g.click(1);
+  assert.equal(g.item.signals.length, 0, "the rescue button does not skip the eye height");
+  g.p.rh = new V3(0.15, 1.56, -1.9);
+  g.click(2);
+  assert.deepEqual(g.item.signals, ["exp_recordCustomData", "state_triggerTransition"]);
 });
 
 test("the 2nd trial of a block skips the pose check and the eye height", (t) => {
@@ -101,7 +99,7 @@ test("the 2nd trial of a block skips the pose check and the eye height", (t) => 
   assert.notEqual(g.visible("DC_Eye"), true);
 });
 
-test("the NPC aims just above the measured eye height until the next block's setup", () => {
+test("the NPC aims just above the measured eye height until the next block's setup; impossible values are ignored", () => {
   const p = makePlayer("p1");
   p.getHumanoidBonePosition = (b) => (b === 10 ? new Vector3(0, 1.5, -2) : null);
   p.getHumanoidBoneRotation = (b) => (b === 10 ? new Quaternion(0, 0, 0, 1) : null);
@@ -110,6 +108,9 @@ test("the NPC aims just above the measured eye height until the next block's set
   assert.deepEqual(up(), [0.083, "headBone"], "test mode, nothing measured: head bone + FACE_UP");
   item.receive("npc_eye_cal", { up: 0.1 }, null);
   assert.deepEqual(up(), [0.12, "calibrated"], "measured eye height + ABOVE_EYES");
+  item.receive("npc_eye_cal", { up: -0.6 }, null);
+  assert.deepEqual(up(), [0.083, "headBone"], "both hands were down: ignored");
+  item.receive("npc_eye_cal", { up: 0.1 }, null);
   item.receive("npc_setup", { social: true }, null);
   assert.deepEqual(up(), [0.083, "headBone"], "a new block (another avatar): measured again");
 });
