@@ -59,7 +59,8 @@ const GG_STEPS = [
   { id: 'lookBack', text: 'もう一度、\n相手の顔を見てください', react: 0.8 },       // NPC: nod + smile
   { id: 'move', text: '右へ1歩（約50cm）\n動いてください', react: 1.5 },          // NPC: turns to face them
   { id: 'lookAgain', text: 'もう一度、\n相手の顔を見てください', react: 1.6 },      // NPC: wave + smile
-  { id: 'center', text: '中央（床の青いマーク）に戻って、\n正面を見てください', react: 1.5 }, // NPC: turns to face them
+  { id: 'center', text: '中央（青いマーク）に戻って、\n正面を見てください', react: 1.5 }, // NPC: turns to face them
+  // (the blue mark is on the floor, or on the height platform when the participant stands on one)
 ];
 const GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message delay, frame drops) before going on
 const GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not answer

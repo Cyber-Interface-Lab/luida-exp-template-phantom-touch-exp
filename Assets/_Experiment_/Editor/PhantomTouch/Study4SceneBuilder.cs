@@ -1024,6 +1024,25 @@ return {
         }
         platform.SetPositionAndRotation(l.origin, l.Frame);
         EnsureCube(platform, "Cube", PlatformSize, m.riser, true);
+        // the blue standing mark on the raised cube's top (the FloorMarker on the floor is covered by the cube then);
+        // Study4Platform.js moves it with the cube and shows it only while raised
+        var mark = platform.Find("TopMarker");
+        if (mark == null)
+        {
+            var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            q.name = "TopMarker";
+            mark = q.transform;
+            mark.SetParent(platform, false);
+        }
+        var markCol = mark.GetComponent<Collider>();
+        if (markCol != null) Object.DestroyImmediate(markCol);
+        mark.localPosition = new Vector3(0f, 0.01f, 0f);
+        mark.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        mark.localScale = new Vector3(0.6f, 0.6f, 1f);
+        var markR = mark.GetComponent<MeshRenderer>();
+        markR.sharedMaterial = m.marker;
+        markR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mark.gameObject.SetActive(false);
 
         var npc = FindRoot("NPC");
         if (npc != null)
@@ -2868,7 +2887,8 @@ const GG_STEPS = [
   { id: 'lookBack', text: 'もう一度、\n相手の顔を見てください', react: 0.8 },       // NPC: nod + smile
   { id: 'move', text: '右へ1歩（約50cm）\n動いてください', react: 1.5 },          // NPC: turns to face them
   { id: 'lookAgain', text: 'もう一度、\n相手の顔を見てください', react: 1.6 },      // NPC: wave + smile
-  { id: 'center', text: '中央（床の青いマーク）に戻って、\n正面を見てください', react: 1.5 }, // NPC: turns to face them
+  { id: 'center', text: '中央（青いマーク）に戻って、\n正面を見てください', react: 1.5 }, // NPC: turns to face them
+  // (the blue mark is on the floor, or on the height platform when the participant stands on one)
 ];
 const GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message delay, frame drops) before going on
 const GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not answer

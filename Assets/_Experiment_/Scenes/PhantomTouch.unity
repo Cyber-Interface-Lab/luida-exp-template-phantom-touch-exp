@@ -865,7 +865,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: ClusterVR.CreatorKit.Item.Implements::ClusterVR.CreatorKit.Item.Implements.Item
   id:
-    value: 0
+    value: 2668255934127605232
   itemName: DC_Eye
   size: {x: 0, y: 0, z: 0}
 --- !u!1001 &54783766
@@ -14805,7 +14805,7 @@ GameObject:
   - component: {fileID: 1273061111}
   - component: {fileID: 1273061110}
   - component: {fileID: 1273061109}
-  m_Layer: 0
+  m_Layer: 14
   m_Name: Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -15736,7 +15736,7 @@ GameObject:
   - component: {fileID: 1367183796}
   - component: {fileID: 1367183795}
   - component: {fileID: 1367183794}
-  m_Layer: 0
+  m_Layer: 14
   m_Name: VisualOn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -17116,6 +17116,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 992636383}
+  - {fileID: 1972202947}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1550023279
@@ -20553,6 +20554,95 @@ MonoBehaviour:
   textAnchor: 4
   textAlignment: 1
   color: {r: 1, g: 1, b: 1, a: 1}
+--- !u!1 &1972202946
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1972202947}
+  - component: {fileID: 1972202949}
+  - component: {fileID: 1972202948}
+  m_Layer: 0
+  m_Name: TopMarker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1972202947
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1972202946}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 0.01, z: 0}
+  m_LocalScale: {x: 0.6, y: 0.6, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1507153327}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &1972202948
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1972202946}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 95d13a8f594ba4c4693f731e8ed7208b, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1972202949
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1972202946}
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1989563200
 GameObject:
   m_ObjectHideFlags: 0
@@ -20946,37 +21036,39 @@ PrefabInstance:
         react: 0.8 },       // NPC: nod + smile\n  { id: 'move', text: '\u53F3\u30781\u6B69\uFF08\u7D0450cm\uFF09\\n\u52D5\u3044\u3066\u304F\u3060\u3055\u3044',
         react: 1.5 },          // NPC: turns to face them\n  { id: 'lookAgain', text:
         '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
-        react: 1.6 },      // NPC: wave + smile\n  { id: 'center', text: '\u4E2D\u592E\uFF08\u5E8A\u306E\u9752\u3044\u30DE\u30FC\u30AF\uFF09\u306B\u623B\u3063\u3066\u3001\\n\u6B63\u9762\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
-        react: 1.5 }, // NPC: turns to face them\n];\nconst GG_REACT_MARGIN = 1.4;    
-        // after an answer should have ended (message delay, frame drops) before
-        going on\nconst GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC
-        does not answer\nfunction gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN
-        : GG_NO_REACT_PAUSE; }\nconst GG_TIMEOUT_SEC = 30;       // an instruction
-        not followed for this long is skipped (greetTimeouts)\nconst GG_MAX_SEC =
-        180;          // the greeting ends after this long, whatever happened\nconst
-        GG_LOOK_AT_DEG = 20;       // looking at the NPC: head forward within this
-        angle of the NPC's head ...\nconst GG_LOOK_AWAY_DEG = 30;     // ... looking
-        away: head yaw at least this far from the NPC ...\nconst GG_LOOK_HOLD_SEC
-        = 0.3;    // ... for this long\nconst GG_HAND_BELOW_HEAD = 0.10; // waving:
-        a hand (wrist) higher than the head bone minus this ...\nconst GG_WAVE_TRAVEL
-        = 0.12;     // ... that has moved this far horizontally while raised (m)\nconst
-        GG_MOVE_DIST = 0.20;       // stepping aside: the head has moved this far
-        sideways (m)\nconst GG_CENTER_DIST = 0.15;     // back in the centre: the
-        head is within this of the marker sideways (m), looking ahead\nconst GG_REPLACE_DEG
-        = 30;       // the panel is put in front of the face again when it is this
-        far off the\nconst GG_REPLACE_DIST = 0.25;    //   head's forward direction,
-        or this much nearer / farther than GG_DIST\n\nfunction gg_begin() {\n  $.state.gg_active
-        = true;\n  $.state.gg_startTs = Date.now();\n  $.state.gg_step = 0; $.state.gg_phase
-        = 'wait'; $.state.gg_t = 0; $.state.gg_wait = GG_HELLO.at;\n  $.state.gg_hello
-        = false; $.state.gg_lastCueTs = 0;\n  $.state.gg_secs = []; $.state.gg_timeouts
-        = 0;\n  gg_hide();\n}\n// seconds since the greeting began, for the log\nfunction
-        gg_now() { return 't=' + ((Date.now() - ($.state.gg_startTs || Date.now()))
-        / 1000).toFixed(1) + ' s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs
-        = Date.now();\n  try { $.worldItemReference('NPC').send('npc_greet_cue',
-        { cue: id }); }\n  catch (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction
-        gg_stop() { $.state.gg_active = false; gg_hide(); }\nfunction gg_hide() {\n 
-        $.state.gg_shown = false;\n  SetText('');\n  const bg = $.subNode('Bg');\n 
-        if (bg) bg.setEnabled(false);\n}\nfunction gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head),
+        react: 1.6 },      // NPC: wave + smile\n  { id: 'center', text: '\u4E2D\u592E\uFF08\u9752\u3044\u30DE\u30FC\u30AF\uFF09\u306B\u623B\u3063\u3066\u3001\\n\u6B63\u9762\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
+        react: 1.5 }, // NPC: turns to face them\n  // (the blue mark is on the floor,
+        or on the height platform when the participant stands on one)\n];\nconst
+        GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message
+        delay, frame drops) before going on\nconst GG_NO_REACT_PAUSE = 1.0;   //
+        after an instruction the NPC does not answer\nfunction gg_pause(react) {
+        return react > 0 ? react + GG_REACT_MARGIN : GG_NO_REACT_PAUSE; }\nconst
+        GG_TIMEOUT_SEC = 30;       // an instruction not followed for this long is
+        skipped (greetTimeouts)\nconst GG_MAX_SEC = 180;          // the greeting
+        ends after this long, whatever happened\nconst GG_LOOK_AT_DEG = 20;      
+        // looking at the NPC: head forward within this angle of the NPC's head ...\nconst
+        GG_LOOK_AWAY_DEG = 30;     // ... looking away: head yaw at least this far
+        from the NPC ...\nconst GG_LOOK_HOLD_SEC = 0.3;    // ... for this long\nconst
+        GG_HAND_BELOW_HEAD = 0.10; // waving: a hand (wrist) higher than the head
+        bone minus this ...\nconst GG_WAVE_TRAVEL = 0.12;     // ... that has moved
+        this far horizontally while raised (m)\nconst GG_MOVE_DIST = 0.20;      
+        // stepping aside: the head has moved this far sideways (m)\nconst GG_CENTER_DIST
+        = 0.15;     // back in the centre: the head is within this of the marker
+        sideways (m), looking ahead\nconst GG_REPLACE_DEG = 30;       // the panel
+        is put in front of the face again when it is this far off the\nconst GG_REPLACE_DIST
+        = 0.25;    //   head's forward direction, or this much nearer / farther than
+        GG_DIST\n\nfunction gg_begin() {\n  $.state.gg_active = true;\n  $.state.gg_startTs
+        = Date.now();\n  $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t
+        = 0; $.state.gg_wait = GG_HELLO.at;\n  $.state.gg_hello = false; $.state.gg_lastCueTs
+        = 0;\n  $.state.gg_secs = []; $.state.gg_timeouts = 0;\n  gg_hide();\n}\n//
+        seconds since the greeting began, for the log\nfunction gg_now() { return
+        't=' + ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1)
+        + ' s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs = Date.now();\n 
+        try { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }\n 
+        catch (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop()
+        { $.state.gg_active = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown
+        = false;\n  SetText('');\n  const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction
+        gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head),
         rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  return (pos && rot)
         ? { pos: pos, rot: rot, fwd: new Vector3(0, 0, 1).applyQuaternion(rot) }
         : null;\n}\n// Panel in front of the face: GG_DIST along the head's horizontal
@@ -21499,7 +21591,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2096078437}
   - component: {fileID: 2096078438}
-  m_Layer: 0
+  m_Layer: 14
   m_Name: Label
   m_TagString: Untagged
   m_Icon: {fileID: 0}
