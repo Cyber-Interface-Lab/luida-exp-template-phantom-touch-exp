@@ -17,7 +17,7 @@ const stateEnterActions = {
     ],
     2: [
         { type: "exec", action: (deltaTime) => {
-            if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両腕を横にまっすぐ伸ばして、3秒そのまま\n3) 両腕を前にまっすぐ伸ばして、3秒そのまま');
+            if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両腕を真横にまっすぐ伸ばして、3秒そのまま');
         } }
     ],
     3: [
@@ -172,3 +172,7 @@ function ins_endTick() {
   $.state.ins_endText = text;
   ins_show('center', text);
 }
+// Text sent by another item (the DeviceCheck's last pose-check step): { slot, text }; '' hides it
+$.onReceive((messageType, arg) => {
+  if (messageType === 'ins_text' && arg) ins_show(arg.slot || 'center', String(arg.text || ''));
+});

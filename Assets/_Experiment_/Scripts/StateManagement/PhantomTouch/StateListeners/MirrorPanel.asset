@@ -151,4 +151,7 @@ MonoBehaviour:
     'exp_trialID', 'integer');\n  return ((typeof t === 'number' && t >= 0) ? t %
     TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
     === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
-    }\n"
+    }\n// A mirror shown or hidden by another item (the DeviceCheck hides the front
+    mirror for the pose check's\n// last step): { name, visible }\n$.onReceive((messageType,
+    arg) => {\n  if (messageType !== 'mp_mirror' || !arg) return;\n  const n = $.subNode(String(arg.name));\n 
+    if (n) n.setEnabled(!!arg.visible);\n});\n"

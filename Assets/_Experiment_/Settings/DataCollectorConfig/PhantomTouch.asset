@@ -47,13 +47,12 @@ MonoBehaviour:
     avatarIsDefault: CD['avatarIsDefault'],\n    setupSec: CD['setupSec'], setupRetry:
     CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],\n    // device
     check\n    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
-    // shoulder height and arm length from the pose check (same row): arms held out
-    to the sides (the hands' mean height,\n    // relative to the head bone, m),
-    then forward (each hand's distance from the shoulder, m); '' when not measured\n   
-    // (rescue button). The NPC aims at shoulder + arm / 2 (faceUp in the trial rows).\n   
-    poseShoulderUp: CD['poseShoulderUp'], poseArmLen: CD['poseArmLen'], poseArmLeft:
-    CD['poseArmLeft'], poseArmRight: CD['poseArmRight'],\n    // per-trial report\n   
-    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs:
+    // hands put on the head for 3 s at the end of the pose check (same row): mean
+    height of both hands above the head\n    // bone (m; '' when not measured: rescue
+    button), and each hand's mean. The NPC aims a little below it (faceUp in the\n   
+    // trial rows).\n    poseHandsUp: CD['poseHandsUp'], poseHandsLeftUp: CD['poseHandsLeftUp'],
+    poseHandsRightUp: CD['poseHandsRightUp'],\n    // per-trial report\n    rating:
+    CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs:
     CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],\n   
     // NPC measurements\n    social: CD['social'], npcBlock: CD['npcBlock'], npcRep:
     CD['npcRep'], npcAvatar: CD['npcAvatar'],\n    trialStartTs: CD['trialStartTs'],
@@ -73,15 +72,16 @@ MonoBehaviour:
     CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur:
     CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height
-    above the head bone (m), which candidate it is (pose / bones: shoulder + arm
-    / 2 from the pose\n    // check / the arm bones; eyeBones: eye bones + 4.5 cm;
-    headBone: neither), and both candidates ('' when unknown)\n    faceUp: CD['faceUp'],
-    faceUpSrc: CD['faceUpSrc'], faceUpBody: CD['faceUpBody'], faceUpEyes: CD['faceUpEyes'],\n   
-    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:
-    CD['oscAmp'],\n    // backing away with the stick during the touch (slow, touchMoveRate
-    x the normal speed): avatar position at the\n    // approach start, its distance
-    from the marker then / at the end of the retract, its retreat like retreatDist,\n   
-    // and whether the participant was put back on the marker after the NPC had gone\n   
+    above the head bone (m) and where it came from (hands: a little below the hands
+    on the head;\n    // eyeBones: the eyes + 4.5 cm, because the hands' height was
+    below the eyes or not measured; headBone: neither),\n    // the hands' candidate
+    and the eye bones' height ('' when unknown)\n    faceUp: CD['faceUp'], faceUpSrc:
+    CD['faceUpSrc'], faceUpHands: CD['faceUpHands'], eyeUp: CD['eyeUp'],\n    retreatOnsetDist:
+    CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
+    // backing away with the stick during the touch (slow, touchMoveRate x the normal
+    speed): avatar position at the\n    // approach start, its distance from the
+    marker then / at the end of the retract, its retreat like retreatDist,\n    //
+    and whether the participant was put back on the marker after the NPC had gone\n   
     touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre:
     CD['rootShiftPre'],\n    rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'],
     returnedToMarker: CD['returnedToMarker'],\n    lookedAtNpc: CD['lookedAtNpc'],

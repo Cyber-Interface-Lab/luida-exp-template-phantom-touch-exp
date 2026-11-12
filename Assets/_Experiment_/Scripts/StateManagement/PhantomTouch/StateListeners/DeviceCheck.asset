@@ -87,110 +87,116 @@ MonoBehaviour:
     'exp_trialID', 'integer');\n  return ((typeof t === 'number' && t >= 0) ? t %
     TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
     === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
-    }\n// ---- Study 4: DeviceCheck (head yaw, arms out to the sides, arms forward)
+    }\n// ---- Study 4: DeviceCheck (head yaw, arms out; then hands on the head)
     ----\n// Runs in the pose-check state (after the avatar switch, before the NPC
     appears) on the 1st trial of each block,\n// with the MirrorPanel's front mirror
-    shown; the later trials of a block skip it immediately.\n// Three things, the
-    arm poses in this order (the head may turn any time): 1) turn the head left and
-    right; 2) hold both\n// arms straight out to the sides for DC_HOLD_SEC: the hands'
-    mean height is the shoulder height; 3) hold both arms\n// straight forward for
-    DC_HOLD_SEC: each hand's distance from the shoulder is the arm length. The NPC
-    is told both\n// ('npc_body_cal') and aims at shoulder + arm / 2 in this block.
-    Every limit is a fraction of the avatar's height (head\n// bone above the feet,
-    H), so very small and very large avatars are judged alike. A hold breaks when
-    a hand leaves\n// the pose or moves DC_STILL * H from where it was when the hold
-    began; it then starts again from there.\nconst DC_YAW_DEG = 25, DC_RESCUE_SEC
-    = 60, DC_HOLD_SEC = 3.0;\nconst DC_STILL = 0.035;                  // ~5 cm for
-    a 1.45 m head height\n// arms out to the sides: each hand at least DC_SIDE_OUT
-    * H out to its side, at most DC_SIDE_FWD * H forward or back,\n// between DC_SIDE_DOWN
-    * H below and DC_SIDE_UP * H above the head bone, both within DC_LEVEL * H of
-    each other's height\nconst DC_SIDE_OUT = 0.25, DC_SIDE_FWD = 0.2, DC_SIDE_DOWN
-    = 0.35, DC_SIDE_UP = 0.05, DC_LEVEL = 0.1;\n// arms forward: each hand at least
-    DC_FWD_OUT * H in front of the head bone, at most DC_FWD_SIDE * H to the side,
-    within\n// DC_FWD_LEVEL * H of the shoulder height measured with the arms out\nconst
-    DC_FWD_OUT = 0.2, DC_FWD_SIDE = 0.2, DC_FWD_LEVEL = 0.12;\nconst DC_FORCE_LABEL
-    = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
-    dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg',
-    cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }\nfunction dc_begin()
-    {\n  $.state.dc_active = false;\n  if (!firstTrialOfBlock()) { ToNextState();
-    return; }\n  $.state.dc_active = true;\n  $.state.dc_start = Date.now();\n  $.state.dc_left
-    = false; $.state.dc_right = false;\n  $.state.dc_hold = 0; $.state.dc_anchorL
-    = null; $.state.dc_anchorR = null; $.state.dc_sum = null;\n  $.state.dc_shoulderUp
-    = null;    // relative to the head bone, once the arms-out hold is done\n  $.state.dc_arm
-    = null;           // { len, left, right } once the arms-forward hold is done\n 
-    $.state.dc_yaw0 = null; $.state.dc_rescue = false; $.state.dc_lastText = '';\n 
-    $.setStateCompat('this', 'dc_btn', 0);\n  ShowChild('Text');\n  dc_send({ visible:
-    false, label: DC_FORCE_LABEL });\n  dc_render();\n}\nfunction dc_yaw(p) {\n 
-    const r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  if (!r) return null;\n 
-    const f = new Vector3(0, 0, 1).applyQuaternion(r);\n  return Math.atan2(f.x,
-    f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b) { let d = a - b; while
-    (d > 180) d -= 360; while (d < -180) d += 360; return d; }\nfunction dc_render()
-    {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n' +\n   
-    (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') + '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n'
-    +\n    (($.state.dc_shoulderUp !== null && $.state.dc_shoulderUp !== undefined)
-    ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u8155\u3092\u6A2A\u306B\uFF083\u79D2\uFF09\\n'
-    +\n    ($.state.dc_arm ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u8155\u3092\u524D\u306B\uFF083\u79D2\uFF09';\n 
+    shown; the later trials of a block skip it immediately.\n// Tracking check, with
+    the mirror: 1) turn the head left and right; 2) hold both arms straight out to
+    the sides for\n// DC_HOLD_SEC (any order; not measured). Then the front mirror
+    goes away ('mp_mirror' to the MirrorPanel) and the\n// instruction straight ahead
+    ('ins_text' to the Instruction item) asks for 3) both hands on the head for DC_HOLD_SEC:\n//
+    their mean height above the head bone goes to the NPC ('npc_hands_cal'), which
+    aims a little below it in this block.\n// Every limit is a fraction of the avatar's
+    height (head bone above the feet, H), so very small and very large avatars\n//
+    are judged alike. A hold breaks when a hand leaves the pose or moves DC_STILL
+    * H from where it was when the hold\n// began; it then starts again from there.
+    The rescue button (after DC_RESCUE_SEC) ends the check in any step.\nconst DC_YAW_DEG
+    = 25, DC_RESCUE_SEC = 60, DC_HOLD_SEC = 3.0;\nconst DC_STILL = 0.035;                 
+    // ~5 cm for a 1.45 m head height\n// arms out to the sides: each hand at least
+    DC_SIDE_OUT * H out to its side, at most DC_SIDE_FWD * H forward or back,\n//
+    between DC_SIDE_DOWN * H below and DC_SIDE_UP * H above the head bone, both within
+    DC_LEVEL * H of each other's height\nconst DC_SIDE_OUT = 0.25, DC_SIDE_FWD =
+    0.2, DC_SIDE_DOWN = 0.35, DC_SIDE_UP = 0.05, DC_LEVEL = 0.1;\n// hands on the
+    head: each hand between DC_HEAD_MIN * H and DC_HEAD_MAX * H above the head bone
+    (above the eyes, below\n// arms raised straight up), within DC_HEAD_SIDE * H
+    to the side and DC_HEAD_FWD * H forward or back of it\nconst DC_HEAD_MIN = 0.05,
+    DC_HEAD_MAX = 0.25, DC_HEAD_SIDE = 0.2, DC_HEAD_FWD = 0.15;\nconst DC_HEAD_TEXT
+    = '\u4E21\u624B\u3092\u81EA\u5206\u306E\u982D\u306E\u4E0A\u306B\u3001\\n3\u79D2\u7F6E\u3044\u3066\u304F\u3060\u3055\u3044';\nconst
+    DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
+    dc_ref(id, type, arg) { try { const h = $.worldItemReference(id); if (h) h.send(type,
+    arg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }\nfunction
+    dc_send(cfg) { dc_ref('DC_Force', 'btn_cfg', cfg); }\nfunction dc_begin() {\n 
+    $.state.dc_active = false;\n  if (!firstTrialOfBlock()) { ToNextState(); return;
+    }\n  $.state.dc_active = true;\n  $.state.dc_phase = 'pose';\n  $.state.dc_start
+    = Date.now();\n  $.state.dc_left = false; $.state.dc_right = false; $.state.dc_out
+    = false;\n  $.state.dc_hold = 0; $.state.dc_anchorL = null; $.state.dc_anchorR
+    = null; $.state.dc_sum = null;\n  $.state.dc_cal = null;           // { up, left,
+    right } once the hands-on-the-head hold is done\n  $.state.dc_yaw0 = null; $.state.dc_rescue
+    = false; $.state.dc_lastText = '';\n  $.setStateCompat('this', 'dc_btn', 0);\n 
+    ShowChild('Text');\n  dc_send({ visible: false, label: DC_FORCE_LABEL });\n 
+    dc_render();\n}\nfunction dc_yaw(p) {\n  const r = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
+    if (!r) return null;\n  const f = new Vector3(0, 0, 1).applyQuaternion(r);\n 
+    return Math.atan2(f.x, f.z) * 180 / Math.PI;\n}\nfunction dc_angleDiff(a, b)
+    { let d = a - b; while (d > 180) d -= 360; while (d < -180) d += 360; return
+    d; }\nfunction dc_render() {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
+    +\n    (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') +
+    '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n' +\n    ($.state.dc_out
+    ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u8155\u3092\u771F\u6A2A\u306B\uFF083\u79D2\uFF09\\n'
+    +\n    ($.state.dc_cal ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u982D\u306E\u4E0A\u306B\uFF083\u79D2\uFF09';\n 
     if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\n//
-    One hold step: ok = both hands in the pose this frame. Returns the accumulated
-    sums once DC_HOLD_SEC is reached.\nfunction dc_hold(ok, lh, rh, H, dt, add) {\n 
-    if (!ok) { $.state.dc_hold = 0; $.state.dc_anchorL = null; return null; }\n 
-    const near = (h, a) => a && h.clone().sub(a).length() <= DC_STILL * H;\n  if
-    (!near(lh, $.state.dc_anchorL) || !near(rh, $.state.dc_anchorR)) {\n    $.state.dc_anchorL
+    One hold step: ok = both hands in the pose this frame. Returns the means of add()'s
+    two values once DC_HOLD_SEC is reached.\nfunction dc_hold(ok, lh, rh, H, dt,
+    add) {\n  if (!ok) { $.state.dc_hold = 0; $.state.dc_anchorL = null; return null;
+    }\n  const near = (h, a) => a && h.clone().sub(a).length() <= DC_STILL * H;\n 
+    if (!near(lh, $.state.dc_anchorL) || !near(rh, $.state.dc_anchorR)) {\n    $.state.dc_anchorL
     = lh; $.state.dc_anchorR = rh; $.state.dc_hold = 0; $.state.dc_sum = { a: 0,
     b: 0, w: 0 };\n  }\n  const s = $.state.dc_sum, v = add();\n  s.a += v[0] * dt;
     s.b += v[1] * dt; s.w += dt;\n  $.state.dc_sum = s;\n  $.state.dc_hold = ($.state.dc_hold
     || 0) + dt;\n  if ($.state.dc_hold < DC_HOLD_SEC || s.w <= 0) return null;\n 
     $.state.dc_hold = 0; $.state.dc_anchorL = null;\n  return { a: s.a / s.w, b:
-    s.b / s.w };\n}\nfunction dc_arms(p, dt) {\n  const head = p.getHumanoidBonePosition(HumanoidBone.Head),
-    root = p.getPosition();\n  const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand),
-    rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n  if (!head || !root
-    || !lh || !rh) return;\n  const H = head.y - root.y;\n  if (!(H > 0.05)) return;\n 
-    // the body's facing (not the head's: it turns in step 1)\n  const rot = p.getRotation();\n 
-    const fwd = new Vector3(0, 0, 1).applyQuaternion(rot); fwd.y = 0; fwd.normalize();\n 
-    const right = new Vector3(fwd.z, 0, -fwd.x);\n  const rel = (h) => { const d
-    = h.clone().sub(head); return { side: d.x * right.x + d.z * right.z, fwd: d.x
-    * fwd.x + d.z * fwd.z, up: d.y }; };\n  const L = rel(lh), R = rel(rh);\n  if
-    ($.state.dc_shoulderUp === null || $.state.dc_shoulderUp === undefined) {\n   
-    const inBand = (q) => q.up > -DC_SIDE_DOWN * H && q.up < DC_SIDE_UP * H && Math.abs(q.fwd)
-    < DC_SIDE_FWD * H;\n    const ok = L.side < -DC_SIDE_OUT * H && R.side > DC_SIDE_OUT
-    * H && inBand(L) && inBand(R) && Math.abs(L.up - R.up) < DC_LEVEL * H;\n    const
-    m = dc_hold(ok, lh, rh, H, dt, () => [L.up, R.up]);\n    if (m) {\n      $.state.dc_shoulderUp
-    = (m.a + m.b) / 2;\n      $.log('[DeviceCheck] arms out: shoulder ' + $.state.dc_shoulderUp.toFixed(3)
-    + ' m from the head bone (left hand ' + m.a.toFixed(3) + ', right ' + m.b.toFixed(3)
-    + ')');\n    }\n    return;\n  }\n  if ($.state.dc_arm) return;\n  const s =
-    $.state.dc_shoulderUp;\n  const inFront = (q) => q.fwd > DC_FWD_OUT * H && Math.abs(q.side)
-    < DC_FWD_SIDE * H && Math.abs(q.up - s) < DC_FWD_LEVEL * H;\n  // the shoulder
-    joints are taken at the head bone's depth, the hands straight in front of them\n 
-    const len = (q) => Math.sqrt(q.fwd * q.fwd + (q.up - s) * (q.up - s));\n  const
-    m = dc_hold(inFront(L) && inFront(R), lh, rh, H, dt, () => [len(L), len(R)]);\n 
-    if (m) {\n    $.state.dc_arm = { len: (m.a + m.b) / 2, left: m.a, right: m.b
-    };\n    $.log('[DeviceCheck] arms forward: arm ' + $.state.dc_arm.len.toFixed(3)
-    + ' m (left ' + m.a.toFixed(3) + ', right ' + m.b.toFixed(3) + ')');\n  }\n}\nfunction
-    dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n 
-    if (!p || !p.exists()) return;\n  const yaw = dc_yaw(p);\n  if (yaw !== null)
-    {\n    if ($.state.dc_yaw0 === null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0
-    = yaw;\n    const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n    if (d <= -DC_YAW_DEG)
-    $.state.dc_left = true;\n    if (d >= DC_YAW_DEG) $.state.dc_right = true;\n 
-    }\n  dc_arms(p, dt);\n  const elapsed = (Date.now() - ($.state.dc_start || Date.now()))
-    / 1000;\n  if (elapsed > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue
-    = true; dc_send({ visible: true }); }\n  let forced = false;\n  const b = $.getStateCompat('this',
+    s.b / s.w };\n}\n// The hands relative to the head bone, along the body's facing
+    (not the head's: it turns in step 1), and H.\nfunction dc_hands(p) {\n  const
+    head = p.getHumanoidBonePosition(HumanoidBone.Head), root = p.getPosition();\n 
+    const lh = p.getHumanoidBonePosition(HumanoidBone.LeftHand), rh = p.getHumanoidBonePosition(HumanoidBone.RightHand);\n 
+    if (!head || !root || !lh || !rh) return null;\n  const H = head.y - root.y;\n 
+    if (!(H > 0.05)) return null;\n  const fwd = new Vector3(0, 0, 1).applyQuaternion(p.getRotation());
+    fwd.y = 0; fwd.normalize();\n  const right = new Vector3(fwd.z, 0, -fwd.x);\n 
+    const rel = (h) => { const d = h.clone().sub(head); return { side: d.x * right.x
+    + d.z * right.z, fwd: d.x * fwd.x + d.z * fwd.z, up: d.y }; };\n  return { lh:
+    lh, rh: rh, H: H, L: rel(lh), R: rel(rh) };\n}\nfunction dc_armsOut(p, dt) {\n 
+    const h = dc_hands(p);\n  if (!h || $.state.dc_out) return;\n  const H = h.H,
+    L = h.L, R = h.R;\n  const inBand = (q) => q.up > -DC_SIDE_DOWN * H && q.up <
+    DC_SIDE_UP * H && Math.abs(q.fwd) < DC_SIDE_FWD * H;\n  const ok = L.side < -DC_SIDE_OUT
+    * H && R.side > DC_SIDE_OUT * H && inBand(L) && inBand(R) && Math.abs(L.up -
+    R.up) < DC_LEVEL * H;\n  if (dc_hold(ok, h.lh, h.rh, H, dt, () => [L.up, R.up]))
+    { $.state.dc_out = true; $.log('[DeviceCheck] arms out held'); }\n}\nfunction
+    dc_handsOnHead(p, dt) {\n  const h = dc_hands(p);\n  if (!h || $.state.dc_cal)
+    return;\n  const H = h.H, L = h.L, R = h.R;\n  const on = (q) => q.up > DC_HEAD_MIN
+    * H && q.up < DC_HEAD_MAX * H && Math.abs(q.side) < DC_HEAD_SIDE * H && Math.abs(q.fwd)
+    < DC_HEAD_FWD * H;\n  const m = dc_hold(on(L) && on(R), h.lh, h.rh, H, dt, ()
+    => [L.up, R.up]);\n  if (m) {\n    $.state.dc_cal = { up: (m.a + m.b) / 2, left:
+    m.a, right: m.b };\n    $.log('[DeviceCheck] hands on the head: ' + $.state.dc_cal.up.toFixed(3)
+    + ' m above the head bone (left ' + m.a.toFixed(3) + ', right ' + m.b.toFixed(3)
+    + ')');\n  }\n}\n// Tracking check done: the front mirror goes, the hands-on-the-head
+    instruction comes straight ahead.\nfunction dc_headBegin() {\n  $.state.dc_phase
+    = 'head';\n  $.state.dc_hold = 0; $.state.dc_anchorL = null;\n  dc_ref('MirrorPanel',
+    'mp_mirror', { name: 'MirrorFront', visible: false });\n  dc_ref('Instruction',
+    'ins_text', { slot: 'center', text: DC_HEAD_TEXT });\n  $.log('[DeviceCheck]
+    tracking check done; hands on the head next');\n}\nfunction dc_update(dt) {\n 
+    if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n  if (!p || !p.exists())
+    return;\n  if ($.state.dc_phase === 'pose') {\n    const yaw = dc_yaw(p);\n   
+    if (yaw !== null) {\n      if ($.state.dc_yaw0 === null || $.state.dc_yaw0 ===
+    undefined) $.state.dc_yaw0 = yaw;\n      const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n     
+    if (d <= -DC_YAW_DEG) $.state.dc_left = true;\n      if (d >= DC_YAW_DEG) $.state.dc_right
+    = true;\n    }\n    dc_armsOut(p, dt);\n    if ($.state.dc_left && $.state.dc_right
+    && $.state.dc_out) dc_headBegin();\n  } else dc_handsOnHead(p, dt);\n  const
+    elapsed = (Date.now() - ($.state.dc_start || Date.now())) / 1000;\n  if (elapsed
+    > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({
+    visible: true }); }\n  let forced = false;\n  const b = $.getStateCompat('this',
     'dc_btn', 'integer');\n  if (b > 0) { $.setStateCompat('this', 'dc_btn', 0);
-    if ($.state.dc_rescue) forced = true; }\n  const passed = $.state.dc_left &&
-    $.state.dc_right && !!$.state.dc_arm;\n  if (passed || forced) { dc_finish(elapsed,
-    forced); return; }\n  dc_render();\n}\n// The shoulder height and arm length
-    go to the NPC when both arm holds were completed; otherwise (rescue button) the\n//
-    NPC reads them from the avatar's bones.\nfunction dc_finish(elapsed, forced)
-    {\n  $.state.dc_active = false;\n  const s = $.state.dc_shoulderUp, a = $.state.dc_arm;\n 
-    const both = typeof s === 'number' && !!a;\n  const r3 = (x) => Math.round(x
-    * 1000) / 1000;\n  SendDataToCollector('deviceCheckSec', elapsed);\n  SendDataToCollector('deviceCheckForced',
-    !!forced);\n  SendDataToCollector('poseShoulderUp', typeof s === 'number' ? r3(s)
-    : '');\n  SendDataToCollector('poseArmLen', a ? r3(a.len) : '');\n  SendDataToCollector('poseArmLeft',
-    a ? r3(a.left) : '');\n  SendDataToCollector('poseArmRight', a ? r3(a.right)
-    : '');\n  if (both) {\n    try { $.worldItemReference('NPC').send('npc_body_cal',
-    { shoulderUp: s, arm: a.len }); }\n    catch (e) { $.log('[DeviceCheck] npc_body_cal:
-    ' + e); }\n  }\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed')
-    + ' after ' + elapsed.toFixed(1) + ' s; ' +\n        (both ? 'shoulder ' + r3(s)
-    + ' m from the head bone, arm ' + r3(a.len) + ' m' : 'body not measured'));\n 
-    ProcessAndSaveCollectedData();\n  dc_send({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
+    if ($.state.dc_rescue) forced = true; }\n  if ($.state.dc_cal || forced) { dc_finish(elapsed,
+    forced); return; }\n  dc_render();\n}\n// The hands' height goes to the NPC when
+    the hold was completed; otherwise (rescue button) the NPC uses the eye bones.\nfunction
+    dc_finish(elapsed, forced) {\n  $.state.dc_active = false;\n  const c = $.state.dc_cal;\n 
+    const r3 = (x) => Math.round(x * 1000) / 1000;\n  SendDataToCollector('deviceCheckSec',
+    elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  SendDataToCollector('poseHandsUp',
+    c ? r3(c.up) : '');\n  SendDataToCollector('poseHandsLeftUp', c ? r3(c.left)
+    : '');\n  SendDataToCollector('poseHandsRightUp', c ? r3(c.right) : '');\n  if
+    (c) dc_ref('NPC', 'npc_hands_cal', { up: c.up });\n  if ($.state.dc_phase ===
+    'head') dc_ref('Instruction', 'ins_text', { slot: 'center', text: '' });\n  $.log('[DeviceCheck]
+    pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1)
+    + ' s; ' +\n        (c ? 'hands on the head ' + r3(c.up) + ' m above the head
+    bone' : 'hands not measured'));\n  ProcessAndSaveCollectedData();\n  dc_send({
+    visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); HideChild('Text');
     $.state.dc_active = false; }\n"
