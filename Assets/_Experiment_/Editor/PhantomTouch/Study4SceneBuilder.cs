@@ -2176,8 +2176,8 @@ return {
             // Touch and stroke: the stick moves the participant slowly (they may back away from the hand; the hand
             // keeps its path); the NPC puts the participant back on the marker (position and facing, on their
             // height platform), waits a moment, then turns to them, steps in and touches. At the end the NPC steps
-            // back to the conversation spot, disappears, puts the participant back on the marker if they moved
-            // away (NpcController RETURN_MIN_DIST) and sends npc_done. The stick is frozen again on exit.
+            // back to the conversation spot, disappears, puts the participant back on the marker (every time, keeping
+            // their facing) and sends npc_done. The stick is frozen again on exit.
             Listener(S_TOUCH,
                 L(Custom(
                     "nd_setMove(ND_TOUCH_MOVE_RATE);\n" +

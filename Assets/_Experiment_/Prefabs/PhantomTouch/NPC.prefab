@@ -290,14 +290,9 @@ MonoBehaviour:
     // step closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial
     of a block: shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
     1.0,   // touch start: wait this long after putting the participant back on the
-    marker\n  RETURN_MIN_DIST: 0.15,   // touch end, once the NPC has gone: put the
-    participant back on the marker (keeping their\n                           //  
-    facing) when their avatar is at least this far from it horizontally. The stick
-    moves\n                           //   them slowly during the touch (NpcDirector),
-    so they can back away from the hand, and\n                           //   it
-    is off again in the report that follows.\n  HEIGHT_MATCH_MIN: 0.05,  // match
-    heights only when the head-bone heights differ by at least this (m):\n                          
-    //   participant shorter -> platform under the participant (HeightPlatform item);\n                          
+    marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights
+    differ by at least this (m):\n                           //   participant shorter
+    -> platform under the participant (HeightPlatform item);\n                          
     //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
     3.0, // keep trying to read the participant's bones this long after npc_show\n 
     // Guided greeting: the participant follows the GreetingGuide item's instructions
@@ -743,15 +738,17 @@ MonoBehaviour:
     samples=\" + traces.length + \" contactDist=\" + f3(data.contactDist) + \" retreat=\"
     + f3(data.retreatDist) +\n        \" rootRetreat=\" + f3(data.rootRetreat) +
     \" rootShiftPre=\" + f3(data.rootShiftPre) + \" rootShiftEnd=\" + f3(data.rootShiftEnd));\n 
-    leave(true);\n}\n\n// Touch end, once the NPC has gone: put the participant back
-    on the marker (on their platform, keeping their facing)\n// if they moved away
-    from it with the stick (RETURN_MIN_DIST).\nfunction returnParticipant() {\n 
-    const p = participant(), o = $.state.npc_origin;\n  const root = p ? p.getPosition()
-    : null;\n  if (!root || !o) return;\n  const dist = hdist(root, o);\n  const
-    back = dist >= NPC_CFG.RETURN_MIN_DIST && resetParticipant(false);\n  pushData({
-    returnedToMarker: back });\n  if (back) $.log(\"[NPC] participant put back on
-    the marker from \" + f3(dist) + \" m away\");\n}\n\n// Step back to the conversation
-    spot, then disappear (tick); with signalDone, \"npc_done\" is sent once hidden.\nfunction
+    leave(true);\n}\n\n// Touch end, once the NPC has gone: put every participant
+    back on the marker (on their platform, keeping their\n// facing), however little
+    they moved. The stick moves them slowly during the touch (NpcDirector), so they
+    can back\n// away from the hand, and it is off again in the report that follows.\nfunction
+    returnParticipant() {\n  const p = participant(), o = $.state.npc_origin;\n 
+    if (!p || !o) { pushData({ returnedToMarker: false }); return; }\n  const root
+    = p.getPosition();\n  const back = resetParticipant(false);\n  pushData({ returnedToMarker:
+    back });\n  $.log(\"[NPC] participant \" + (back ? \"put back on the marker\"
+    : \"could not be put back on the marker\") +\n        (root ? \" (was \" + f3(hdist(root,
+    o)) + \" m away)\" : \"\"));\n}\n\n// Step back to the conversation spot, then
+    disappear (tick); with signalDone, \"npc_done\" is sent once hidden.\nfunction
     leave(signalDone) {\n  $.state.npc_pendingStart = false;\n  $.state.npc_phase
     = \"leave\";\n  $.state.npc_t = 0;\n  $.state.npc_leaveSignal = !!signalDone;\n 
     clearReaction();\n  if (!$.state.npc_visible || !moveToStand(NPC_CFG.IDLE_EXTRA_DIST,

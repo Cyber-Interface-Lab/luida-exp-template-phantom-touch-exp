@@ -1,6 +1,6 @@
 // Backing away with the stick during the touch: NpcDirector lets the stick move the participant slowly in Trial - Touch
 // (and freezes it again on exit); the NPC logs the avatar position next to the head (trace columns rx, ry, rz and the
-// rootRetreat estimate) and, once it has gone, puts a participant who moved away back on the marker.
+// rootRetreat estimate) and, once it has gone, puts every participant back on the marker.
 // Run: node --test "research/study4-phantom-touch/tests/*.test.mjs"
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -80,7 +80,7 @@ test("the trace carries the avatar position; rootRetreat measures how far the st
   assert.deepEqual(rows.at(-1).split(",").slice(9), ["", "", ""]);
 });
 
-test("once the NPC has gone, a participant who moved away is put back on the marker (on their platform)", () => {
+test("once the NPC has gone, every participant is put back on the marker (on their platform)", () => {
   const p = makePlayer("p1");
   let pos = new Vector3(0.1, 0.1, -2.6);
   p.getPosition = () => pos.clone();
@@ -91,11 +91,13 @@ test("once the NPC has gone, a participant who moved away is put back on the mar
   const last = p.positions.at(-1);
   assert.deepEqual([last.x, last.y, last.z], [0, 0.1, -2]);
   assert.equal(group.collectedData.returnedToMarker, true);
-  assert.ok(item.logs.some((l) => /put back on the marker from 0\.608 m/.test(l)), item.logs.join("\n"));
-  // still on the marker (within RETURN_MIN_DIST): left where they are
+  assert.ok(item.logs.some((l) => /put back on the marker \(was 0\.608 m away\)/.test(l)), item.logs.join("\n"));
+  // hardly moved: put back all the same
   pos = new Vector3(0.05, 0.1, -2.08);
   const n = p.positions.length;
   ctx.returnParticipant();
-  assert.equal(p.positions.length, n);
-  assert.equal(group.collectedData.returnedToMarker, false);
+  assert.equal(p.positions.length, n + 1);
+  const again = p.positions.at(-1);
+  assert.deepEqual([again.x, again.y, again.z], [0, 0.1, -2]);
+  assert.equal(group.collectedData.returnedToMarker, true);
 });

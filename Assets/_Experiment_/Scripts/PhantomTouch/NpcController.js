@@ -68,10 +68,6 @@ const NPC_CFG = {
   GLIDE_SEC: 1.0,          // step closer / step back duration
   REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the conversation spot this long before stepping in
   RESET_SETTLE_SEC: 1.0,   // touch start: wait this long after putting the participant back on the marker
-  RETURN_MIN_DIST: 0.15,   // touch end, once the NPC has gone: put the participant back on the marker (keeping their
-                           //   facing) when their avatar is at least this far from it horizontally. The stick moves
-                           //   them slowly during the touch (NpcDirector), so they can back away from the hand, and
-                           //   it is off again in the report that follows.
   HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights differ by at least this (m):
                            //   participant shorter -> platform under the participant (HeightPlatform item);
                            //   NPC shorter -> the NPC stands on its Riser sub-node
@@ -801,16 +797,17 @@ function finishTrial() {
   leave(true);
 }
 
-// Touch end, once the NPC has gone: put the participant back on the marker (on their platform, keeping their facing)
-// if they moved away from it with the stick (RETURN_MIN_DIST).
+// Touch end, once the NPC has gone: put every participant back on the marker (on their platform, keeping their
+// facing), however little they moved. The stick moves them slowly during the touch (NpcDirector), so they can back
+// away from the hand, and it is off again in the report that follows.
 function returnParticipant() {
   const p = participant(), o = $.state.npc_origin;
-  const root = p ? p.getPosition() : null;
-  if (!root || !o) return;
-  const dist = hdist(root, o);
-  const back = dist >= NPC_CFG.RETURN_MIN_DIST && resetParticipant(false);
+  if (!p || !o) { pushData({ returnedToMarker: false }); return; }
+  const root = p.getPosition();
+  const back = resetParticipant(false);
   pushData({ returnedToMarker: back });
-  if (back) $.log("[NPC] participant put back on the marker from " + f3(dist) + " m away");
+  $.log("[NPC] participant " + (back ? "put back on the marker" : "could not be put back on the marker") +
+        (root ? " (was " + f3(hdist(root, o)) + " m away)" : ""));
 }
 
 // Step back to the conversation spot, then disappear (tick); with signalDone, "npc_done" is sent once hidden.

@@ -6666,82 +6666,77 @@ PrefabInstance:
         closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a
         block: shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
         1.0,   // touch start: wait this long after putting the participant back
-        on the marker\n  RETURN_MIN_DIST: 0.15,   // touch end, once the NPC has
-        gone: put the participant back on the marker (keeping their\n                          
-        //   facing) when their avatar is at least this far from it horizontally.
-        The stick moves\n                           //   them slowly during the touch
-        (NpcDirector), so they can back away from the hand, and\n                          
-        //   it is off again in the report that follows.\n  HEIGHT_MATCH_MIN: 0.05, 
-        // match heights only when the head-bone heights differ by at least this
-        (m):\n                           //   participant shorter -> platform under
-        the participant (HeightPlatform item);\n                           //   NPC
-        shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC: 3.0,
-        // keep trying to read the participant's bones this long after npc_show\n 
-        // Guided greeting: the participant follows the GreetingGuide item's instructions
-        one by one; each time it reports\n  // one as done (\"npc_greet_cue\"), the
-        NPC answers like this (social condition only; nothing otherwise). nod / wave:\n 
-        // the gesture, joy: smile while it lasts, turn: the whole body turns to
-        face the participant. An answer with a wave\n  // lasts WAVE_SEC, a nod alone
-        NOD_SEC, a turn about 1 s (BODY_TURN_RATE). The guide waits for the answer
-        to end\n  // before its next instruction and before the touch, in both conditions:
-        its GG_HELLO / GG_STEPS 'react' times\n  // must not be shorter (tests/greeting-guide.test.mjs
-        checks this).\n  GREET_REACTIONS: {\n    hello: { nod: true, wave: true,
-        joy: true },       // before the first instruction: the NPC greets first\n   
-        wave: { nod: true, wave: true, joy: true },        // the participant waved:
-        wave back, nodding and smiling\n    lookBack: { nod: true, joy: true },               
-        // looked away, then at the NPC again: nod and smile\n    move: { turn: true
-        },                              // stepped aside: turn to them (head and
-        eyes follow anyway)\n    lookAgain: { wave: true, joy: true },             
-        // ... and looked at the NPC again: wave and smile\n  },\n  PREP_REACTION:
-        { nod: true, wave: true, joy: true }, // touch phase, before the hand is
-        raised: greet once\n  HEAD_MAX_DEG: 50,        // gaze: the head alone turns
-        up to this angle ...\n  EYE_EXTRA_DEG: 12,       // ... and the eyes a bit
-        further\n  BODY_TURN_START_DEG: 35, // greeting: if the participant is farther
-        than this from the NPC's facing,\n  BODY_TURN_STOP_DEG: 4,   //   the whole
-        body turns toward them (lerp) until within this angle;\n  BODY_TURN_RATE:
-        2.5,     //   exponential rate (1/s). The head's local rotation unwinds as
-        the body turns.\n  LOOK_AT_DEG: 30,         // participant \"looks at\" the
-        NPC when head forward is within this angle\n  LOOK_AWAY_DEG: 45,       //
-        ... and stops when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET:
-        0.10, // a hand counts as raised when above (head height - this)\n  NOD_SEC:
-        0.8,            // nod-only reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC:
-        1.6,           // reaction duration when it includes a wave\n  TOUCH_COOLDOWN_SEC:
-        1.5, // surprised face when touched: minimum interval\n  TOUCH_HAND_MARGIN:
-        0.06, // participant hand bone (wrist) -> fingers allowance (m)\n  RETREAT_THRESHOLD:
-        0.02, // m, for the in-world retreat-onset estimate\n  MODEL_NODE: \"Model\",    
-        // sub-node holding the VRM model (toggled for visibility)\n  JOY_KEY: \"npc_joy\",     
-        // item Bool state -> Set Animator Value gimmick on the face mesh -> Animator
-        Bool \"joy\"\n  SURPRISED_KEY: \"npc_surprised\", // item signal -> gimmick
-        -> Animator Trigger \"surprised\" (1 s clip)\n                          
-        // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50,
-        Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",     // 1 m cube under the
-        NPC's feet (top at the feet); shown while the NPC is lifted\n  PLATFORM_ITEM:
-        \"HeightPlatform\", // world item reference: the platform under the participant's
-        standing spot\n};\n\nconst IDENT = new Quaternion(0, 0, 0, 1);\nconst UP
-        = new Vector3(0, 1, 0);\n// Right-hand finger bones in NPC_BoneMap.js: kept
-        straight, i.e. given the hand's rotation every frame (applyPose\n// gives
-        a bone without a rotation the identity in the item frame, not its parent's).\nconst
-        R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal, HumanoidBone.RightThumbIntermediate,
-        HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal, HumanoidBone.RightIndexIntermediate,
-        HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal, HumanoidBone.RightMiddleIntermediate,
-        HumanoidBone.RightMiddleDistal,\n  HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate,
-        HumanoidBone.RightRingDistal,\n  HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate,
-        HumanoidBone.RightLittleDistal,\n];\n\n// ----------------------------------------------------------------
-        math helpers\nfunction v3(x, y, z) { return new Vector3(x, y, z); }\nfunction
-        vadd(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a,
-        b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s)
-        { return v3(a.x * s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x
-        * b.x + a.y * b.y + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y *
-        b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction
-        vlen(a) { return Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l =
-        vlen(a); return l > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a,
-        b, t) { return vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return
-        vnorm(v3(a.x, 0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z);
-        }\nfunction hdist(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx
-        * dx + dz * dz); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n   
-        a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z
-        + a.y * b.w + a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n   
-        a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return
+        on the marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the
+        head-bone heights differ by at least this (m):\n                          
+        //   participant shorter -> platform under the participant (HeightPlatform
+        item);\n                           //   NPC shorter -> the NPC stands on
+        its Riser sub-node\n  HEIGHT_MEASURE_SEC: 3.0, // keep trying to read the
+        participant's bones this long after npc_show\n  // Guided greeting: the participant
+        follows the GreetingGuide item's instructions one by one; each time it reports\n 
+        // one as done (\"npc_greet_cue\"), the NPC answers like this (social condition
+        only; nothing otherwise). nod / wave:\n  // the gesture, joy: smile while
+        it lasts, turn: the whole body turns to face the participant. An answer with
+        a wave\n  // lasts WAVE_SEC, a nod alone NOD_SEC, a turn about 1 s (BODY_TURN_RATE).
+        The guide waits for the answer to end\n  // before its next instruction and
+        before the touch, in both conditions: its GG_HELLO / GG_STEPS 'react' times\n 
+        // must not be shorter (tests/greeting-guide.test.mjs checks this).\n  GREET_REACTIONS:
+        {\n    hello: { nod: true, wave: true, joy: true },       // before the first
+        instruction: the NPC greets first\n    wave: { nod: true, wave: true, joy:
+        true },        // the participant waved: wave back, nodding and smiling\n   
+        lookBack: { nod: true, joy: true },                // looked away, then at
+        the NPC again: nod and smile\n    move: { turn: true },                             
+        // stepped aside: turn to them (head and eyes follow anyway)\n    lookAgain:
+        { wave: true, joy: true },              // ... and looked at the NPC again:
+        wave and smile\n  },\n  PREP_REACTION: { nod: true, wave: true, joy: true
+        }, // touch phase, before the hand is raised: greet once\n  HEAD_MAX_DEG:
+        50,        // gaze: the head alone turns up to this angle ...\n  EYE_EXTRA_DEG:
+        12,       // ... and the eyes a bit further\n  BODY_TURN_START_DEG: 35, //
+        greeting: if the participant is farther than this from the NPC's facing,\n 
+        BODY_TURN_STOP_DEG: 4,   //   the whole body turns toward them (lerp) until
+        within this angle;\n  BODY_TURN_RATE: 2.5,     //   exponential rate (1/s).
+        The head's local rotation unwinds as the body turns.\n  LOOK_AT_DEG: 30,        
+        // participant \"looks at\" the NPC when head forward is within this angle\n 
+        LOOK_AWAY_DEG: 45,       // ... and stops when it exceeds this angle (hysteresis)\n 
+        HAND_RAISE_OFFSET: 0.10, // a hand counts as raised when above (head height
+        - this)\n  NOD_SEC: 0.8,            // nod-only reaction duration\n  NOD_DEG:
+        15,\n  WAVE_SEC: 1.6,           // reaction duration when it includes a wave\n 
+        TOUCH_COOLDOWN_SEC: 1.5, // surprised face when touched: minimum interval\n 
+        TOUCH_HAND_MARGIN: 0.06, // participant hand bone (wrist) -> fingers allowance
+        (m)\n  RETREAT_THRESHOLD: 0.02, // m, for the in-world retreat-onset estimate\n 
+        MODEL_NODE: \"Model\",     // sub-node holding the VRM model (toggled for
+        visibility)\n  JOY_KEY: \"npc_joy\",      // item Bool state -> Set Animator
+        Value gimmick on the face mesh -> Animator Bool \"joy\"\n  SURPRISED_KEY:
+        \"npc_surprised\", // item signal -> gimmick -> Animator Trigger \"surprised\"
+        (1 s clip)\n                           // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;
+        Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",    
+        // 1 m cube under the NPC's feet (top at the feet); shown while the NPC is
+        lifted\n  PLATFORM_ITEM: \"HeightPlatform\", // world item reference: the
+        platform under the participant's standing spot\n};\n\nconst IDENT = new Quaternion(0,
+        0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n// Right-hand finger bones in
+        NPC_BoneMap.js: kept straight, i.e. given the hand's rotation every frame
+        (applyPose\n// gives a bone without a rotation the identity in the item frame,
+        not its parent's).\nconst R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal,
+        HumanoidBone.RightThumbIntermediate, HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal,
+        HumanoidBone.RightIndexIntermediate, HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal,
+        HumanoidBone.RightMiddleIntermediate, HumanoidBone.RightMiddleDistal,\n 
+        HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate, HumanoidBone.RightRingDistal,\n 
+        HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate, HumanoidBone.RightLittleDistal,\n];\n\n//
+        ---------------------------------------------------------------- math helpers\nfunction
+        v3(x, y, z) { return new Vector3(x, y, z); }\nfunction vadd(a, b) { return
+        v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a, b) { return v3(a.x
+        - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s) { return v3(a.x *
+        s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x * b.x + a.y * b.y
+        + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction vlen(a) { return
+        Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l = vlen(a); return l
+        > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a, b, t) { return
+        vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return vnorm(v3(a.x,
+        0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z); }\nfunction hdist(a,
+        b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx * dx + dz
+        * dz); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n    a.w * b.x
+        + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y * b.w
+        + a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w
+        * b.w - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return
         new Quaternion(-q.x, -q.y, -q.z, q.w); }\nfunction qrot(q, v) {\n  const
         tx = 2 * (q.y * v.z - q.z * v.y);\n  const ty = 2 * (q.z * v.x - q.x * v.z);\n 
         const tz = 2 * (q.x * v.y - q.y * v.x);\n  return v3(\n    v.x + q.w * tx
@@ -7141,16 +7136,18 @@ PrefabInstance:
         + \" contactDist=\" + f3(data.contactDist) + \" retreat=\" + f3(data.retreatDist)
         +\n        \" rootRetreat=\" + f3(data.rootRetreat) + \" rootShiftPre=\"
         + f3(data.rootShiftPre) + \" rootShiftEnd=\" + f3(data.rootShiftEnd));\n 
-        leave(true);\n}\n\n// Touch end, once the NPC has gone: put the participant
-        back on the marker (on their platform, keeping their facing)\n// if they
-        moved away from it with the stick (RETURN_MIN_DIST).\nfunction returnParticipant()
-        {\n  const p = participant(), o = $.state.npc_origin;\n  const root = p ?
-        p.getPosition() : null;\n  if (!root || !o) return;\n  const dist = hdist(root,
-        o);\n  const back = dist >= NPC_CFG.RETURN_MIN_DIST && resetParticipant(false);\n 
-        pushData({ returnedToMarker: back });\n  if (back) $.log(\"[NPC] participant
-        put back on the marker from \" + f3(dist) + \" m away\");\n}\n\n// Step back
-        to the conversation spot, then disappear (tick); with signalDone, \"npc_done\"
-        is sent once hidden.\nfunction leave(signalDone) {\n  $.state.npc_pendingStart
+        leave(true);\n}\n\n// Touch end, once the NPC has gone: put every participant
+        back on the marker (on their platform, keeping their\n// facing), however
+        little they moved. The stick moves them slowly during the touch (NpcDirector),
+        so they can back\n// away from the hand, and it is off again in the report
+        that follows.\nfunction returnParticipant() {\n  const p = participant(),
+        o = $.state.npc_origin;\n  if (!p || !o) { pushData({ returnedToMarker: false
+        }); return; }\n  const root = p.getPosition();\n  const back = resetParticipant(false);\n 
+        pushData({ returnedToMarker: back });\n  $.log(\"[NPC] participant \" + (back
+        ? \"put back on the marker\" : \"could not be put back on the marker\") +\n       
+        (root ? \" (was \" + f3(hdist(root, o)) + \" m away)\" : \"\"));\n}\n\n//
+        Step back to the conversation spot, then disappear (tick); with signalDone,
+        \"npc_done\" is sent once hidden.\nfunction leave(signalDone) {\n  $.state.npc_pendingStart
         = false;\n  $.state.npc_phase = \"leave\";\n  $.state.npc_t = 0;\n  $.state.npc_leaveSignal
         = !!signalDone;\n  clearReaction();\n  if (!$.state.npc_visible || !moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
         true)) $.state.npc_glide = null;\n}\n\nfunction pushData(obj) {\n  try {\n   
