@@ -1040,11 +1040,14 @@ return {
         }
     }
 
-    // Wall in front of the standing spot until the experiment session starts (Study4StartBlocker.js hides it once LUIDA's
-    // global "exp_arePlayersEnough" is set and shows it again after a session reset), so that nobody sees or clicks the
-    // panels and buttons before the Start state. StartBlockerDist ahead of the marker, nearer than anything in front (the
-    // mirror and the right panel begin ~0.9 m ahead), wall to wall and floor to ceiling, with a collider.
-    const float StartBlockerDist = 0.8f, StartBlockerThick = 0.05f;
+    // Covers over the buttons until the experiment session starts (Study4StartBlocker.js hides its "Wall" sub-node once
+    // LUIDA's global "exp_arePlayersEnough" is set and shows it again after a session reset), so that nobody sees or
+    // clicks a button before the Start state. One board per button group (StartBlockerGroups), in the group's frame
+    // (the groups face the eye), just in front of its buttons and StartBlockerMargin larger than them on every side, with
+    // a collider. Computed from the buttons in the scene, so it follows the layout. (On 2026-11-12 it was first one wall
+    // across the room 0.8 m in front of the standing spot: too close.)
+    static readonly string[] StartBlockerGroups = { "AvatarGateUI", "ReportPanelUI", "DeviceCheckUI", "DebriefUI" };
+    const float StartBlockerMargin = 0.04f, StartBlockerThick = 0.02f, StartBlockerGap = 0.02f;
 
     static void EnsureStartBlocker(Layout l, Materials m)
     {
@@ -1060,24 +1063,54 @@ return {
             so.FindProperty("sourceCodeAsset").objectReferenceValue = js;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
-        blocker.SetPositionAndRotation(l.origin + l.fwd * StartBlockerDist, l.Frame);
+        blocker.SetPositionAndRotation(l.origin, l.Frame);
+        // "Wall": an empty container of the boards (the room-wide cube of the first version is replaced)
         var wall = blocker.Find("Wall");
+        if (wall != null && wall.GetComponent<MeshFilter>() != null) { Object.DestroyImmediate(wall.gameObject); wall = null; }
         if (wall == null)
         {
-            var c = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            c.name = "Wall";
-            wall = c.transform;
+            wall = new GameObject("Wall").transform;
             wall.SetParent(blocker, false);
         }
-        float width = RoomCellsX * RoomCell - 0.2f;   // between the side walls' faces
-        wall.localPosition = new Vector3(0f, RoomHeight * 0.5f, StartBlockerThick * 0.5f);
+        wall.localPosition = Vector3.zero;
         wall.localRotation = Quaternion.identity;
-        wall.localScale = new Vector3(width, RoomHeight, StartBlockerThick);
-        var r = wall.GetComponent<MeshRenderer>();
-        r.sharedMaterial = m.blocker;
-        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        r.receiveShadows = false;
+        wall.localScale = Vector3.one;
         wall.gameObject.SetActive(true);   // shown in the scene: hidden by the script once the session runs
+        foreach (var groupName in StartBlockerGroups)
+        {
+            var group = FindRoot(groupName, false);
+            var old = wall.Find("Cover_" + groupName);
+            if (group == null) { if (old != null) Object.DestroyImmediate(old.gameObject); Debug.LogWarning("[Study4] StartBlocker: no " + groupName); continue; }
+            // the group's buttons (Interact Item Trigger + "Visual" cube) in the group's frame
+            bool any = false;
+            Vector3 lo = Vector3.zero, hi = Vector3.zero;
+            foreach (var trig in group.GetComponentsInChildren<InteractItemTrigger>(true))
+            {
+                var visual = trig.transform.Find("Visual");
+                if (visual == null) continue;
+                var c = group.InverseTransformPoint(trig.transform.position);
+                var h = Vector3.Scale(visual.localScale, trig.transform.localScale) * 0.5f;
+                if (!any) { lo = c - h; hi = c + h; any = true; }
+                else { lo = Vector3.Min(lo, c - h); hi = Vector3.Max(hi, c + h); }
+            }
+            if (!any) { if (old != null) Object.DestroyImmediate(old.gameObject); continue; }
+            var cover = old;
+            if (cover == null)
+            {
+                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                cube.name = "Cover_" + groupName;
+                cover = cube.transform;
+                cover.SetParent(wall, false);
+            }
+            // in front of the buttons: the group's -z faces the eye
+            var center = new Vector3((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, lo.z - StartBlockerGap - StartBlockerThick * 0.5f);
+            cover.SetPositionAndRotation(group.TransformPoint(center), group.rotation);
+            cover.localScale = new Vector3(hi.x - lo.x + 2 * StartBlockerMargin, hi.y - lo.y + 2 * StartBlockerMargin, StartBlockerThick);
+            var r = cover.GetComponent<MeshRenderer>();
+            r.sharedMaterial = m.blocker;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
     }
 
     // A cube whose top is at the parent's origin (local y from -height to 0); inactive until a script raises it.
