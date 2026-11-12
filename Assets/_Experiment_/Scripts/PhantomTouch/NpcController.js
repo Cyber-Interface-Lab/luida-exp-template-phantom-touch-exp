@@ -49,14 +49,16 @@ const NPC_CFG = {
   HOLD_SEC: 1.0,           // rest where the last stroke ended
   RETRACT_SPEED: 0.10,     // m/s
   STOP_MARGIN: 0.02,       // stop this far before the face surface
-  // Touch target in the participant's head frame: the cheek on the side the NPC's right hand comes from.
-  CHEEK_BELOW_EYES: 0.045, //   height: the eye bones' midpoint minus this ...
-  FACE_UP: 0.02,           //   ... or, for avatars without eye bones, head bone + this (the same height on VRoid models)
+  // Touch target in the participant's head frame: a little above the eyes (close to the first-person camera, which
+  // Cluster places at about the eyes), on the side the NPC's right hand comes from.
+  ABOVE_EYES: 0.02,        //   height: the eye bones' midpoint plus this ...
+  FACE_UP: 0.083,          //   ... or, for avatars without eye bones, head bone + this (the eye bones sit 6.2-6.4 cm
+                           //   above the head bone on the project's VRoid models, so the same height there)
   USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null for missing bones, but the editor
                            //   emulator (CSEmulator) throws a .NET exception that aborts the whole handler, so the
                            //   director turns this on only outside LUIDA's test mode (npc_setup { eyes })
   FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline of the face)
-  FACE_FWD: 0.09,          //   forward of the head bone (cheek surface)
+  FACE_FWD: 0.09,          //   forward of the head bone (face surface)
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
   PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
   HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above horizontal; palm turned toward the face
@@ -423,11 +425,11 @@ function headOf(p) {
   }
   return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), eyeUp: eyeUp };
 }
-// Height of the touch target above the head bone (head frame): under the eyes when the avatar has eye bones.
+// Height of the touch target above the head bone (head frame): just above the eyes when the avatar has eye bones.
 function faceUp(head) {
-  return (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp - NPC_CFG.CHEEK_BELOW_EYES : NPC_CFG.FACE_UP;
+  return (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp + NPC_CFG.ABOVE_EYES : NPC_CFG.FACE_UP;
 }
-// Touch target: the participant's cheek, FACE_SIDE toward their left (head local -x), FACE_FWD forward.
+// Touch target: a little above the participant's eyes, FACE_SIDE toward their left (head local -x), FACE_FWD forward.
 function facePointWorld(head) {
   return vadd(head.pos, qrot(head.rot, v3(-NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));
 }
