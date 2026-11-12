@@ -6513,11 +6513,12 @@ PrefabInstance:
         height (relative to their head bone, m) and\n//                                                 
         arm length (m), measured in this block's pose check (DeviceCheck item:\n//                                                 
         arms held out to the sides, then forward); kept until the next\n//                                                 
-        npc_setup. The touch target is at shoulder + arm / 2, and the stroke\n//                                                 
-        goes down from there to STROKE_STOP_ABOVE_SHOULDER above the shoulder\n//  
-        \"npc_trial_start\"     { block, rep, avatar, social, fwd, reset } -> (reset:
-        put the participant back on the\n//                                                 
-        marker, on their platform) -> (reappear at the conversation spot if\n//                                                 
+        npc_setup. The touch target is at shoulder + arm / 2 (or the eye bones\n//                                                 
+        + FOREHEAD_ABOVE_EYES when that is higher), and the stroke goes down from\n//                                                 
+        there to STROKE_STOP_ABOVE_SHOULDER above the shoulder\n//   \"npc_trial_start\"    
+        { block, rep, avatar, social, fwd, reset } -> (reset: put the participant
+        back on the\n//                                                  marker,
+        on their platform) -> (reappear at the conversation spot if\n//                                                 
         hidden) -> turn to the participant and step closer -> prep -> raise hand\n//                                                 
         -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold\n//                                                 
         -> retract -> step back to the conversation spot -> hide -> npc_done\n//  
@@ -6556,109 +6557,111 @@ PrefabInstance:
         1.0,           // rest where the last stroke ended\n  RETRACT_SPEED: 0.10,    
         // m/s\n  STOP_MARGIN: 0.02,       // stop this far before the face surface\n 
         // Touch target in the participant's head frame, on the side the NPC's right
-        hand comes from.\n  //   height: the shoulder height + half the arm length,
-        from the pose check (npc_body_cal), else from the avatar's\n  //   upper
-        arm / lower arm / hand bones, else the eye bones' midpoint plus\n  FOREHEAD_ABOVE_EYES:
-        0.045, // this ...\n  FACE_UP: 0.108,          //   ... or, for avatars without
-        eye bones, head bone + this (the eye bones sit 6.2-6.4 cm\n                          
-        //   above the head bone on the project's VRoid models, so the same height
-        there)\n  USE_EYE_BONES: false,    //   query the eye bones at all? Cluster
-        returns null for missing bones, but the editor\n                          
-        //   emulator (CSEmulator) throws a .NET exception that aborts the whole
-        handler, so the\n                           //   director turns this on only
-        outside LUIDA's test mode (npc_setup { eyes })\n  FACE_SIDE: 0.04,        
-        //   toward the participant's left (0 = midline of the face)\n  FACE_FWD:
-        0.095,         //   forward of the head bone (the forehead with the fringe
-        is 10-10.5 cm forward on the\n                           //   project's VRoid
-        models at FACE_SIDE, 10-14 cm above the head bone; with this the\n                          
-        //   fingertips, above and in front of the contact point, reach the fringe
-        and do not go\n                           //   into it while stroking down).
-        0.09 until 2026-11-12, when the target was the cheek:\n                          
-        //   at the forehead the fingers went into the fringe\n\n  CONTACT_LEN: 0.12,      
-        // wrist -> contact point along the fingers (finger pads) (m)\n  PALM_OFF:
-        0.015,         // palm-side offset of the contact point along the palm normal
-        (m)\n  HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above
-        horizontal; palm turned toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10
-        Hz trace\n  STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm
-        + finger) when choosing the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum
-        horizontal root-to-head distance at the reach spot (m)\n  IDLE_EXTRA_DIST:
-        0.45,   // conversation distance = reach distance + this (m)\n  MAX_SAMPLES:
-        400,        // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step
-        closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a
-        block: shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
-        1.0,   // touch start: wait this long after putting the participant back
-        on the marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the
-        head-bone heights differ by at least this (m):\n                          
-        //   participant shorter -> platform under the participant (HeightPlatform
-        item);\n                           //   NPC shorter -> the NPC stands on
-        its Riser sub-node\n  HEIGHT_MEASURE_SEC: 3.0, // keep trying to read the
-        participant's bones this long after npc_show\n  // Guided greeting: the participant
-        follows the GreetingGuide item's instructions one by one; each time it reports\n 
-        // one as done (\"npc_greet_cue\"), the NPC answers like this (social condition
-        only; nothing otherwise). nod / wave:\n  // the gesture, joy: smile while
-        it lasts, turn: the whole body turns to face the participant. An answer with
-        a wave\n  // lasts WAVE_SEC, a nod alone NOD_SEC, a turn about 1 s (BODY_TURN_RATE).
-        The guide waits for the answer to end\n  // before its next instruction and
-        before the touch, in both conditions: its GG_HELLO / GG_STEPS 'react' times\n 
-        // must not be shorter (tests/greeting-guide.test.mjs checks this).\n  GREET_REACTIONS:
-        {\n    hello: { nod: true, wave: true, joy: true },       // before the first
-        instruction: the NPC greets first\n    wave: { nod: true, wave: true, joy:
-        true },        // the participant waved: wave back, nodding and smiling\n   
-        lookBack: { nod: true, joy: true },                // looked away, then at
-        the NPC again: nod and smile\n    move: { turn: true },                             
-        // stepped aside: turn to them (head and eyes follow anyway)\n    lookAgain:
-        { wave: true, joy: true },              // ... and looked at the NPC again:
-        wave and smile\n    center: { turn: true },                            //
-        back on the marker, facing forward: turn to them again\n  },\n  PREP_REACTION:
-        { nod: true, wave: true, joy: true }, // touch phase, before the hand is
-        raised: greet once\n  HEAD_MAX_DEG: 50,        // gaze: the head alone turns
-        up to this angle ...\n  EYE_EXTRA_DEG: 12,       // ... and the eyes a bit
-        further\n  BODY_TURN_START_DEG: 35, // greeting: if the participant is farther
-        than this from the NPC's facing,\n  BODY_TURN_STOP_DEG: 4,   //   the whole
-        body turns toward them (lerp) until within this angle;\n  BODY_TURN_RATE:
-        2.5,     //   exponential rate (1/s). The head's local rotation unwinds as
-        the body turns.\n  LOOK_AT_DEG: 30,         // participant \"looks at\" the
-        NPC when head forward is within this angle\n  LOOK_AWAY_DEG: 45,       //
-        ... and stops when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET:
-        0.10, // a hand counts as raised when above (head height - this)\n  NOD_SEC:
-        0.8,            // nod-only reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC:
-        1.6,           // reaction duration when it includes a wave\n  TOUCH_COOLDOWN_SEC:
-        1.5, // surprised face when touched: minimum interval\n  TOUCH_HAND_MARGIN:
-        0.06, // participant hand bone (wrist) -> fingers allowance (m)\n  RETREAT_THRESHOLD:
-        0.02, // m, for the in-world retreat-onset estimate\n  MODEL_NODE: \"Model\",    
-        // sub-node holding the VRM model (toggled for visibility)\n  JOY_KEY: \"npc_joy\",     
-        // item Bool state -> Set Animator Value gimmick on the face mesh -> Animator
-        Bool \"joy\"\n  SURPRISED_KEY: \"npc_surprised\", // item signal -> gimmick
-        -> Animator Trigger \"surprised\" (1 s clip)\n                          
-        // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50; Surprised: Fcl_EYE_Surprised=50,
-        Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",     // 5 m cube under the
-        NPC's feet (top at the feet); shown while the NPC is lifted\n  PLATFORM_ITEM:
-        \"HeightPlatform\", // world item reference: the platform under the participant's
-        standing spot\n};\n\nconst IDENT = new Quaternion(0, 0, 0, 1);\nconst UP
-        = new Vector3(0, 1, 0);\n// Right-hand finger bones in NPC_BoneMap.js: kept
-        straight, i.e. given the hand's rotation every frame (applyPose\n// gives
-        a bone without a rotation the identity in the item frame, not its parent's).\nconst
-        R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal, HumanoidBone.RightThumbIntermediate,
-        HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal, HumanoidBone.RightIndexIntermediate,
-        HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal, HumanoidBone.RightMiddleIntermediate,
-        HumanoidBone.RightMiddleDistal,\n  HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate,
-        HumanoidBone.RightRingDistal,\n  HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate,
-        HumanoidBone.RightLittleDistal,\n];\n\n// ----------------------------------------------------------------
-        math helpers\nfunction v3(x, y, z) { return new Vector3(x, y, z); }\nfunction
-        vadd(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a,
-        b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s)
-        { return v3(a.x * s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x
-        * b.x + a.y * b.y + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y *
-        b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction
-        vlen(a) { return Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l =
-        vlen(a); return l > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a,
-        b, t) { return vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return
-        vnorm(v3(a.x, 0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z);
-        }\nfunction hdist(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx
-        * dx + dz * dz); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n   
-        a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z
-        + a.y * b.w + a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n   
-        a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return
+        hand comes from.\n  //   height: the higher of (a) the shoulder height +
+        half the arm length, from the pose check (npc_body_cal), else from\n  //  
+        the avatar's upper arm / lower arm / hand bones, and (b) the eye bones' midpoint
+        plus\n  FOREHEAD_ABOVE_EYES: 0.045, // this (the forehead; the eye bones
+        are read only outside LUIDA's test mode) ...\n  FACE_UP: 0.108,         
+        //   ... or, for avatars without eye bones, head bone + this (the eye bones
+        sit 6.2-6.4 cm\n                           //   above the head bone on the
+        project's VRoid models, so the same height there)\n  USE_EYE_BONES: false,   
+        //   query the eye bones at all? Cluster returns null for missing bones,
+        but the editor\n                           //   emulator (CSEmulator) throws
+        a .NET exception that aborts the whole handler, so the\n                          
+        //   director turns this on only outside LUIDA's test mode (npc_setup { eyes
+        })\n  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline
+        of the face)\n  FACE_FWD: 0.095,         //   forward of the head bone (the
+        forehead with the fringe is 10-10.5 cm forward on the\n                          
+        //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone; with
+        this the\n                           //   fingertips, above and in front
+        of the contact point, reach the fringe and do not go\n                          
+        //   into it while stroking down). 0.09 until 2026-11-12, when the target
+        was the cheek:\n                           //   at the forehead the fingers
+        went into the fringe\n\n  CONTACT_LEN: 0.12,       // wrist -> contact point
+        along the fingers (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side
+        offset of the contact point along the palm normal (m)\n  HAND_PITCH_DEG:
+        45,      // reaching hand: fingers this far above horizontal; palm turned
+        toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR:
+        0.93,      // usable fraction of (upper arm + forearm + finger) when choosing
+        the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head
+        distance at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation
+        distance = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace
+        cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back
+        duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block: shown at the
+        conversation spot this long before stepping in\n  RESET_SETTLE_SEC: 1.0,  
+        // touch start: wait this long after putting the participant back on the
+        marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone
+        heights differ by at least this (m):\n                           //   participant
+        shorter -> platform under the participant (HeightPlatform item);\n                          
+        //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
+        3.0, // keep trying to read the participant's bones this long after npc_show\n 
+        // Guided greeting: the participant follows the GreetingGuide item's instructions
+        one by one; each time it reports\n  // one as done (\"npc_greet_cue\"), the
+        NPC answers like this (social condition only; nothing otherwise). nod / wave:\n 
+        // the gesture, joy: smile while it lasts, turn: the whole body turns to
+        face the participant. An answer with a wave\n  // lasts WAVE_SEC, a nod alone
+        NOD_SEC, a turn about 1 s (BODY_TURN_RATE). The guide waits for the answer
+        to end\n  // before its next instruction and before the touch, in both conditions:
+        its GG_HELLO / GG_STEPS 'react' times\n  // must not be shorter (tests/greeting-guide.test.mjs
+        checks this).\n  GREET_REACTIONS: {\n    hello: { nod: true, wave: true,
+        joy: true },       // before the first instruction: the NPC greets first\n   
+        wave: { nod: true, wave: true, joy: true },        // the participant waved:
+        wave back, nodding and smiling\n    lookBack: { nod: true, joy: true },               
+        // looked away, then at the NPC again: nod and smile\n    move: { turn: true
+        },                              // stepped aside: turn to them (head and
+        eyes follow anyway)\n    lookAgain: { wave: true, joy: true },             
+        // ... and looked at the NPC again: wave and smile\n    center: { turn: true
+        },                            // back on the marker, facing forward: turn
+        to them again\n  },\n  PREP_REACTION: { nod: true, wave: true, joy: true
+        }, // touch phase, before the hand is raised: greet once\n  HEAD_MAX_DEG:
+        50,        // gaze: the head alone turns up to this angle ...\n  EYE_EXTRA_DEG:
+        12,       // ... and the eyes a bit further\n  BODY_TURN_START_DEG: 35, //
+        greeting: if the participant is farther than this from the NPC's facing,\n 
+        BODY_TURN_STOP_DEG: 4,   //   the whole body turns toward them (lerp) until
+        within this angle;\n  BODY_TURN_RATE: 2.5,     //   exponential rate (1/s).
+        The head's local rotation unwinds as the body turns.\n  LOOK_AT_DEG: 30,        
+        // participant \"looks at\" the NPC when head forward is within this angle\n 
+        LOOK_AWAY_DEG: 45,       // ... and stops when it exceeds this angle (hysteresis)\n 
+        HAND_RAISE_OFFSET: 0.10, // a hand counts as raised when above (head height
+        - this)\n  NOD_SEC: 0.8,            // nod-only reaction duration\n  NOD_DEG:
+        15,\n  WAVE_SEC: 1.6,           // reaction duration when it includes a wave\n 
+        TOUCH_COOLDOWN_SEC: 1.5, // surprised face when touched: minimum interval\n 
+        TOUCH_HAND_MARGIN: 0.06, // participant hand bone (wrist) -> fingers allowance
+        (m)\n  RETREAT_THRESHOLD: 0.02, // m, for the in-world retreat-onset estimate\n 
+        MODEL_NODE: \"Model\",     // sub-node holding the VRM model (toggled for
+        visibility)\n  JOY_KEY: \"npc_joy\",      // item Bool state -> Set Animator
+        Value gimmick on the face mesh -> Animator Bool \"joy\"\n  SURPRISED_KEY:
+        \"npc_surprised\", // item signal -> gimmick -> Animator Trigger \"surprised\"
+        (1 s clip)\n                           // (Joy: Fcl_EYE_Joy=100, Fcl_MTH_Joy=50;
+        Surprised: Fcl_EYE_Surprised=50, Fcl_MTH_Surprised=50)\n  RISER_NODE: \"Riser\",    
+        // 5 m cube under the NPC's feet (top at the feet); shown while the NPC is
+        lifted\n  PLATFORM_ITEM: \"HeightPlatform\", // world item reference: the
+        platform under the participant's standing spot\n};\n\nconst IDENT = new Quaternion(0,
+        0, 0, 1);\nconst UP = new Vector3(0, 1, 0);\n// Right-hand finger bones in
+        NPC_BoneMap.js: kept straight, i.e. given the hand's rotation every frame
+        (applyPose\n// gives a bone without a rotation the identity in the item frame,
+        not its parent's).\nconst R_FINGER_BONES = [\n  HumanoidBone.RightThumbProximal,
+        HumanoidBone.RightThumbIntermediate, HumanoidBone.RightThumbDistal,\n  HumanoidBone.RightIndexProximal,
+        HumanoidBone.RightIndexIntermediate, HumanoidBone.RightIndexDistal,\n  HumanoidBone.RightMiddleProximal,
+        HumanoidBone.RightMiddleIntermediate, HumanoidBone.RightMiddleDistal,\n 
+        HumanoidBone.RightRingProximal, HumanoidBone.RightRingIntermediate, HumanoidBone.RightRingDistal,\n 
+        HumanoidBone.RightLittleProximal, HumanoidBone.RightLittleIntermediate, HumanoidBone.RightLittleDistal,\n];\n\n//
+        ---------------------------------------------------------------- math helpers\nfunction
+        v3(x, y, z) { return new Vector3(x, y, z); }\nfunction vadd(a, b) { return
+        v3(a.x + b.x, a.y + b.y, a.z + b.z); }\nfunction vsub(a, b) { return v3(a.x
+        - b.x, a.y - b.y, a.z - b.z); }\nfunction vscale(a, s) { return v3(a.x *
+        s, a.y * s, a.z * s); }\nfunction vdot(a, b) { return a.x * b.x + a.y * b.y
+        + a.z * b.z; }\nfunction vcross(a, b) { return v3(a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }\nfunction vlen(a) { return
+        Math.sqrt(vdot(a, a)); }\nfunction vnorm(a) { const l = vlen(a); return l
+        > 1e-9 ? vscale(a, 1 / l) : v3(0, 0, 1); }\nfunction vlerp(a, b, t) { return
+        vadd(a, vscale(vsub(b, a), t)); }\nfunction vhoriz(a) { return vnorm(v3(a.x,
+        0, a.z)); }\nfunction vcopy(a) { return v3(a.x, a.y, a.z); }\nfunction hdist(a,
+        b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx * dx + dz
+        * dz); }\n\nfunction qmul(a, b) {\n  return new Quaternion(\n    a.w * b.x
+        + a.x * b.w + a.y * b.z - a.z * b.y,\n    a.w * b.y - a.x * b.z + a.y * b.w
+        + a.z * b.x,\n    a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,\n    a.w
+        * b.w - a.x * b.x - a.y * b.y - a.z * b.z);\n}\nfunction qinv(q) { return
         new Quaternion(-q.x, -q.y, -q.z, q.w); }\nfunction qrot(q, v) {\n  const
         tx = 2 * (q.y * v.z - q.z * v.y);\n  const ty = 2 * (q.z * v.x - q.x * v.z);\n 
         const tz = 2 * (q.x * v.y - q.y * v.x);\n  return v3(\n    v.x + q.w * tx
@@ -6822,29 +6825,33 @@ PrefabInstance:
         {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const rot
         = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  if (!pos || !rot) return
         null;\n  // touch target height in the head frame, and how far the stroke
-        goes down from it:\n  //   shoulder + arm / 2, the stroke ending STROKE_STOP_ABOVE_SHOULDER
-        above the shoulder, with the shoulder height and\n  //   arm length from
-        the pose check (npc_body_cal) or else the avatar's bones; without those,
-        the eye bones +\n  //   FOREHEAD_ABOVE_EYES, else FACE_UP (stroke: STROKE_AMP)\n 
-        let up = NPC_CFG.FACE_UP, upSrc = \"headBone\", strokeAmp = NPC_CFG.STROKE_AMP;\n 
-        const body = (typeof $.state.npc_bodyCal === \"object\" && $.state.npc_bodyCal)
-        ? $.state.npc_bodyCal : bodyFromBones(p, pos);\n  if (body) {\n    up = body.shoulderUp
-        + body.arm / 2;\n    strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN, body.arm
-        / 2 - NPC_CFG.STROKE_STOP_ABOVE_SHOULDER);\n    upSrc = body.src || \"pose\";\n 
-        } else {\n    const useEyes = ($.state.npc_useEyes === undefined || $.state.npc_useEyes
-        === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;\n    if (useEyes)
-        {\n      const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re =
-        p.getHumanoidBonePosition(HumanoidBone.RightEye);\n      const eye = (le
-        && re) ? vscale(vadd(le, re), 0.5) : (le || re);\n      if (eye) {\n       
-        const local = qrot(qinv(rot), vsub(eye, pos));\n        if (local.y > 0.02
-        && local.y < 0.2) { up = local.y + NPC_CFG.FOREHEAD_ABOVE_EYES; upSrc = \"eyeBones\";
-        }\n      }\n    }\n  }\n  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0,
-        0, 1)), up: up, upSrc: upSrc, strokeAmp: strokeAmp };\n}\n// Shoulder height
-        (relative to the head bone) and arm length from the avatar's bones (upper
-        arm -> lower arm -> hand,\n// both sides averaged), or null when they cannot
-        be read. These are required humanoid bones, so unlike the eye bones\n// the
-        editor emulator has them on every avatar.\nfunction bodyFromBones(p, headPos)
-        {\n  const sides = [];\n  for (const b of [[HumanoidBone.LeftUpperArm, HumanoidBone.LeftLowerArm,
+        goes down from it. Two candidates, the higher wins:\n  //   body: shoulder
+        + arm / 2, with the shoulder height and arm length from the pose check (npc_body_cal)
+        or else the\n  //         avatar's arm bones;\n  //   eyes: the eye bones
+        + FOREHEAD_ABOVE_EYES (when they are queried, present and plausible).\n 
+        // The stroke ends STROKE_STOP_ABOVE_SHOULDER above the shoulder (STROKE_AMP
+        when the shoulder is not known). Neither\n  // candidate: FACE_UP.\n  const
+        body = (typeof $.state.npc_bodyCal === \"object\" && $.state.npc_bodyCal)
+        ? $.state.npc_bodyCal : bodyFromBones(p, pos);\n  const bodyUp = body ? body.shoulderUp
+        + body.arm / 2 : null;\n  let eyesUp = null;\n  const useEyes = ($.state.npc_useEyes
+        === undefined || $.state.npc_useEyes === null) ? NPC_CFG.USE_EYE_BONES :
+        $.state.npc_useEyes;\n  if (useEyes) {\n    const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye),
+        re = p.getHumanoidBonePosition(HumanoidBone.RightEye);\n    const eye = (le
+        && re) ? vscale(vadd(le, re), 0.5) : (le || re);\n    if (eye) {\n      const
+        local = qrot(qinv(rot), vsub(eye, pos));\n      if (local.y > 0.02 && local.y
+        < 0.2) eyesUp = local.y + NPC_CFG.FOREHEAD_ABOVE_EYES;\n    }\n  }\n  let
+        up = NPC_CFG.FACE_UP, upSrc = \"headBone\";\n  if (bodyUp !== null && (eyesUp
+        === null || bodyUp >= eyesUp)) { up = bodyUp; upSrc = body.src || \"pose\";
+        }\n  else if (eyesUp !== null) { up = eyesUp; upSrc = \"eyeBones\"; }\n 
+        const strokeAmp = body ? Math.max(NPC_CFG.STROKE_AMP_MIN, up - (body.shoulderUp
+        + NPC_CFG.STROKE_STOP_ABOVE_SHOULDER)) : NPC_CFG.STROKE_AMP;\n  return {
+        pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), up: up, upSrc: upSrc, strokeAmp:
+        strokeAmp, bodyUp: bodyUp, eyesUp: eyesUp };\n}\n// Shoulder height (relative
+        to the head bone) and arm length from the avatar's bones (upper arm -> lower
+        arm -> hand,\n// both sides averaged), or null when they cannot be read.
+        These are required humanoid bones, so unlike the eye bones\n// the editor
+        emulator has them on every avatar.\nfunction bodyFromBones(p, headPos) {\n 
+        const sides = [];\n  for (const b of [[HumanoidBone.LeftUpperArm, HumanoidBone.LeftLowerArm,
         HumanoidBone.LeftHand],\n                   [HumanoidBone.RightUpperArm,
         HumanoidBone.RightLowerArm, HumanoidBone.RightHand]]) {\n    if (b[0] ===
         undefined) continue;\n    const u = p.getHumanoidBonePosition(b[0]), l =
@@ -7040,7 +7047,8 @@ PrefabInstance:
         $.state.npc_phase = \"approach\";\n  $.state.npc_t = 0;\n  $.state.npc_reachStartTs
         = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n  $.state.npc_faceUp
         = faceUp(head); $.state.npc_faceUpSrc = head.upSrc || \"headBone\"; $.state.npc_strokeAmp
-        = head.strokeAmp;\n  $.state.npc_headRot0 = head.rot.x + \",\" + head.rot.y
+        = head.strokeAmp;\n  $.state.npc_faceUpBody = head.bodyUp; $.state.npc_faceUpEyes
+        = head.eyesUp;\n  $.state.npc_headRot0 = head.rot.x + \",\" + head.rot.y
         + \",\" + head.rot.z + \",\" + head.rot.w;\n  $.state.npc_contactTs = 0;\n 
         $.state.npc_contactDist = -1;\n  $.state.npc_contactT = 0;\n  $.state.npc_strokeEndTs
         = 0;\n  $.state.npc_base = null;\n  $.state.npc_away = 0; $.state.npc_latMin
@@ -7057,15 +7065,17 @@ PrefabInstance:
         + f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n 
         $.log(\"[NPC] approach: path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED)
         + \" s, reachable=\" + $.state.npc_reachable +\n        \", target \" + f3($.state.npc_faceUp)
-        + \" m above the head bone (\" + $.state.npc_faceUpSrc + \"), stroke \" +
-        f3($.state.npc_strokeAmp) + \" m\");\n}\n\nfunction finishTrial() {\n  const
-        traces = ($.state.npc_trace || []).concat(traceBuf);\n  traceBuf = [];\n 
-        const tr = $.state.npc_trial || {};\n  const pEnd = participant();\n  const
-        rootEnd = pEnd ? pEnd.getPosition() : null;\n  const o = $.state.npc_origin;\n 
-        const data = {\n    social: $.state.npc_social ? \"with\" : \"without\",\n   
-        npcBlock: tr.block !== undefined ? String(tr.block) : \"\",\n    npcRep:
-        tr.rep !== undefined ? String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !==
-        undefined ? String(tr.avatar) : \"\",\n    trialStartTs: $.state.npc_trialStartTs
+        + \" m above the head bone (\" + $.state.npc_faceUpSrc + \"; body \" +\n       
+        (typeof $.state.npc_faceUpBody === \"number\" ? f3($.state.npc_faceUpBody)
+        : \"-\") + \", eyes \" +\n        (typeof $.state.npc_faceUpEyes === \"number\"
+        ? f3($.state.npc_faceUpEyes) : \"-\") + \"), stroke \" + f3($.state.npc_strokeAmp)
+        + \" m\");\n}\n\nfunction finishTrial() {\n  const traces = ($.state.npc_trace
+        || []).concat(traceBuf);\n  traceBuf = [];\n  const tr = $.state.npc_trial
+        || {};\n  const pEnd = participant();\n  const rootEnd = pEnd ? pEnd.getPosition()
+        : null;\n  const o = $.state.npc_origin;\n  const data = {\n    social: $.state.npc_social
+        ? \"with\" : \"without\",\n    npcBlock: tr.block !== undefined ? String(tr.block)
+        : \"\",\n    npcRep: tr.rep !== undefined ? String(tr.rep) : \"\",\n    npcAvatar:
+        tr.avatar !== undefined ? String(tr.avatar) : \"\",\n    trialStartTs: $.state.npc_trialStartTs
         || 0,\n    reachStartTs: $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs
         || 0,\n    strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: (typeof
         $.state.npc_strokeAmp === \"number\") ? $.state.npc_strokeAmp : NPC_CFG.STROKE_AMP,\n   
@@ -7081,13 +7091,17 @@ PrefabInstance:
         || \"\",\n    faceUp: (typeof $.state.npc_faceUp === \"number\") ? $.state.npc_faceUp
         : -1,   // target height above the head bone (m)\n    faceUpSrc: $.state.npc_faceUpSrc
         || \"\",   // from: pose (pose check) / bones (avatar's arm bones) / eyeBones
-        / headBone\n    handStart: $.state.npc_H0w || \"\",   // fingertip world
-        position at approach start\n    faceTarget: $.state.npc_Tw || \"\",   //
-        face target world position (fixed at approach start)\n    traceFormat: \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz\",  
-        // r = avatar position (moved by the stick)\n    retreatOnsetDist: $.state.npc_onsetDist,\n   
-        retreatDist: $.state.npc_away || 0,\n    oscAmp: ($.state.npc_latMax || 0)
-        - ($.state.npc_latMin || 0),\n    rootStart: $.state.npc_rootStart || \"\",             
-        // avatar position at approach start\n    rootShiftPre: (typeof $.state.npc_rootShiftPre
+        / headBone\n    faceUpBody: (typeof $.state.npc_faceUpBody === \"number\")
+        ? $.state.npc_faceUpBody : \"\",   // the candidates: shoulder + arm / 2\n   
+        faceUpEyes: (typeof $.state.npc_faceUpEyes === \"number\") ? $.state.npc_faceUpEyes
+        : \"\",   //   and eye bones + 4.5 cm\n    handStart: $.state.npc_H0w ||
+        \"\",   // fingertip world position at approach start\n    faceTarget: $.state.npc_Tw
+        || \"\",   // face target world position (fixed at approach start)\n    traceFormat:
+        \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz\",   // r = avatar position (moved
+        by the stick)\n    retreatOnsetDist: $.state.npc_onsetDist,\n    retreatDist:
+        $.state.npc_away || 0,\n    oscAmp: ($.state.npc_latMax || 0) - ($.state.npc_latMin
+        || 0),\n    rootStart: $.state.npc_rootStart || \"\",              // avatar
+        position at approach start\n    rootShiftPre: (typeof $.state.npc_rootShiftPre
         === \"number\") ? $.state.npc_rootShiftPre : -1,  // off the marker then
         (m)\n    rootRetreat: $.state.npc_rootAway || 0,              // like retreatDist,
         for the avatar position\n    rootShiftEnd: (rootEnd && o) ? hdist(rootEnd,
@@ -21514,19 +21528,21 @@ PrefabInstance:
         npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur: CD['reachDur'],
         contactDist: CD['contactDist'], reachable: CD['reachable'],\n    headPos0:
         CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height above
-        the head bone (m) and where it came from: calibrated (forehead) / eyeBones
-        / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n    retreatOnsetDist:
-        CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
-        // backing away with the stick during the touch (slow, touchMoveRate x the
-        normal speed): avatar position at the\n    // approach start, its distance
-        from the marker then / at the end of the retract, its retreat like retreatDist,\n   
-        // and whether the participant was put back on the marker after the NPC had
-        gone\n    touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'],
-        rootShiftPre: CD['rootShiftPre'],\n    rootRetreat: CD['rootRetreat'], rootShiftEnd:
-        CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],\n    lookedAtNpc:
-        CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout:
-        CD['npcTimeout'],\n    trace: CD['trace'],\n};\n\r\n    return {};\n  }\n 
-        returnData.push(saveData());\n  return returnData;\n}\n"
+        the head bone (m), which candidate it is (pose / bones: shoulder + arm /
+        2 from the pose\n    // check / the arm bones; eyeBones: eye bones + 4.5
+        cm; headBone: neither), and both candidates ('' when unknown)\n    faceUp:
+        CD['faceUp'], faceUpSrc: CD['faceUpSrc'], faceUpBody: CD['faceUpBody'], faceUpEyes:
+        CD['faceUpEyes'],\n    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist:
+        CD['retreatDist'], oscAmp: CD['oscAmp'],\n    // backing away with the stick
+        during the touch (slow, touchMoveRate x the normal speed): avatar position
+        at the\n    // approach start, its distance from the marker then / at the
+        end of the retract, its retreat like retreatDist,\n    // and whether the
+        participant was put back on the marker after the NPC had gone\n    touchMoveRate:
+        CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre: CD['rootShiftPre'],\n   
+        rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'], returnedToMarker:
+        CD['returnedToMarker'],\n    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'],
+        greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n\r\n   
+        return {};\n  }\n  returnData.push(saveData());\n  return returnData;\n}\n"
       objectReference: {fileID: 0}
     - target: {fileID: 5964733846762761527, guid: 964d6187f971a8f43b4ee67279f1ef90,
         type: 3}

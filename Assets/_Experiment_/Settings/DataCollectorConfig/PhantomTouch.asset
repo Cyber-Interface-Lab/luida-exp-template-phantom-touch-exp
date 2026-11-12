@@ -73,13 +73,15 @@ MonoBehaviour:
     CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur:
     CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height
-    above the head bone (m) and where it came from: calibrated (forehead) / eyeBones
-    / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n    retreatOnsetDist:
-    CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
-    // backing away with the stick during the touch (slow, touchMoveRate x the normal
-    speed): avatar position at the\n    // approach start, its distance from the
-    marker then / at the end of the retract, its retreat like retreatDist,\n    //
-    and whether the participant was put back on the marker after the NPC had gone\n   
+    above the head bone (m), which candidate it is (pose / bones: shoulder + arm
+    / 2 from the pose\n    // check / the arm bones; eyeBones: eye bones + 4.5 cm;
+    headBone: neither), and both candidates ('' when unknown)\n    faceUp: CD['faceUp'],
+    faceUpSrc: CD['faceUpSrc'], faceUpBody: CD['faceUpBody'], faceUpEyes: CD['faceUpEyes'],\n   
+    retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp:
+    CD['oscAmp'],\n    // backing away with the stick during the touch (slow, touchMoveRate
+    x the normal speed): avatar position at the\n    // approach start, its distance
+    from the marker then / at the end of the retract, its retreat like retreatDist,\n   
+    // and whether the participant was put back on the marker after the NPC had gone\n   
     touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre:
     CD['rootShiftPre'],\n    rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'],
     returnedToMarker: CD['returnedToMarker'],\n    lookedAtNpc: CD['lookedAtNpc'],

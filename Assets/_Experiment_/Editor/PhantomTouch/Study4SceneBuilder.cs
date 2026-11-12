@@ -574,8 +574,9 @@ return {
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
-    // touch target height above the head bone (m) and where it came from: calibrated (forehead) / eyeBones / headBone
-    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],
+    // touch target height above the head bone (m), which candidate it is (pose / bones: shoulder + arm / 2 from the pose
+    // check / the arm bones; eyeBones: eye bones + 4.5 cm; headBone: neither), and both candidates ('' when unknown)
+    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'], faceUpBody: CD['faceUpBody'], faceUpEyes: CD['faceUpEyes'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
     // approach start, its distance from the marker then / at the end of the retract, its retreat like retreatDist,

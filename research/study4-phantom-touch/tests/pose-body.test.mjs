@@ -148,3 +148,21 @@ test("without the pose check's values, the NPC reads the avatar's arm bones", ()
   const { aim } = npc(bones);
   assert.deepEqual(aim(), [0.09, 0.17, "bones"], "shoulder -0.12, arm 0.22 + 0.20");
 });
+
+test("with eye bones, the higher of shoulder + arm / 2 and eyes + 4.5 cm is the target; the stroke still ends above the shoulder", () => {
+  const HBE = { ...HB, LeftEye: 21, RightEye: 22 };
+  const p = makePlayer("p1");
+  let eyeY = 1.57;
+  p.getHumanoidBonePosition = (b) => (b === 10 ? new Vector3(0, 1.5, -2) : b === 21 ? new Vector3(-0.03, eyeY, -1.98) : b === 22 ? new Vector3(0.03, eyeY, -1.98) : null);
+  p.getHumanoidBoneRotation = (b) => (b === 10 ? new Quaternion(0, 0, 0, 1) : null);
+  const item = loadItem([NPC_JS], { world: { global: {}, players: [p] }, groupState: { participants: [p] }, name: "NPC", globals: { HumanoidBone: HBE } });
+  const aim = () => { const h = item.ctx.headOf(p); const r = (x) => (x === null ? null : Math.round(x * 1000) / 1000); return [r(item.ctx.faceUp(h)), r(h.strokeAmp), h.upSrc, r(h.bodyUp), r(h.eyesUp)]; };
+  item.receive("npc_setup", { social: true, eyes: true }, null);
+  assert.deepEqual(aim(), [0.115, 0.09, "eyeBones", null, 0.115], "eyes only: 0.07 + 0.045, STROKE_AMP");
+  item.receive("npc_body_cal", { shoulderUp: -0.12, arm: 0.42 }, null);
+  assert.deepEqual(aim(), [0.115, 0.195, "eyeBones", 0.09, 0.115], "eyes higher (0.115 > 0.09): stroke 0.115 - (-0.12 + 0.04)");
+  item.receive("npc_body_cal", { shoulderUp: -0.12, arm: 0.50 }, null);
+  assert.deepEqual(aim(), [0.13, 0.21, "pose", 0.13, 0.115], "body higher (0.13 > 0.115)");
+  eyeY = 1.6;   // eyes 0.10 + 0.045 = 0.145
+  assert.deepEqual(aim(), [0.145, 0.225, "eyeBones", 0.13, 0.145]);
+});
