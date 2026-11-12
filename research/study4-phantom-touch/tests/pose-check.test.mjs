@@ -108,8 +108,8 @@ function npc(eyeY) {
   return { item, aim };
 }
 
-test("the NPC aims at eyes + (eyes - mouth) and strokes down to halfway between the eyes and the mouth", () => {
-  assert.deepEqual(npc(null).aim(), [0.126, 0.0945, "EYE_UP"], "test mode: eyes 0.063, mouth 0 -> 0.126, down to 0.0315");
-  assert.deepEqual(npc(1.57).aim(), [0.14, 0.105, "eyeBones"], "eye bones 0.07 above the head bone -> 0.14, down to 0.035");
-  assert.deepEqual(npc(1.52).aim(), [0.04, 0.03, "eyeBones"], "a small head (eyes 0.02): at least 3 cm of stroke");
+test("the NPC aims 2 cm above eyes + (eyes - mouth) and strokes down to halfway between the eyes and the mouth", () => {
+  assert.deepEqual(npc(null).aim(), [0.146, 0.1145, "EYE_UP"], "test mode: eyes 0.063, mouth 0 -> 0.126 + 0.02, down to 0.0315");
+  assert.deepEqual(npc(1.57).aim(), [0.16, 0.125, "eyeBones"], "eye bones 0.07 above the head bone -> 0.14 + 0.02, down to 0.035");
+  assert.deepEqual(npc(1.52).aim(), [0.06, 0.05, "eyeBones"], "a small head (eyes 0.02): 0.04 + 0.02, down to 0.01");
 });

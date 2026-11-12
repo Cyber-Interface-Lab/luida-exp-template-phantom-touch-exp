@@ -63,19 +63,19 @@ const NPC_CFG = {
   //   blend shape moves) is 0.1-0.4 cm below the head bone, so the head bone's height is used.
   EYE_UP: 0.063,           //   the eye bones sit 6.2-6.4 cm above the head bone on the project's VRoid models
   MOUTH_UP: 0,
+  TARGET_UP_OFFSET: 0.02,  //   the target is this much higher than eyes + x (the stroke still ends halfway between the eyes
+                           //   and the mouth, so it is this much longer)
   USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns null for missing bones, but the editor
                            //   emulator (CSEmulator) throws a .NET exception that aborts the whole handler, so the
                            //   director turns this on only outside LUIDA's test mode (npc_setup { eyes })
   FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline of the face)
-  FACE_FWD: 0.100,         //   forward of the head bone (the forehead with the fringe is 10-10.5 cm forward on the
-                           //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone; with this the
-                           //   fingertips, above and in front of the contact point, reach the fringe and do not go
-                           //   into it while stroking down). 0.09 until 2026-11-12, when the target was the cheek:
-                           //   at the forehead the fingers went into the fringe
+  FACE_FWD: 0.110,         //   forward of the head bone (the forehead with the fringe is 10-10.5 cm forward on the
+                           //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone). 0.09 when the target
+                           //   was the cheek, 0.100 until the fingers still went into the face in a test on 2026-11-12
 
   CONTACT_LEN: 0.12,       // wrist -> contact point along the fingers (finger pads) (m)
   PALM_OFF: 0.015,         // palm-side offset of the contact point along the palm normal (m)
-  HAND_PITCH_DEG: 45,      // reaching hand: fingers this far above horizontal; palm turned toward the face
+  HAND_PITCH_DEG: 30,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12); palm turned toward the face
   SAMPLE_INTERVAL: 0.1,    // 10 Hz trace
   STAND_FACTOR: 0.93,      // usable fraction of (upper arm + forearm + finger) when choosing the reach spot
   MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head distance at the reach spot (m)
@@ -444,7 +444,7 @@ function headOf(p) {
   }
   const eyes = eyesUp !== null ? eyesUp : NPC_CFG.EYE_UP, mouth = NPC_CFG.MOUTH_UP;
   const x = eyes - mouth;
-  const up = eyes + x;
+  const up = eyes + x + NPC_CFG.TARGET_UP_OFFSET;
   const strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN, up - (eyes + mouth) / 2);
   return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), up: up, upSrc: eyesUp !== null ? "eyeBones" : "EYE_UP", strokeAmp: strokeAmp, eyesUp: eyesUp };
 }
@@ -951,7 +951,7 @@ function strokeArcPoint(leg, th) {  // th: 0 (bottom, leg.a) -> PI (top, leg.b)
   return vadd(vadd(leg.c, vscale(leg.hv, -Math.cos(th))), vscale(leg.out, Math.sin(th)));
 }
 function strokePath(Fc, dir) {
-  const A = (typeof $.state.npc_strokeAmp === "number") ? $.state.npc_strokeAmp : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP);
+  const A = (typeof $.state.npc_strokeAmp === "number") ? $.state.npc_strokeAmp : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP) + NPC_CFG.TARGET_UP_OFFSET;
   const B = NPC_CFG.STROKE_BACK, N = NPC_CFG.STROKE_CYCLES;
   const vs = NPC_CFG.REACH_SPEED, vr = NPC_CFG.STROKE_RETURN_SPEED;
   const ramp = NPC_CFG.STROKE_RAMP_SEC;

@@ -285,33 +285,32 @@ MonoBehaviour:
     of the vertices the mouth-open\n  //   blend shape moves) is 0.1-0.4 cm below
     the head bone, so the head bone's height is used.\n  EYE_UP: 0.063,          
     //   the eye bones sit 6.2-6.4 cm above the head bone on the project's VRoid
-    models\n  MOUTH_UP: 0,\n  USE_EYE_BONES: false,    //   query the eye bones at
-    all? Cluster returns null for missing bones, but the editor\n                          
+    models\n  MOUTH_UP: 0,\n  TARGET_UP_OFFSET: 0.02,  //   the target is this much
+    higher than eyes + x (the stroke still ends halfway between the eyes\n                          
+    //   and the mouth, so it is this much longer)\n  USE_EYE_BONES: false,    //  
+    query the eye bones at all? Cluster returns null for missing bones, but the editor\n                          
     //   emulator (CSEmulator) throws a .NET exception that aborts the whole handler,
     so the\n                           //   director turns this on only outside LUIDA's
     test mode (npc_setup { eyes })\n  FACE_SIDE: 0.04,         //   toward the participant's
-    left (0 = midline of the face)\n  FACE_FWD: 0.100,         //   forward of the
+    left (0 = midline of the face)\n  FACE_FWD: 0.110,         //   forward of the
     head bone (the forehead with the fringe is 10-10.5 cm forward on the\n                          
-    //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone; with
-    this the\n                           //   fingertips, above and in front of the
-    contact point, reach the fringe and do not go\n                           //  
-    into it while stroking down). 0.09 until 2026-11-12, when the target was the
-    cheek:\n                           //   at the forehead the fingers went into
-    the fringe\n\n  CONTACT_LEN: 0.12,       // wrist -> contact point along the
-    fingers (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side offset of
-    the contact point along the palm normal (m)\n  HAND_PITCH_DEG: 45,      // reaching
-    hand: fingers this far above horizontal; palm turned toward the face\n  SAMPLE_INTERVAL:
-    0.1,    // 10 Hz trace\n  STAND_FACTOR: 0.93,      // usable fraction of (upper
-    arm + forearm + finger) when choosing the reach spot\n  MIN_STAND_DIST: 0.40,   
-    // minimum horizontal root-to-head distance at the reach spot (m)\n  IDLE_EXTRA_DIST:
-    0.45,   // conversation distance = reach distance + this (m)\n  MAX_SAMPLES:
-    400,        // trace cap (10 Hz -> 40 s)\n  GLIDE_SEC: 1.0,          // step
-    closer / step back duration\n  REAPPEAR_SEC: 0.5,       // 2nd trial of a block:
-    shown at the conversation spot this long before stepping in\n  RESET_SETTLE_SEC:
-    1.0,   // touch start: wait this long after putting the participant back on the
-    marker\n  HEIGHT_MATCH_MIN: 0.05,  // match heights only when the head-bone heights
-    differ by at least this (m):\n                           //   participant shorter
-    -> platform under the participant (HeightPlatform item);\n                          
+    //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone). 0.09
+    when the target\n                           //   was the cheek, 0.100 until the
+    fingers still went into the face in a test on 2026-11-12\n\n  CONTACT_LEN: 0.12,      
+    // wrist -> contact point along the fingers (finger pads) (m)\n  PALM_OFF: 0.015,        
+    // palm-side offset of the contact point along the palm normal (m)\n  HAND_PITCH_DEG:
+    30,      // reaching hand: fingers this far above horizontal (45 until 2026-11-12);
+    palm turned toward the face\n  SAMPLE_INTERVAL: 0.1,    // 10 Hz trace\n  STAND_FACTOR:
+    0.93,      // usable fraction of (upper arm + forearm + finger) when choosing
+    the reach spot\n  MIN_STAND_DIST: 0.40,    // minimum horizontal root-to-head
+    distance at the reach spot (m)\n  IDLE_EXTRA_DIST: 0.45,   // conversation distance
+    = reach distance + this (m)\n  MAX_SAMPLES: 400,        // trace cap (10 Hz ->
+    40 s)\n  GLIDE_SEC: 1.0,          // step closer / step back duration\n  REAPPEAR_SEC:
+    0.5,       // 2nd trial of a block: shown at the conversation spot this long
+    before stepping in\n  RESET_SETTLE_SEC: 1.0,   // touch start: wait this long
+    after putting the participant back on the marker\n  HEIGHT_MATCH_MIN: 0.05, 
+    // match heights only when the head-bone heights differ by at least this (m):\n                          
+    //   participant shorter -> platform under the participant (HeightPlatform item);\n                          
     //   NPC shorter -> the NPC stands on its Riser sub-node\n  HEIGHT_MEASURE_SEC:
     3.0, // keep trying to read the participant's bones this long after npc_show\n 
     // Guided greeting: the participant follows the GreetingGuide item's instructions
@@ -534,34 +533,34 @@ MonoBehaviour:
     re) ? vscale(vadd(le, re), 0.5) : (le || re);\n    if (eye) {\n      const local
     = qrot(qinv(rot), vsub(eye, pos));\n      if (local.y > 0.02 && local.y < 0.2)
     eyesUp = local.y;\n    }\n  }\n  const eyes = eyesUp !== null ? eyesUp : NPC_CFG.EYE_UP,
-    mouth = NPC_CFG.MOUTH_UP;\n  const x = eyes - mouth;\n  const up = eyes + x;\n 
-    const strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN, up - (eyes + mouth) / 2);\n 
-    return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), up: up, upSrc: eyesUp
-    !== null ? \"eyeBones\" : \"EYE_UP\", strokeAmp: strokeAmp, eyesUp: eyesUp };\n}\n//
-    Height of the touch target above the head bone (head frame) (see headOf).\nfunction
-    faceUp(head) { return head.up; }\n// Touch target: eyes + (eyes - mouth) high
-    (see headOf), FACE_SIDE toward the participant's left (head local -x), FACE_FWD\n//
-    forward.\nfunction facePointWorld(head) {\n  return vadd(head.pos, qrot(head.rot,
-    v3(-NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));\n}\n\n// Standing pose
-    in front of the participant's marker. extraDist = 0 -> reach spot (the palm reaches
-    the\n// face point with a slightly bent arm); extraDist > 0 -> that much farther
-    (conversation distance).\n// Heights: the participant stands on the floor plus
-    their platform, the NPC on the floor plus its riser.\nfunction standPose(extraDist)
-    {\n  const p = participant(); if (!p) return null;\n  const head = headOf(p);
-    if (!head) return null;\n  const rest = restGeom(); if (!rest) return null;\n 
-    const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5, head.pos.z);\n 
-    const reach = (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR;\n  const platformH
-    = $.state.npc_platformH || 0, lift = $.state.npc_lift || 0;\n  const floorY =
-    (typeof $.state.npc_floorY === \"number\") ? $.state.npc_floorY : root.y - platformH;\n 
-    const feetY = floorY + lift;\n  const pHeadH = head.pos.y - root.y;      // the
-    participant's own height, wherever they stand now\n  const dy = (floorY + platformH
-    + pHeadH + faceUp(head)) - (feetY + rest.sR.y);\n  const lateral = Math.abs(vdot(rest.sR,
-    rest.right));\n  // Bisection on x = forward distance from the right shoulder
-    to the face point, so that the\n  // wrist needed at the stop position (palm
-    STOP_MARGIN before the face) is `reach` from the shoulder.\n  function wristDist(x)
-    {\n    const face = vadd(vadd(vscale(rest.right, -lateral), vscale(UP, dy)),
-    vscale(rest.fwd, x));\n    const d = vnorm(face);\n    const F = vsub(face, vscale(d,
-    NPC_CFG.STOP_MARGIN));\n    return vlen(vsub(F, palmOffset(reachHandFrame(d))));\n 
+    mouth = NPC_CFG.MOUTH_UP;\n  const x = eyes - mouth;\n  const up = eyes + x +
+    NPC_CFG.TARGET_UP_OFFSET;\n  const strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN,
+    up - (eyes + mouth) / 2);\n  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0,
+    0, 1)), up: up, upSrc: eyesUp !== null ? \"eyeBones\" : \"EYE_UP\", strokeAmp:
+    strokeAmp, eyesUp: eyesUp };\n}\n// Height of the touch target above the head
+    bone (head frame) (see headOf).\nfunction faceUp(head) { return head.up; }\n//
+    Touch target: eyes + (eyes - mouth) high (see headOf), FACE_SIDE toward the participant's
+    left (head local -x), FACE_FWD\n// forward.\nfunction facePointWorld(head) {\n 
+    return vadd(head.pos, qrot(head.rot, v3(-NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));\n}\n\n//
+    Standing pose in front of the participant's marker. extraDist = 0 -> reach spot
+    (the palm reaches the\n// face point with a slightly bent arm); extraDist > 0
+    -> that much farther (conversation distance).\n// Heights: the participant stands
+    on the floor plus their platform, the NPC on the floor plus its riser.\nfunction
+    standPose(extraDist) {\n  const p = participant(); if (!p) return null;\n  const
+    head = headOf(p); if (!head) return null;\n  const rest = restGeom(); if (!rest)
+    return null;\n  const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5,
+    head.pos.z);\n  const reach = (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR;\n 
+    const platformH = $.state.npc_platformH || 0, lift = $.state.npc_lift || 0;\n 
+    const floorY = (typeof $.state.npc_floorY === \"number\") ? $.state.npc_floorY
+    : root.y - platformH;\n  const feetY = floorY + lift;\n  const pHeadH = head.pos.y
+    - root.y;      // the participant's own height, wherever they stand now\n  const
+    dy = (floorY + platformH + pHeadH + faceUp(head)) - (feetY + rest.sR.y);\n  const
+    lateral = Math.abs(vdot(rest.sR, rest.right));\n  // Bisection on x = forward
+    distance from the right shoulder to the face point, so that the\n  // wrist needed
+    at the stop position (palm STOP_MARGIN before the face) is `reach` from the shoulder.\n 
+    function wristDist(x) {\n    const face = vadd(vadd(vscale(rest.right, -lateral),
+    vscale(UP, dy)), vscale(rest.fwd, x));\n    const d = vnorm(face);\n    const
+    F = vsub(face, vscale(d, NPC_CFG.STOP_MARGIN));\n    return vlen(vsub(F, palmOffset(reachHandFrame(d))));\n 
     }\n  let lo = 0.05, hi = 1.5;\n  for (let i = 0; i < 30; i++) { const mid = (lo
     + hi) / 2; if (wristDist(mid) < reach) lo = mid; else hi = mid; }\n  const shoulderFwd
     = vdot(rest.sR, rest.fwd);\n  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST,
@@ -847,8 +846,8 @@ MonoBehaviour:
     strokeArcPoint(leg, th) {  // th: 0 (bottom, leg.a) -> PI (top, leg.b)\n  return
     vadd(vadd(leg.c, vscale(leg.hv, -Math.cos(th))), vscale(leg.out, Math.sin(th)));\n}\nfunction
     strokePath(Fc, dir) {\n  const A = (typeof $.state.npc_strokeAmp === \"number\")
-    ? $.state.npc_strokeAmp : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP);\n  const
-    B = NPC_CFG.STROKE_BACK, N = NPC_CFG.STROKE_CYCLES;\n  const vs = NPC_CFG.REACH_SPEED,
+    ? $.state.npc_strokeAmp : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP) + NPC_CFG.TARGET_UP_OFFSET;\n 
+    const B = NPC_CFG.STROKE_BACK, N = NPC_CFG.STROKE_CYCLES;\n  const vs = NPC_CFG.REACH_SPEED,
     vr = NPC_CFG.STROKE_RETURN_SPEED;\n  const ramp = NPC_CFG.STROKE_RAMP_SEC;\n 
     const legs = [];\n  if (!(A > 0) || !(N > 0) || !(vs > 0)) return { start: Fc,
     legs: legs, total: 0 };\n  const down = vadd(vscale(UP, -A), vscale(vhoriz(dir),

@@ -6555,20 +6555,20 @@ PrefabInstance:
         VRoid models the mouth (the centre of the vertices the mouth-open\n  //  
         blend shape moves) is 0.1-0.4 cm below the head bone, so the head bone's
         height is used.\n  EYE_UP: 0.063,           //   the eye bones sit 6.2-6.4
-        cm above the head bone on the project's VRoid models\n  MOUTH_UP: 0,\n  USE_EYE_BONES:
-        false,    //   query the eye bones at all? Cluster returns null for missing
-        bones, but the editor\n                           //   emulator (CSEmulator)
-        throws a .NET exception that aborts the whole handler, so the\n                          
-        //   director turns this on only outside LUIDA's test mode (npc_setup { eyes
-        })\n  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline
-        of the face)\n  FACE_FWD: 0.100,         //   forward of the head bone (the
-        forehead with the fringe is 10-10.5 cm forward on the\n                          
-        //   project's VRoid models at FACE_SIDE, 10-14 cm above the head bone; with
-        this the\n                           //   fingertips, above and in front
-        of the contact point, reach the fringe and do not go\n                          
-        //   into it while stroking down). 0.09 until 2026-11-12, when the target
-        was the cheek:\n                           //   at the forehead the fingers
-        went into the fringe\n\n  CONTACT_LEN: 0.12,       // wrist -> contact point
+        cm above the head bone on the project's VRoid models\n  MOUTH_UP: 0,\n  TARGET_UP_OFFSET:
+        0.02,  //   the target is this much higher than eyes + x (the stroke still
+        ends halfway between the eyes\n                           //   and the mouth,
+        so it is this much longer)\n  USE_EYE_BONES: false,    //   query the eye
+        bones at all? Cluster returns null for missing bones, but the editor\n                          
+        //   emulator (CSEmulator) throws a .NET exception that aborts the whole
+        handler, so the\n                           //   director turns this on only
+        outside LUIDA's test mode (npc_setup { eyes })\n  FACE_SIDE: 0.04,        
+        //   toward the participant's left (0 = midline of the face)\n  FACE_FWD:
+        0.110,         //   forward of the head bone (the forehead with the fringe
+        is 10-10.5 cm forward on the\n                           //   project's VRoid
+        models at FACE_SIDE, 10-14 cm above the head bone). 0.09 when the target\n                          
+        //   was the cheek, 0.100 until the fingers still went into the face in a
+        test on 2026-11-12\n\n  CONTACT_LEN: 0.12,       // wrist -> contact point
         along the fingers (finger pads) (m)\n  PALM_OFF: 0.015,         // palm-side
         offset of the contact point along the palm normal (m)\n  HAND_PITCH_DEG:
         45,      // reaching hand: fingers this far above horizontal; palm turned
@@ -6818,7 +6818,7 @@ PrefabInstance:
         local = qrot(qinv(rot), vsub(eye, pos));\n      if (local.y > 0.02 && local.y
         < 0.2) eyesUp = local.y;\n    }\n  }\n  const eyes = eyesUp !== null ? eyesUp
         : NPC_CFG.EYE_UP, mouth = NPC_CFG.MOUTH_UP;\n  const x = eyes - mouth;\n 
-        const up = eyes + x;\n  const strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN,
+        const up = eyes + x + NPC_CFG.TARGET_UP_OFFSET;\n  const strokeAmp = Math.max(NPC_CFG.STROKE_AMP_MIN,
         up - (eyes + mouth) / 2);\n  return { pos: pos, rot: rot, fwd: qrot(rot,
         v3(0, 0, 1)), up: up, upSrc: eyesUp !== null ? \"eyeBones\" : \"EYE_UP\",
         strokeAmp: strokeAmp, eyesUp: eyesUp };\n}\n// Height of the touch target
@@ -7147,39 +7147,40 @@ PrefabInstance:
         0 (bottom, leg.a) -> PI (top, leg.b)\n  return vadd(vadd(leg.c, vscale(leg.hv,
         -Math.cos(th))), vscale(leg.out, Math.sin(th)));\n}\nfunction strokePath(Fc,
         dir) {\n  const A = (typeof $.state.npc_strokeAmp === \"number\") ? $.state.npc_strokeAmp
-        : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP);\n  const B = NPC_CFG.STROKE_BACK,
-        N = NPC_CFG.STROKE_CYCLES;\n  const vs = NPC_CFG.REACH_SPEED, vr = NPC_CFG.STROKE_RETURN_SPEED;\n 
-        const ramp = NPC_CFG.STROKE_RAMP_SEC;\n  const legs = [];\n  if (!(A > 0)
-        || !(N > 0) || !(vs > 0)) return { start: Fc, legs: legs, total: 0 };\n 
-        const down = vadd(vscale(UP, -A), vscale(vhoriz(dir), A * (NPC_CFG.STROKE_INWARD
-        || 0))), out = vscale(vnorm(dir), -Math.max(0, B));\n  let p = Fc, t = 0;\n 
-        function add(leg) { leg.t0 = t; t += legDuration(leg.L, leg.v, ramp); legs.push(leg);
-        p = leg.b; }\n  for (let k = 0; k < N; k++) {\n    const bottom = vadd(p,
-        down);\n    add({ a: p, b: bottom, v: vs, L: vlen(down) });   // stroke down
-        (and along the face), in contact\n    if (k < N - 1 && vr > 0) {\n      //
-        back up to where this stroke started, along the arc\n      const top = vsub(p,
-        down);\n      const leg = { a: p, b: top, v: vr, arc: true, c: vlerp(p, top,
-        0.5), hv: vscale(vsub(top, p), 0.5), out: out, cum: [0] };\n      let q =
-        p, len = 0;\n      for (let i = 1; i <= STROKE_ARC_STEPS; i++) {\n       
-        const r = strokeArcPoint(leg, Math.PI * i / STROKE_ARC_STEPS);\n        len
-        += vlen(vsub(r, q)); q = r; leg.cum.push(len);\n      }\n      leg.L = len;\n     
-        add(leg);\n    }\n  }\n  return { start: Fc, legs: legs, total: t };\n}\n//
-        Position on the stroke path t seconds after contact.\nfunction strokePoint(path,
-        t) {\n  const legs = path.legs;\n  if (t <= 0 || legs.length === 0) return
-        path.start;\n  for (let i = 0; i < legs.length; i++) {\n    const leg = legs[i];\n   
-        const T = legDuration(leg.L, leg.v, NPC_CFG.STROKE_RAMP_SEC);\n    if (t
-        > leg.t0 + T) continue;\n    const dist = legDistance(leg.L, leg.v, NPC_CFG.STROKE_RAMP_SEC,
-        t - leg.t0);\n    if (!leg.arc) return vlerp(leg.a, leg.b, leg.L > 1e-6 ?
-        dist / leg.L : 1);\n    // arc: the sample interval that contains this distance,
-        then the angle within it\n    let j = 1;\n    while (j < STROKE_ARC_STEPS
-        && leg.cum[j] < dist) j++;\n    const span = leg.cum[j] - leg.cum[j - 1];\n   
-        const f = span > 1e-9 ? (dist - leg.cum[j - 1]) / span : 0;\n    return strokeArcPoint(leg,
-        Math.PI * (j - 1 + f) / STROKE_ARC_STEPS);\n  }\n  return legs[legs.length
-        - 1].b;\n}\n// Wrist and palm contact point of a solved right arm (accounts
-        for IK clamping when out of reach).\nfunction wristOf(rest, arm) {\n  return
-        vadd(vadd(rest.sR, vscale(arm.upper, rest.L1)), vscale(arm.lower, rest.L2));\n}\nfunction
-        contactOf(rest, arm) {\n  return vadd(wristOf(rest, arm), palmOffset(arm.frame));\n}\n//
-        Two-bone IK for a wrist target W (local). Returns {upperDir, lowerDir}.\nfunction
+        : 1.5 * (NPC_CFG.EYE_UP - NPC_CFG.MOUTH_UP) + NPC_CFG.TARGET_UP_OFFSET;\n 
+        const B = NPC_CFG.STROKE_BACK, N = NPC_CFG.STROKE_CYCLES;\n  const vs = NPC_CFG.REACH_SPEED,
+        vr = NPC_CFG.STROKE_RETURN_SPEED;\n  const ramp = NPC_CFG.STROKE_RAMP_SEC;\n 
+        const legs = [];\n  if (!(A > 0) || !(N > 0) || !(vs > 0)) return { start:
+        Fc, legs: legs, total: 0 };\n  const down = vadd(vscale(UP, -A), vscale(vhoriz(dir),
+        A * (NPC_CFG.STROKE_INWARD || 0))), out = vscale(vnorm(dir), -Math.max(0,
+        B));\n  let p = Fc, t = 0;\n  function add(leg) { leg.t0 = t; t += legDuration(leg.L,
+        leg.v, ramp); legs.push(leg); p = leg.b; }\n  for (let k = 0; k < N; k++)
+        {\n    const bottom = vadd(p, down);\n    add({ a: p, b: bottom, v: vs, L:
+        vlen(down) });   // stroke down (and along the face), in contact\n    if
+        (k < N - 1 && vr > 0) {\n      // back up to where this stroke started, along
+        the arc\n      const top = vsub(p, down);\n      const leg = { a: p, b: top,
+        v: vr, arc: true, c: vlerp(p, top, 0.5), hv: vscale(vsub(top, p), 0.5), out:
+        out, cum: [0] };\n      let q = p, len = 0;\n      for (let i = 1; i <= STROKE_ARC_STEPS;
+        i++) {\n        const r = strokeArcPoint(leg, Math.PI * i / STROKE_ARC_STEPS);\n       
+        len += vlen(vsub(r, q)); q = r; leg.cum.push(len);\n      }\n      leg.L
+        = len;\n      add(leg);\n    }\n  }\n  return { start: Fc, legs: legs, total:
+        t };\n}\n// Position on the stroke path t seconds after contact.\nfunction
+        strokePoint(path, t) {\n  const legs = path.legs;\n  if (t <= 0 || legs.length
+        === 0) return path.start;\n  for (let i = 0; i < legs.length; i++) {\n   
+        const leg = legs[i];\n    const T = legDuration(leg.L, leg.v, NPC_CFG.STROKE_RAMP_SEC);\n   
+        if (t > leg.t0 + T) continue;\n    const dist = legDistance(leg.L, leg.v,
+        NPC_CFG.STROKE_RAMP_SEC, t - leg.t0);\n    if (!leg.arc) return vlerp(leg.a,
+        leg.b, leg.L > 1e-6 ? dist / leg.L : 1);\n    // arc: the sample interval
+        that contains this distance, then the angle within it\n    let j = 1;\n   
+        while (j < STROKE_ARC_STEPS && leg.cum[j] < dist) j++;\n    const span =
+        leg.cum[j] - leg.cum[j - 1];\n    const f = span > 1e-9 ? (dist - leg.cum[j
+        - 1]) / span : 0;\n    return strokeArcPoint(leg, Math.PI * (j - 1 + f) /
+        STROKE_ARC_STEPS);\n  }\n  return legs[legs.length - 1].b;\n}\n// Wrist and
+        palm contact point of a solved right arm (accounts for IK clamping when out
+        of reach).\nfunction wristOf(rest, arm) {\n  return vadd(vadd(rest.sR, vscale(arm.upper,
+        rest.L1)), vscale(arm.lower, rest.L2));\n}\nfunction contactOf(rest, arm)
+        {\n  return vadd(wristOf(rest, arm), palmOffset(arm.frame));\n}\n// Two-bone
+        IK for a wrist target W (local). Returns {upperDir, lowerDir}.\nfunction
         solveArm(S, W, L1, L2, bendHint) {\n  const toW = vsub(W, S);\n  let d =
         vlen(toW);\n  d = Math.max(0.03, Math.min(L1 + L2 - 0.002, d));\n  const
         dir = vnorm(toW);\n  let cosA = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d);\n 
@@ -19676,7 +19677,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: ClusterVR.CreatorKit.Item.Implements::ClusterVR.CreatorKit.Item.Implements.Item
   id:
-    value: 0
+    value: 6797249597068941176
   itemName: StartBlocker
   size: {x: 0, y: 0, z: 0}
 --- !u!4 &1878333208
