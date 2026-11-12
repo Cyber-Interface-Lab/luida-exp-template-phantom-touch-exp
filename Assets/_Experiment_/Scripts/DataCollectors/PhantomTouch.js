@@ -23,6 +23,10 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
+    // eye height (same row): the right hand held at the participant's own eye height, above the head bone (m; '' when
+    // skipped), the hand's and the head bone's world heights then, seconds taken, failed attempts, skipped?
+    eyeCalUp: CD['eyeCalUp'], eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],
+    eyeCalSec: CD['eyeCalSec'], eyeCalRetries: CD['eyeCalRetries'], eyeCalSkipped: CD['eyeCalSkipped'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
@@ -41,6 +45,8 @@ return {
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform: CD['heightPlatform'], npcLift: CD['npcLift'],
     pathLen: CD['pathLen'], reachDur: CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],
     headPos0: CD['headPos0'], headRot0: CD['headRot0'],
+    // touch target height above the head bone (m) and where the eye height came from: calibrated / eyeBones / headBone
+    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],
     retreatOnsetDist: CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],
     // backing away with the stick during the touch (slow, touchMoveRate x the normal speed): avatar position at the
     // approach start, its distance from the marker then / at the end of the retract, its retreat like retreatDist,

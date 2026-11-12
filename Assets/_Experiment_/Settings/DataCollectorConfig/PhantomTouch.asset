@@ -47,6 +47,11 @@ MonoBehaviour:
     avatarIsDefault: CD['avatarIsDefault'],\n    setupSec: CD['setupSec'], setupRetry:
     CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],\n    // device
     check\n    deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],\n   
+    // eye height (same row): the right hand held at the participant's own eye height,
+    above the head bone (m; '' when\n    // skipped), the hand's and the head bone's
+    world heights then, seconds taken, failed attempts, skipped?\n    eyeCalUp: CD['eyeCalUp'],
+    eyeCalHandY: CD['eyeCalHandY'], eyeCalHeadY: CD['eyeCalHeadY'],\n    eyeCalSec:
+    CD['eyeCalSec'], eyeCalRetries: CD['eyeCalRetries'], eyeCalSkipped: CD['eyeCalSkipped'],\n   
     // per-trial report\n    rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'],
     ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],\n    ptypeOther: CD['ptypeOther'],
     plocOther: CD['plocOther'],\n    // NPC measurements\n    social: CD['social'],
@@ -67,13 +72,16 @@ MonoBehaviour:
     participantHeadH: CD['participantHeadH'], npcHeadH: CD['npcHeadH'], heightPlatform:
     CD['heightPlatform'], npcLift: CD['npcLift'],\n    pathLen: CD['pathLen'], reachDur:
     CD['reachDur'], contactDist: CD['contactDist'], reachable: CD['reachable'],\n   
-    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    retreatOnsetDist: CD['retreatOnsetDist'],
-    retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n    // backing away with
-    the stick during the touch (slow, touchMoveRate x the normal speed): avatar position
-    at the\n    // approach start, its distance from the marker then / at the end
-    of the retract, its retreat like retreatDist,\n    // and whether the participant
-    was put back on the marker after the NPC had gone\n    touchMoveRate: CD['touchMoveRate'],
-    rootStart: CD['rootStart'], rootShiftPre: CD['rootShiftPre'],\n    rootRetreat:
-    CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'], returnedToMarker: CD['returnedToMarker'],\n   
-    lookedAtNpc: CD['lookedAtNpc'], lookTs: CD['lookTs'], greeted: CD['greeted'],\n   
-    npcTimeout: CD['npcTimeout'],\n    trace: CD['trace'],\n};\n"
+    headPos0: CD['headPos0'], headRot0: CD['headRot0'],\n    // touch target height
+    above the head bone (m) and where the eye height came from: calibrated / eyeBones
+    / headBone\n    faceUp: CD['faceUp'], faceUpSrc: CD['faceUpSrc'],\n    retreatOnsetDist:
+    CD['retreatOnsetDist'], retreatDist: CD['retreatDist'], oscAmp: CD['oscAmp'],\n   
+    // backing away with the stick during the touch (slow, touchMoveRate x the normal
+    speed): avatar position at the\n    // approach start, its distance from the
+    marker then / at the end of the retract, its retreat like retreatDist,\n    //
+    and whether the participant was put back on the marker after the NPC had gone\n   
+    touchMoveRate: CD['touchMoveRate'], rootStart: CD['rootStart'], rootShiftPre:
+    CD['rootShiftPre'],\n    rootRetreat: CD['rootRetreat'], rootShiftEnd: CD['rootShiftEnd'],
+    returnedToMarker: CD['returnedToMarker'],\n    lookedAtNpc: CD['lookedAtNpc'],
+    lookTs: CD['lookTs'], greeted: CD['greeted'],\n    npcTimeout: CD['npcTimeout'],\n   
+    trace: CD['trace'],\n};\n"

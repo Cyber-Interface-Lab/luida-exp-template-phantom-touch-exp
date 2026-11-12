@@ -239,9 +239,13 @@ MonoBehaviour:
     the NPC greets first) | \"wave\" | \"lookAway\" | \"lookBack\" | \"move\" |\n//                                                 
     \"lookAgain\" | \"center\"): social condition only, react as GREET_REACTIONS
     says\n//   \"npc_greeting_end\"    {}                    -> stop the greeting
-    reactions, write greeting counters\n//   \"npc_trial_start\"     { block, rep,
-    avatar, social, fwd, reset } -> (reset: put the participant back on the\n//                                                 
-    marker, on their platform) -> (reappear at the conversation spot if\n//                                                 
+    reactions, write greeting counters\n//   \"npc_eye_cal\"         { up }               
+    -> the participant's own eye height above their head bone (m), measured by\n//                                                 
+    the DeviceCheck item in this block's pose check; kept until the next\n//                                                 
+    npc_setup and used for the touch target instead of the eye bones\n//   \"npc_trial_start\"    
+    { block, rep, avatar, social, fwd, reset } -> (reset: put the participant back
+    on the\n//                                                  marker, on their
+    platform) -> (reappear at the conversation spot if\n//                                                 
     hidden) -> turn to the participant and step closer -> prep -> raise hand\n//                                                 
     -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold\n//                                                 
     -> retract -> step back to the conversation spot -> hide -> npc_done\n//   \"npc_abort\"          
@@ -471,21 +475,26 @@ MonoBehaviour:
     eye bones be queried?\n    if (messageType === \"npc_setup\") {\n      if (arg
     && arg.social !== undefined) $.state.npc_social = !!arg.social;\n      $.state.npc_phase
     = \"idle\";\n      $.state.npc_t = 0;\n      resetHeights();            // the
-    participant's avatar (and so their height) changes in this block\n      $.log(\"[NPC]
-    setup social=\" + $.state.npc_social);\n    } else if (messageType === \"npc_hide\")
-    {\n      $.state.npc_mode = \"none\";\n      $.state.npc_phase = \"idle\";\n     
-    $.state.npc_pendingStart = false;   // e.g. a session reset right after a trial
-    start: stay hidden\n      clearReaction();\n      resetHeights();\n      setVisible(false);\n   
-    } else if (messageType === \"npc_show\") {\n      if (arg && arg.social !== undefined)
-    $.state.npc_social = !!arg.social;\n      $.state.npc_phase = \"idle\";\n     
-    $.state.npc_t = 0;\n      beginHeightMatch();        // the participant wears
-    this block's avatar now; retried in tick() if unreadable\n      moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
-    false);\n      setVisible(true);\n      $.log(\"[NPC] shown social=\" + $.state.npc_social);\n   
-    } else if (messageType === \"npc_greeting_begin\") {\n      if (arg && arg.social
-    !== undefined) $.state.npc_social = !!arg.social;\n      if (!$.state.npc_visible)
-    { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }\n      beginGreeting();\n   
-    } else if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue
-    : \"\");\n    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
+    participant's avatar (and so their height) changes in this block\n      $.state.npc_camUp
+    = null;  // ... and so does their eye height: measured again in this block's
+    pose check\n      $.log(\"[NPC] setup social=\" + $.state.npc_social);\n    }
+    else if (messageType === \"npc_hide\") {\n      $.state.npc_mode = \"none\";\n     
+    $.state.npc_phase = \"idle\";\n      $.state.npc_pendingStart = false;   // e.g.
+    a session reset right after a trial start: stay hidden\n      clearReaction();\n     
+    resetHeights();\n      setVisible(false);\n    } else if (messageType === \"npc_show\")
+    {\n      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n     
+    $.state.npc_phase = \"idle\";\n      $.state.npc_t = 0;\n      beginHeightMatch();       
+    // the participant wears this block's avatar now; retried in tick() if unreadable\n     
+    moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false);\n      setVisible(true);\n     
+    $.log(\"[NPC] shown social=\" + $.state.npc_social);\n    } else if (messageType
+    === \"npc_greeting_begin\") {\n      if (arg && arg.social !== undefined) $.state.npc_social
+    = !!arg.social;\n      if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST,
+    false); setVisible(true); }\n      beginGreeting();\n    } else if (messageType
+    === \"npc_eye_cal\") {\n      $.state.npc_camUp = (arg && typeof arg.up === \"number\")
+    ? arg.up : null;\n      $.log(\"[NPC] eye height above the head bone: \" + ($.state.npc_camUp
+    === null ? \"none\" : f3($.state.npc_camUp) + \" m (measured)\"));\n    } else
+    if (messageType === \"npc_greet_cue\") {\n      greetCue(arg ? arg.cue : \"\");\n   
+    } else if (messageType === \"npc_greeting_end\") {\n      endGreeting();\n   
     } else if (messageType === \"npc_trial_start\") {\n      $.state.npc_trial =
     arg || {};\n      if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;\n     
     if ($.state.npc_mode === \"greeting\") endGreeting();\n      // put the participant
@@ -509,56 +518,60 @@ MonoBehaviour:
     member */ }\n  const near = $.getPlayersNear($.getPosition(), 50);\n  return
     near && near.length > 0 ? near[0] : null;\n}\n\nfunction headOf(p) {\n  const
     pos = p.getHumanoidBonePosition(HumanoidBone.Head);\n  const rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
-    if (!pos || !rot) return null;\n  // eye height in the head frame (null when
-    the eye bones are not queried, missing or implausible)\n  let eyeUp = null;\n 
-    const useEyes = ($.state.npc_useEyes === undefined || $.state.npc_useEyes ===
-    null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;\n  if (useEyes) {\n    const
-    le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re = p.getHumanoidBonePosition(HumanoidBone.RightEye);\n   
-    const eye = (le && re) ? vscale(vadd(le, re), 0.5) : (le || re);\n    if (eye)
-    { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y
-    < 0.2) eyeUp = local.y; }\n  }\n  return { pos: pos, rot: rot, fwd: qrot(rot,
-    v3(0, 0, 1)), eyeUp: eyeUp };\n}\n// Height of the touch target above the head
-    bone (head frame): just above the eyes when the avatar has eye bones.\nfunction
-    faceUp(head) {\n  return (head.eyeUp !== null && head.eyeUp !== undefined) ?
-    head.eyeUp + NPC_CFG.ABOVE_EYES : NPC_CFG.FACE_UP;\n}\n// Touch target: a little
-    above the participant's eyes, FACE_SIDE toward their left (head local -x), FACE_FWD
-    forward.\nfunction facePointWorld(head) {\n  return vadd(head.pos, qrot(head.rot,
-    v3(-NPC_CFG.FACE_SIDE, faceUp(head), NPC_CFG.FACE_FWD)));\n}\n\n// Standing pose
-    in front of the participant's marker. extraDist = 0 -> reach spot (the palm reaches
-    the\n// face point with a slightly bent arm); extraDist > 0 -> that much farther
-    (conversation distance).\n// Heights: the participant stands on the floor plus
-    their platform, the NPC on the floor plus its riser.\nfunction standPose(extraDist)
-    {\n  const p = participant(); if (!p) return null;\n  const head = headOf(p);
-    if (!head) return null;\n  const rest = restGeom(); if (!rest) return null;\n 
-    const root = p.getPosition() || v3(head.pos.x, head.pos.y - 1.5, head.pos.z);\n 
-    const reach = (rest.L1 + rest.L2) * NPC_CFG.STAND_FACTOR;\n  const platformH
-    = $.state.npc_platformH || 0, lift = $.state.npc_lift || 0;\n  const floorY =
-    (typeof $.state.npc_floorY === \"number\") ? $.state.npc_floorY : root.y - platformH;\n 
-    const feetY = floorY + lift;\n  const pHeadH = head.pos.y - root.y;      // the
-    participant's own height, wherever they stand now\n  const dy = (floorY + platformH
-    + pHeadH + faceUp(head)) - (feetY + rest.sR.y);\n  const lateral = Math.abs(vdot(rest.sR,
-    rest.right));\n  // Bisection on x = forward distance from the right shoulder
-    to the face point, so that the\n  // wrist needed at the stop position (palm
-    STOP_MARGIN before the face) is `reach` from the shoulder.\n  function wristDist(x)
-    {\n    const face = vadd(vadd(vscale(rest.right, -lateral), vscale(UP, dy)),
-    vscale(rest.fwd, x));\n    const d = vnorm(face);\n    const F = vsub(face, vscale(d,
-    NPC_CFG.STOP_MARGIN));\n    return vlen(vsub(F, palmOffset(reachHandFrame(d))));\n 
-    }\n  let lo = 0.05, hi = 1.5;\n  for (let i = 0; i < 30; i++) { const mid = (lo
-    + hi) / 2; if (wristDist(mid) < reach) lo = mid; else hi = mid; }\n  const shoulderFwd
-    = vdot(rest.sR, rest.fwd);\n  const horiz = Math.max(NPC_CFG.MIN_STAND_DIST,
-    lo + shoulderFwd + NPC_CFG.FACE_FWD) + (extraDist || 0);\n  // in front of the
-    marker along its facing direction (falls back to the participant's head and facing)\n 
-    const o = $.state.npc_origin;\n  const bx = o ? o.x : head.pos.x, bz = o ? o.z
-    : head.pos.z;\n  const pfwd = $.state.npc_fwd ? vhoriz($.state.npc_fwd) : vhoriz(head.fwd);\n 
-    const pos = v3(bx + pfwd.x * horiz, feetY, bz + pfwd.z * horiz);\n  const faceDir
-    = vhoriz(vsub(v3(bx, 0, bz), v3(pos.x, 0, pos.z)));\n  const rot = qfromTo(rest.fwd,
-    faceDir);\n  return { pos: pos, rot: rot, horiz: horiz, dy: dy };\n}\nfunction
-    moveToStand(extraDist, glide) {\n  const sp = standPose(extraDist);\n  if (!sp)
-    return false;\n  if (glide) {\n    const ip = itemPose();\n    $.state.npc_glide
-    = { fromPos: ip.pos, fromRot: ip.rot, toPos: sp.pos, toRot: sp.rot, t: 0 };\n 
-    } else {\n    $.state.npc_glide = null;\n    $.setPosition(sp.pos);\n    $.setRotation(sp.rot);\n 
-    }\n  $.log(\"[NPC] stand \" + f3(sp.horiz) + \" m in front (dy=\" + f3(sp.dy)
-    + \", glide=\" + !!glide + \")\");\n  return true;\n}\n\n// ----------------------------------------------------------------
+    if (!pos || !rot) return null;\n  // eye height in the head frame: the height
+    measured in the pose check (npc_eye_cal) when there is one, else the\n  // eye
+    bones (null when they are not queried, missing or implausible)\n  let eyeUp =
+    null, eyeSrc = \"headBone\";\n  if (typeof $.state.npc_camUp === \"number\")
+    { eyeUp = $.state.npc_camUp; eyeSrc = \"calibrated\"; }\n  const useEyes = ($.state.npc_useEyes
+    === undefined || $.state.npc_useEyes === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;\n 
+    if (eyeUp === null && useEyes) {\n    const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye),
+    re = p.getHumanoidBonePosition(HumanoidBone.RightEye);\n    const eye = (le &&
+    re) ? vscale(vadd(le, re), 0.5) : (le || re);\n    if (eye) { const local = qrot(qinv(rot),
+    vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) { eyeUp = local.y; eyeSrc
+    = \"eyeBones\"; } }\n  }\n  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0,
+    0, 1)), eyeUp: eyeUp, eyeSrc: eyeSrc };\n}\n// Height of the touch target above
+    the head bone (head frame): just above the eyes (measured eye height, else the\n//
+    eye bones), or FACE_UP when neither is known.\nfunction faceUp(head) {\n  return
+    (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp + NPC_CFG.ABOVE_EYES
+    : NPC_CFG.FACE_UP;\n}\n// Touch target: a little above the participant's eyes,
+    FACE_SIDE toward their left (head local -x), FACE_FWD forward.\nfunction facePointWorld(head)
+    {\n  return vadd(head.pos, qrot(head.rot, v3(-NPC_CFG.FACE_SIDE, faceUp(head),
+    NPC_CFG.FACE_FWD)));\n}\n\n// Standing pose in front of the participant's marker.
+    extraDist = 0 -> reach spot (the palm reaches the\n// face point with a slightly
+    bent arm); extraDist > 0 -> that much farther (conversation distance).\n// Heights:
+    the participant stands on the floor plus their platform, the NPC on the floor
+    plus its riser.\nfunction standPose(extraDist) {\n  const p = participant();
+    if (!p) return null;\n  const head = headOf(p); if (!head) return null;\n  const
+    rest = restGeom(); if (!rest) return null;\n  const root = p.getPosition() ||
+    v3(head.pos.x, head.pos.y - 1.5, head.pos.z);\n  const reach = (rest.L1 + rest.L2)
+    * NPC_CFG.STAND_FACTOR;\n  const platformH = $.state.npc_platformH || 0, lift
+    = $.state.npc_lift || 0;\n  const floorY = (typeof $.state.npc_floorY === \"number\")
+    ? $.state.npc_floorY : root.y - platformH;\n  const feetY = floorY + lift;\n 
+    const pHeadH = head.pos.y - root.y;      // the participant's own height, wherever
+    they stand now\n  const dy = (floorY + platformH + pHeadH + faceUp(head)) - (feetY
+    + rest.sR.y);\n  const lateral = Math.abs(vdot(rest.sR, rest.right));\n  // Bisection
+    on x = forward distance from the right shoulder to the face point, so that the\n 
+    // wrist needed at the stop position (palm STOP_MARGIN before the face) is `reach`
+    from the shoulder.\n  function wristDist(x) {\n    const face = vadd(vadd(vscale(rest.right,
+    -lateral), vscale(UP, dy)), vscale(rest.fwd, x));\n    const d = vnorm(face);\n   
+    const F = vsub(face, vscale(d, NPC_CFG.STOP_MARGIN));\n    return vlen(vsub(F,
+    palmOffset(reachHandFrame(d))));\n  }\n  let lo = 0.05, hi = 1.5;\n  for (let
+    i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (wristDist(mid) < reach)
+    lo = mid; else hi = mid; }\n  const shoulderFwd = vdot(rest.sR, rest.fwd);\n 
+    const horiz = Math.max(NPC_CFG.MIN_STAND_DIST, lo + shoulderFwd + NPC_CFG.FACE_FWD)
+    + (extraDist || 0);\n  // in front of the marker along its facing direction (falls
+    back to the participant's head and facing)\n  const o = $.state.npc_origin;\n 
+    const bx = o ? o.x : head.pos.x, bz = o ? o.z : head.pos.z;\n  const pfwd = $.state.npc_fwd
+    ? vhoriz($.state.npc_fwd) : vhoriz(head.fwd);\n  const pos = v3(bx + pfwd.x *
+    horiz, feetY, bz + pfwd.z * horiz);\n  const faceDir = vhoriz(vsub(v3(bx, 0,
+    bz), v3(pos.x, 0, pos.z)));\n  const rot = qfromTo(rest.fwd, faceDir);\n  return
+    { pos: pos, rot: rot, horiz: horiz, dy: dy };\n}\nfunction moveToStand(extraDist,
+    glide) {\n  const sp = standPose(extraDist);\n  if (!sp) return false;\n  if
+    (glide) {\n    const ip = itemPose();\n    $.state.npc_glide = { fromPos: ip.pos,
+    fromRot: ip.rot, toPos: sp.pos, toRot: sp.rot, t: 0 };\n  } else {\n    $.state.npc_glide
+    = null;\n    $.setPosition(sp.pos);\n    $.setRotation(sp.rot);\n  }\n  $.log(\"[NPC]
+    stand \" + f3(sp.horiz) + \" m in front (dy=\" + f3(sp.dy) + \", glide=\" + !!glide
+    + \")\");\n  return true;\n}\n\n// ----------------------------------------------------------------
     height matching\n// Head-bone heights are compared once the participant wears
     this block's avatar (npc_show). A participant\n// shorter by HEIGHT_MATCH_MIN
     or more gets a platform under the marker (HeightPlatform item, message\n// \"platform_set\"
@@ -693,6 +706,7 @@ MonoBehaviour:
     NPC_CFG.STOP_MARGIN)), palmOffset(frame));\n  $.state.npc_reachable = vlen(vsub(Wend,
     rest.sR)) <= (rest.L1 + rest.L2);\n  $.state.npc_phase = \"approach\";\n  $.state.npc_t
     = 0;\n  $.state.npc_reachStartTs = Date.now();\n  $.state.npc_headPos0 = vcopy(head.pos);\n 
+    $.state.npc_faceUp = faceUp(head); $.state.npc_faceUpSrc = head.eyeSrc || \"headBone\";\n 
     $.state.npc_headRot0 = head.rot.x + \",\" + head.rot.y + \",\" + head.rot.z +
     \",\" + head.rot.w;\n  $.state.npc_contactTs = 0;\n  $.state.npc_contactDist
     = -1;\n  $.state.npc_contactT = 0;\n  $.state.npc_strokeEndTs = 0;\n  $.state.npc_base
@@ -708,16 +722,17 @@ MonoBehaviour:
     + \",\" + f3(H0w.y) + \",\" + f3(H0w.z);\n  $.state.npc_Tw = f3(Tw.x) + \",\"
     + f3(Tw.y) + \",\" + f3(Tw.z);\n  baseSamples = [];\n  sampleTimer = 0;\n  $.log(\"[NPC]
     approach: path=\" + f3(L) + \" m, duration=\" + f3(L / NPC_CFG.REACH_SPEED) +
-    \" s, reachable=\" + $.state.npc_reachable);\n}\n\nfunction finishTrial() {\n 
-    const traces = ($.state.npc_trace || []).concat(traceBuf);\n  traceBuf = [];\n 
-    const tr = $.state.npc_trial || {};\n  const pEnd = participant();\n  const rootEnd
-    = pEnd ? pEnd.getPosition() : null;\n  const o = $.state.npc_origin;\n  const
-    data = {\n    social: $.state.npc_social ? \"with\" : \"without\",\n    npcBlock:
-    tr.block !== undefined ? String(tr.block) : \"\",\n    npcRep: tr.rep !== undefined
-    ? String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !== undefined ? String(tr.avatar)
-    : \"\",\n    trialStartTs: $.state.npc_trialStartTs || 0,\n    reachStartTs:
-    $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs || 0,\n   
-    strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
+    \" s, reachable=\" + $.state.npc_reachable +\n        \", target \" + f3($.state.npc_faceUp)
+    + \" m above the head bone (\" + $.state.npc_faceUpSrc + \")\");\n}\n\nfunction
+    finishTrial() {\n  const traces = ($.state.npc_trace || []).concat(traceBuf);\n 
+    traceBuf = [];\n  const tr = $.state.npc_trial || {};\n  const pEnd = participant();\n 
+    const rootEnd = pEnd ? pEnd.getPosition() : null;\n  const o = $.state.npc_origin;\n 
+    const data = {\n    social: $.state.npc_social ? \"with\" : \"without\",\n   
+    npcBlock: tr.block !== undefined ? String(tr.block) : \"\",\n    npcRep: tr.rep
+    !== undefined ? String(tr.rep) : \"\",\n    npcAvatar: tr.avatar !== undefined
+    ? String(tr.avatar) : \"\",\n    trialStartTs: $.state.npc_trialStartTs || 0,\n   
+    reachStartTs: $.state.npc_reachStartTs || 0,\n    contactTs: $.state.npc_contactTs
+    || 0,\n    strokeEndTs: $.state.npc_strokeEndTs || 0,\n    strokeAmp: NPC_CFG.STROKE_AMP,\n   
     strokeBack: NPC_CFG.STROKE_BACK,\n    strokeCycles: NPC_CFG.STROKE_CYCLES,\n   
     strokeReturnSpeed: NPC_CFG.STROKE_RETURN_SPEED,\n    strokeRampSec: NPC_CFG.STROKE_RAMP_SEC,\n   
     heightPlatform: $.state.npc_platformH || 0,\n    npcLift: $.state.npc_lift ||
@@ -726,7 +741,10 @@ MonoBehaviour:
     - $.state.npc_reachStartTs) / 1000 : 0,\n    contactDist: $.state.npc_contactDist,\n   
     reachable: !!$.state.npc_reachable,\n    headPos0: $.state.npc_headPos0 ? (f3($.state.npc_headPos0.x)
     + \",\" + f3($.state.npc_headPos0.y) + \",\" + f3($.state.npc_headPos0.z)) :
-    \"\",\n    headRot0: $.state.npc_headRot0 || \"\",\n    handStart: $.state.npc_H0w
+    \"\",\n    headRot0: $.state.npc_headRot0 || \"\",\n    faceUp: (typeof $.state.npc_faceUp
+    === \"number\") ? $.state.npc_faceUp : -1,   // target height above the head
+    bone (m)\n    faceUpSrc: $.state.npc_faceUpSrc || \"\",   // eye height from:
+    calibrated (pose check) / eyeBones / headBone (FACE_UP)\n    handStart: $.state.npc_H0w
     || \"\",   // fingertip world position at approach start\n    faceTarget: $.state.npc_Tw
     || \"\",   // face target world position (fixed at approach start)\n    traceFormat:
     \"t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz\",   // r = avatar position (moved by

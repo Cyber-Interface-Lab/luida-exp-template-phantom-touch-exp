@@ -18,6 +18,9 @@
 //                                                  the NPC greets first) | "wave" | "lookAway" | "lookBack" | "move" |
 //                                                  "lookAgain" | "center"): social condition only, react as GREET_REACTIONS says
 //   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
+//   "npc_eye_cal"         { up }                -> the participant's own eye height above their head bone (m), measured by
+//                                                  the DeviceCheck item in this block's pose check; kept until the next
+//                                                  npc_setup and used for the touch target instead of the eye bones
 //   "npc_trial_start"     { block, rep, avatar, social, fwd, reset } -> (reset: put the participant back on the
 //                                                  marker, on their platform) -> (reappear at the conversation spot if
 //                                                  hidden) -> turn to the participant and step closer -> prep -> raise hand
@@ -352,6 +355,7 @@ $.onReceive((messageType, arg, sender) => {
       $.state.npc_phase = "idle";
       $.state.npc_t = 0;
       resetHeights();            // the participant's avatar (and so their height) changes in this block
+      $.state.npc_camUp = null;  // ... and so does their eye height: measured again in this block's pose check
       $.log("[NPC] setup social=" + $.state.npc_social);
     } else if (messageType === "npc_hide") {
       $.state.npc_mode = "none";
@@ -372,6 +376,9 @@ $.onReceive((messageType, arg, sender) => {
       if (arg && arg.social !== undefined) $.state.npc_social = !!arg.social;
       if (!$.state.npc_visible) { moveToStand(NPC_CFG.IDLE_EXTRA_DIST, false); setVisible(true); }
       beginGreeting();
+    } else if (messageType === "npc_eye_cal") {
+      $.state.npc_camUp = (arg && typeof arg.up === "number") ? arg.up : null;
+      $.log("[NPC] eye height above the head bone: " + ($.state.npc_camUp === null ? "none" : f3($.state.npc_camUp) + " m (measured)"));
     } else if (messageType === "npc_greet_cue") {
       greetCue(arg ? arg.cue : "");
     } else if (messageType === "npc_greeting_end") {
@@ -416,17 +423,20 @@ function headOf(p) {
   const pos = p.getHumanoidBonePosition(HumanoidBone.Head);
   const rot = p.getHumanoidBoneRotation(HumanoidBone.Head);
   if (!pos || !rot) return null;
-  // eye height in the head frame (null when the eye bones are not queried, missing or implausible)
-  let eyeUp = null;
+  // eye height in the head frame: the height measured in the pose check (npc_eye_cal) when there is one, else the
+  // eye bones (null when they are not queried, missing or implausible)
+  let eyeUp = null, eyeSrc = "headBone";
+  if (typeof $.state.npc_camUp === "number") { eyeUp = $.state.npc_camUp; eyeSrc = "calibrated"; }
   const useEyes = ($.state.npc_useEyes === undefined || $.state.npc_useEyes === null) ? NPC_CFG.USE_EYE_BONES : $.state.npc_useEyes;
-  if (useEyes) {
+  if (eyeUp === null && useEyes) {
     const le = p.getHumanoidBonePosition(HumanoidBone.LeftEye), re = p.getHumanoidBonePosition(HumanoidBone.RightEye);
     const eye = (le && re) ? vscale(vadd(le, re), 0.5) : (le || re);
-    if (eye) { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) eyeUp = local.y; }
+    if (eye) { const local = qrot(qinv(rot), vsub(eye, pos)); if (local.y > 0.02 && local.y < 0.2) { eyeUp = local.y; eyeSrc = "eyeBones"; } }
   }
-  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), eyeUp: eyeUp };
+  return { pos: pos, rot: rot, fwd: qrot(rot, v3(0, 0, 1)), eyeUp: eyeUp, eyeSrc: eyeSrc };
 }
-// Height of the touch target above the head bone (head frame): just above the eyes when the avatar has eye bones.
+// Height of the touch target above the head bone (head frame): just above the eyes (measured eye height, else the
+// eye bones), or FACE_UP when neither is known.
 function faceUp(head) {
   return (head.eyeUp !== null && head.eyeUp !== undefined) ? head.eyeUp + NPC_CFG.ABOVE_EYES : NPC_CFG.FACE_UP;
 }
@@ -723,6 +733,7 @@ function beginApproach(head, rest, ip) {
   $.state.npc_t = 0;
   $.state.npc_reachStartTs = Date.now();
   $.state.npc_headPos0 = vcopy(head.pos);
+  $.state.npc_faceUp = faceUp(head); $.state.npc_faceUpSrc = head.eyeSrc || "headBone";
   $.state.npc_headRot0 = head.rot.x + "," + head.rot.y + "," + head.rot.z + "," + head.rot.w;
   $.state.npc_contactTs = 0;
   $.state.npc_contactDist = -1;
@@ -745,7 +756,8 @@ function beginApproach(head, rest, ip) {
   $.state.npc_Tw = f3(Tw.x) + "," + f3(Tw.y) + "," + f3(Tw.z);
   baseSamples = [];
   sampleTimer = 0;
-  $.log("[NPC] approach: path=" + f3(L) + " m, duration=" + f3(L / NPC_CFG.REACH_SPEED) + " s, reachable=" + $.state.npc_reachable);
+  $.log("[NPC] approach: path=" + f3(L) + " m, duration=" + f3(L / NPC_CFG.REACH_SPEED) + " s, reachable=" + $.state.npc_reachable +
+        ", target " + f3($.state.npc_faceUp) + " m above the head bone (" + $.state.npc_faceUpSrc + ")");
 }
 
 function finishTrial() {
@@ -778,6 +790,8 @@ function finishTrial() {
     reachable: !!$.state.npc_reachable,
     headPos0: $.state.npc_headPos0 ? (f3($.state.npc_headPos0.x) + "," + f3($.state.npc_headPos0.y) + "," + f3($.state.npc_headPos0.z)) : "",
     headRot0: $.state.npc_headRot0 || "",
+    faceUp: (typeof $.state.npc_faceUp === "number") ? $.state.npc_faceUp : -1,   // target height above the head bone (m)
+    faceUpSrc: $.state.npc_faceUpSrc || "",   // eye height from: calibrated (pose check) / eyeBones / headBone (FACE_UP)
     handStart: $.state.npc_H0w || "",   // fingertip world position at approach start
     faceTarget: $.state.npc_Tw || "",   // face target world position (fixed at approach start)
     traceFormat: "t,hx,hy,hz,hqx,hqy,hqz,hqw,d,rx,ry,rz",   // r = avatar position (moved by the stick)
