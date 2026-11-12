@@ -67,6 +67,7 @@ test("tracking check with the mirror, then the mirror goes and the hands on the 
   assert.deepEqual(g.sent("MirrorPanel", "mp_mirror"), [{ name: "MirrorFront", visible: false }]);
   assert.match(g.sent("Instruction", "ins_text")[0].text, /両手を自分の頭の上に[\s\S]*3秒/);
   assert.equal(g.sent("Instruction", "ins_text")[0].slot, "center");
+  assert.ok(g.sent("Instruction", "ins_text")[0].size > 0.04, "large text");
   assert.match(g.text(), /\[済\] 頭を左右に[\s\S]*\[済\] 両腕を真横に/);
   g.onHead(0.21, 0.23); g.run(2.9);
   assert.equal(g.done(), false);

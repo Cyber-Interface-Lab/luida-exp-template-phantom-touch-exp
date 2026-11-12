@@ -53,7 +53,7 @@ const NPC_CFG = {
                            //   the contact point, meet the fringe hanging in front of the eyes near the bottom of
                            //   the stroke; -0.1 keeps them off it: 0.9 cm farther at the bottom of a 9 cm stroke)
   STROKE_BACK: 0.03,       //   ... return to the top along an arc that swings this far back from the face ...
-  STROKE_CYCLES: 3,        //   ... this many times in total (0 disables the stroke)
+  STROKE_CYCLES: 2,        //   ... this many times in total (0 disables the stroke; 3 until 2026-11-12)
   STROKE_RETURN_SPEED: 0.04, // speed along the return arc (m/s)
   STROKE_RAMP_SEC: 0.4,    // every leg of the stroke starts from rest and ends at rest: it accelerates for this long,
                            //   keeps the leg's speed, then decelerates for this long (a leg too short to reach the

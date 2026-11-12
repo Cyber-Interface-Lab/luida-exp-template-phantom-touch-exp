@@ -1507,9 +1507,9 @@ PrefabInstance:
         ins_endTick() {\n  const text = ins_endText();\n  if (text === $.state.ins_endText)
         return;\n  $.state.ins_endText = text;\n  ins_show('center', text);\n}\n//
         Text sent by another item (the DeviceCheck's last pose-check step): { slot,
-        text }; '' hides it\n$.onReceive((messageType, arg) => {\n  if (messageType
+        text, size? }; '' hides it\n$.onReceive((messageType, arg) => {\n  if (messageType
         === 'ins_text' && arg) ins_show(arg.slot || 'center', String(arg.text ||
-        ''));\n});"
+        ''), arg.size);\n});"
       objectReference: {fileID: 0}
     - target: {fileID: 5660514857068071928, guid: de40e14777f5f4d3190981c4f4b1cddf,
         type: 3}
@@ -6549,29 +6549,29 @@ PrefabInstance:
         the bottom of\n                           //   the stroke; -0.1 keeps them
         off it: 0.9 cm farther at the bottom of a 9 cm stroke)\n  STROKE_BACK: 0.03,      
         //   ... return to the top along an arc that swings this far back from the
-        face ...\n  STROKE_CYCLES: 3,        //   ... this many times in total (0
-        disables the stroke)\n  STROKE_RETURN_SPEED: 0.04, // speed along the return
-        arc (m/s)\n  STROKE_RAMP_SEC: 0.4,    // every leg of the stroke starts from
-        rest and ends at rest: it accelerates for this long,\n                          
-        //   keeps the leg's speed, then decelerates for this long (a leg too short
-        to reach the\n                           //   speed accelerates half-way
-        and decelerates); 0 = constant speed\n  HOLD_SEC: 1.0,           // rest
-        where the last stroke ended\n  RETRACT_SPEED: 0.10,     // m/s\n  STOP_MARGIN:
-        0.02,       // stop this far before the face surface\n  // Touch target in
-        the participant's head frame, on the side the NPC's right hand comes from.\n 
-        //   height: HANDS_BELOW below the hands put on the head in the pose check
-        (npc_hands_cal); when that is below the eye\n  //   bones (or the hands were
-        not measured), the eye bones' midpoint plus\n  FOREHEAD_ABOVE_EYES: 0.045,
-        // this (the forehead; the eye bones are read only outside LUIDA's test mode)
-        ...\n  HANDS_BELOW: 0.03,\n  EYE_UP: 0.063,           //   eyes above the
-        head bone when the eye bones are not read (the project's VRoid models),\n                          
-        //   for the end of the stroke only\n  FACE_UP: 0.108,          //   ...
-        or, for avatars without eye bones, head bone + this (the eye bones sit 6.2-6.4
-        cm\n                           //   above the head bone on the project's
-        VRoid models, so the same height there)\n  USE_EYE_BONES: false,    //  
-        query the eye bones at all? Cluster returns null for missing bones, but the
-        editor\n                           //   emulator (CSEmulator) throws a .NET
-        exception that aborts the whole handler, so the\n                          
+        face ...\n  STROKE_CYCLES: 2,        //   ... this many times in total (0
+        disables the stroke; 3 until 2026-11-12)\n  STROKE_RETURN_SPEED: 0.04, //
+        speed along the return arc (m/s)\n  STROKE_RAMP_SEC: 0.4,    // every leg
+        of the stroke starts from rest and ends at rest: it accelerates for this
+        long,\n                           //   keeps the leg's speed, then decelerates
+        for this long (a leg too short to reach the\n                           //  
+        speed accelerates half-way and decelerates); 0 = constant speed\n  HOLD_SEC:
+        1.0,           // rest where the last stroke ended\n  RETRACT_SPEED: 0.10,    
+        // m/s\n  STOP_MARGIN: 0.02,       // stop this far before the face surface\n 
+        // Touch target in the participant's head frame, on the side the NPC's right
+        hand comes from.\n  //   height: HANDS_BELOW below the hands put on the head
+        in the pose check (npc_hands_cal); when that is below the eye\n  //   bones
+        (or the hands were not measured), the eye bones' midpoint plus\n  FOREHEAD_ABOVE_EYES:
+        0.045, // this (the forehead; the eye bones are read only outside LUIDA's
+        test mode) ...\n  HANDS_BELOW: 0.03,\n  EYE_UP: 0.063,           //   eyes
+        above the head bone when the eye bones are not read (the project's VRoid
+        models),\n                           //   for the end of the stroke only\n 
+        FACE_UP: 0.108,          //   ... or, for avatars without eye bones, head
+        bone + this (the eye bones sit 6.2-6.4 cm\n                           //  
+        above the head bone on the project's VRoid models, so the same height there)\n 
+        USE_EYE_BONES: false,    //   query the eye bones at all? Cluster returns
+        null for missing bones, but the editor\n                           //   emulator
+        (CSEmulator) throws a .NET exception that aborts the whole handler, so the\n                          
         //   director turns this on only outside LUIDA's test mode (npc_setup { eyes
         })\n  FACE_SIDE: 0.04,         //   toward the participant's left (0 = midline
         of the face)\n  FACE_FWD: 0.095,         //   forward of the head bone (the
@@ -9262,7 +9262,8 @@ PrefabInstance:
         within DC_HEAD_SIDE * H to the side and DC_HEAD_FWD * H forward or back of
         it\nconst DC_HEAD_MIN = 0.05, DC_HEAD_MAX = 0.25, DC_HEAD_SIDE = 0.2, DC_HEAD_FWD
         = 0.15;\nconst DC_HEAD_TEXT = '\u4E21\u624B\u3092\u81EA\u5206\u306E\u982D\u306E\u4E0A\u306B\u3001\\n3\u79D2\u7F6E\u3044\u3066\u304F\u3060\u3055\u3044';\nconst
-        DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
+        DC_HEAD_TEXT_SIZE = 0.045;         // straight ahead at 1.5 m (the Start
+        panel's text: 0.024)\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
         dc_ref(id, type, arg) { try { const h = $.worldItemReference(id); if (h)
         h.send(type, arg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': '
         + e); } }\nfunction dc_send(cfg) { dc_ref('DC_Force', 'btn_cfg', cfg); }\nfunction
@@ -9324,29 +9325,29 @@ PrefabInstance:
         comes straight ahead.\nfunction dc_headBegin() {\n  $.state.dc_phase = 'head';\n 
         $.state.dc_hold = 0; $.state.dc_anchorL = null;\n  dc_ref('MirrorPanel',
         'mp_mirror', { name: 'MirrorFront', visible: false });\n  dc_ref('Instruction',
-        'ins_text', { slot: 'center', text: DC_HEAD_TEXT });\n  $.log('[DeviceCheck]
-        tracking check done; hands on the head next');\n}\nfunction dc_update(dt)
-        {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n  if
-        (!p || !p.exists()) return;\n  if ($.state.dc_phase === 'pose') {\n    const
-        yaw = dc_yaw(p);\n    if (yaw !== null) {\n      if ($.state.dc_yaw0 ===
-        null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;\n      const
-        d = dc_angleDiff(yaw, $.state.dc_yaw0);\n      if (d <= -DC_YAW_DEG) $.state.dc_left
-        = true;\n      if (d >= DC_YAW_DEG) $.state.dc_right = true;\n    }\n   
-        dc_armsOut(p, dt);\n    if ($.state.dc_left && $.state.dc_right && $.state.dc_out)
-        dc_headBegin();\n  } else dc_handsOnHead(p, dt);\n  const elapsed = (Date.now()
-        - ($.state.dc_start || Date.now())) / 1000;\n  if (elapsed > DC_RESCUE_SEC
-        && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({ visible: true
-        }); }\n  let forced = false;\n  const b = $.getStateCompat('this', 'dc_btn',
-        'integer');\n  if (b > 0) { $.setStateCompat('this', 'dc_btn', 0); if ($.state.dc_rescue)
-        forced = true; }\n  if ($.state.dc_cal || forced) { dc_finish(elapsed, forced);
-        return; }\n  dc_render();\n}\n// The hands' height goes to the NPC when the
-        hold was completed; otherwise (rescue button) the NPC uses the eye bones.\nfunction
-        dc_finish(elapsed, forced) {\n  $.state.dc_active = false;\n  const c = $.state.dc_cal;\n 
-        const r3 = (x) => Math.round(x * 1000) / 1000;\n  SendDataToCollector('deviceCheckSec',
-        elapsed);\n  SendDataToCollector('deviceCheckForced', !!forced);\n  SendDataToCollector('poseHandsUp',
-        c ? r3(c.up) : '');\n  SendDataToCollector('poseHandsLeftUp', c ? r3(c.left)
-        : '');\n  SendDataToCollector('poseHandsRightUp', c ? r3(c.right) : '');\n 
-        if (c) dc_ref('NPC', 'npc_hands_cal', { up: c.up });\n  if ($.state.dc_phase
+        'ins_text', { slot: 'center', text: DC_HEAD_TEXT, size: DC_HEAD_TEXT_SIZE
+        });\n  $.log('[DeviceCheck] tracking check done; hands on the head next');\n}\nfunction
+        dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p = PARTICIPANTS[1];\n 
+        if (!p || !p.exists()) return;\n  if ($.state.dc_phase === 'pose') {\n   
+        const yaw = dc_yaw(p);\n    if (yaw !== null) {\n      if ($.state.dc_yaw0
+        === null || $.state.dc_yaw0 === undefined) $.state.dc_yaw0 = yaw;\n     
+        const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n      if (d <= -DC_YAW_DEG)
+        $.state.dc_left = true;\n      if (d >= DC_YAW_DEG) $.state.dc_right = true;\n   
+        }\n    dc_armsOut(p, dt);\n    if ($.state.dc_left && $.state.dc_right &&
+        $.state.dc_out) dc_headBegin();\n  } else dc_handsOnHead(p, dt);\n  const
+        elapsed = (Date.now() - ($.state.dc_start || Date.now())) / 1000;\n  if (elapsed
+        > DC_RESCUE_SEC && !$.state.dc_rescue) { $.state.dc_rescue = true; dc_send({
+        visible: true }); }\n  let forced = false;\n  const b = $.getStateCompat('this',
+        'dc_btn', 'integer');\n  if (b > 0) { $.setStateCompat('this', 'dc_btn',
+        0); if ($.state.dc_rescue) forced = true; }\n  if ($.state.dc_cal || forced)
+        { dc_finish(elapsed, forced); return; }\n  dc_render();\n}\n// The hands'
+        height goes to the NPC when the hold was completed; otherwise (rescue button)
+        the NPC uses the eye bones.\nfunction dc_finish(elapsed, forced) {\n  $.state.dc_active
+        = false;\n  const c = $.state.dc_cal;\n  const r3 = (x) => Math.round(x *
+        1000) / 1000;\n  SendDataToCollector('deviceCheckSec', elapsed);\n  SendDataToCollector('deviceCheckForced',
+        !!forced);\n  SendDataToCollector('poseHandsUp', c ? r3(c.up) : '');\n  SendDataToCollector('poseHandsLeftUp',
+        c ? r3(c.left) : '');\n  SendDataToCollector('poseHandsRightUp', c ? r3(c.right)
+        : '');\n  if (c) dc_ref('NPC', 'npc_hands_cal', { up: c.up });\n  if ($.state.dc_phase
         === 'head') dc_ref('Instruction', 'ins_text', { slot: 'center', text: ''
         });\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed')
         + ' after ' + elapsed.toFixed(1) + ' s; ' +\n        (c ? 'hands on the head

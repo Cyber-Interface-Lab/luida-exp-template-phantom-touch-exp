@@ -60,6 +60,7 @@ const DC_SIDE_OUT = 0.25, DC_SIDE_FWD = 0.2, DC_SIDE_DOWN = 0.35, DC_SIDE_UP = 0
 // arms raised straight up), within DC_HEAD_SIDE * H to the side and DC_HEAD_FWD * H forward or back of it
 const DC_HEAD_MIN = 0.05, DC_HEAD_MAX = 0.25, DC_HEAD_SIDE = 0.2, DC_HEAD_FWD = 0.15;
 const DC_HEAD_TEXT = '両手を自分の頭の上に、\n3秒置いてください';
+const DC_HEAD_TEXT_SIZE = 0.045;         // straight ahead at 1.5 m (the Start panel's text: 0.024)
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_ref(id, type, arg) { try { const h = $.worldItemReference(id); if (h) h.send(type, arg); } catch (e) { $.log('[DeviceCheck] send ' + id + ': ' + e); } }
 function dc_send(cfg) { dc_ref('DC_Force', 'btn_cfg', cfg); }
@@ -143,7 +144,7 @@ function dc_headBegin() {
   $.state.dc_phase = 'head';
   $.state.dc_hold = 0; $.state.dc_anchorL = null;
   dc_ref('MirrorPanel', 'mp_mirror', { name: 'MirrorFront', visible: false });
-  dc_ref('Instruction', 'ins_text', { slot: 'center', text: DC_HEAD_TEXT });
+  dc_ref('Instruction', 'ins_text', { slot: 'center', text: DC_HEAD_TEXT, size: DC_HEAD_TEXT_SIZE });
   $.log('[DeviceCheck] tracking check done; hands on the head next');
 }
 function dc_update(dt) {

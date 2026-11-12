@@ -353,6 +353,7 @@ MonoBehaviour:
     : '\u3054\u53C2\u52A0\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3057\u305F\u3002\\n\u52DF\u96C6\u30EF\u30FC\u30EB\u30C9\u3078\u79FB\u52D5\u3057\u307E\u3059\u3002';\n}\nfunction
     ins_endTick() {\n  const text = ins_endText();\n  if (text === $.state.ins_endText)
     return;\n  $.state.ins_endText = text;\n  ins_show('center', text);\n}\n// Text
-    sent by another item (the DeviceCheck's last pose-check step): { slot, text };
-    '' hides it\n$.onReceive((messageType, arg) => {\n  if (messageType === 'ins_text'
-    && arg) ins_show(arg.slot || 'center', String(arg.text || ''));\n});\n"
+    sent by another item (the DeviceCheck's last pose-check step): { slot, text,
+    size? }; '' hides it\n$.onReceive((messageType, arg) => {\n  if (messageType
+    === 'ins_text' && arg) ins_show(arg.slot || 'center', String(arg.text || ''),
+    arg.size);\n});\n"
