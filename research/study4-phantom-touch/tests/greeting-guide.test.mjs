@@ -77,7 +77,7 @@ function start(t, social = "with") {
   return { item, p, npc, group, run, text, shown, cues, wave, faceNpc, now: () => now };
 }
 
-test("the NPC greets first; the five instructions then appear one by one, each hidden once followed", (t) => {
+test("the NPC greets first; the six instructions then appear one by one, each hidden once followed", (t) => {
   const g = start(t);
   g.run(0.9);
   assert.deepEqual(g.cues(), []);
@@ -113,10 +113,19 @@ test("the NPC greets first; the five instructions then appear one by one, each h
   assert.match(g.text(), /相手の顔を見て/, "the NPC is 27 deg to the left now: asked to look at it again");
   g.faceNpc(); g.run(0.5);
   assert.deepEqual(g.cues(), ["hello", "wave", "lookAway", "lookBack", "move", "lookAgain"]);
-  assert.equal(g.group.collectedData.greetTimeouts, 0);
-  assert.equal(g.group.collectedData.greetStepSec.split(",").length, 5);
   g.run(2.3);
-  assert.equal(g.item.signals.includes("state_triggerTransition"), false, "not while the NPC's last wave (1.6 s) and the margin last");
+  assert.equal(g.shown(), false, "the NPC's wave (1.6 s) and the margin");
+  g.run(0.6);
+  assert.match(g.text(), /中央/, "last: back to the centre, looking ahead");
+  g.p.head = new V3(0, 1.5, -2); g.run(0.5);
+  assert.equal(g.shown(), true, "back on the marker but still turned 27 deg to the left: not yet");
+  g.p.yaw = 0; g.run(0.5);
+  assert.equal(g.shown(), false);
+  assert.deepEqual(g.cues(), ["hello", "wave", "lookAway", "lookBack", "move", "lookAgain", "center"]);
+  assert.equal(g.group.collectedData.greetTimeouts, 0);
+  assert.equal(g.group.collectedData.greetStepSec.split(",").length, 6);
+  g.run(2.3);
+  assert.equal(g.item.signals.includes("state_triggerTransition"), false, "not while the NPC turns back (about 1 s) and the margin last");
   g.run(0.6);
   assert.deepEqual(g.item.signals.filter((s) => s === "state_triggerTransition"), ["state_triggerTransition"]);
   g.run(5.0);
@@ -161,9 +170,10 @@ test("the timeline is the same with and without social cues", (t) => {
       if (k.includes("手を振って")) g.wave();
       else if (k.includes("目をそらして")) g.p.yaw = 60;
       else if (k.includes("右へ1歩")) g.p.head = new V3(0.5, 1.5, -2);
+      else if (k.includes("中央")) { g.p.head = new V3(0, 1.5, -2); g.p.yaw = 0; }
       else if (k.includes("相手の顔を見て")) g.faceNpc();
     } };
-    watch(30);
+    watch(40);
     ev.push(["transition", g.item.signals.filter((s) => s === "state_triggerTransition").length]);
     return ev;
   };
@@ -201,12 +211,16 @@ test("raising a hand without moving it is not a wave; an instruction that is not
   g.run(2.4);
   g.run(31.0);                                            // never steps aside
   g.run(1.0);
-  // still looking at the NPC: the last instruction is not shown at all, the NPC is told at once
+  // still looking at the NPC: the instruction is not shown at all, the NPC is told at once
   assert.deepEqual(g.cues(), ["hello", "lookAway", "lookBack", "lookAgain"]);
+  assert.equal(g.shown(), false);
+  g.run(3.2);
+  // never left the marker and looks ahead: the same for the last instruction
+  assert.deepEqual(g.cues(), ["hello", "lookAway", "lookBack", "lookAgain", "center"]);
   assert.equal(g.shown(), false);
   assert.equal(g.group.collectedData.greetTimeouts, 2);
   const secs = g.group.collectedData.greetStepSec.split(",").map(Number);
-  assert.deepEqual([secs[0], secs[3], secs[4]], [-1, -1, 0]);
+  assert.deepEqual([secs[0], secs[3], secs[4], secs[5]], [-1, -1, 0, 0]);
   g.run(3.2);
   assert.equal(g.item.signals.filter((s) => s === "state_triggerTransition").length, 1);
 });

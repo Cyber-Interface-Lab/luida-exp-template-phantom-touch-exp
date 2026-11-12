@@ -92,12 +92,13 @@ MonoBehaviour:
     with the same\n// length in both conditions. After the last instruction the state
     ends; the greeting has no time limit of its own.\nconst GG_NPC = new Vector3(0,
     0, -1);        // where the NPC stands (horizontal)\nconst GG_RIGHT = new Vector3(1,
-    0, 0);      // the marker's right\nconst GG_DIST = 0.7, GG_DROP = 0.05, GG_EYE_UP
-    = 0.07;   // panel: in front of / below the head bone; eyes above it\nconst GG_SIZE
+    0, 0);      // the marker's right\nconst GG_ORIGIN = new Vector3(0, 0, -2);  
+    // the marker (horizontal)\nconst GG_DIST = 0.7, GG_DROP = 0.05, GG_EYE_UP =
+    0.07;   // panel: in front of / below the head bone; eyes above it\nconst GG_SIZE
     = 0.014, GG_GLYPH_W = 1.85, GG_LINE_H = 2.74, GG_PAD = 0.04;\n// Timeline (the
     same in both social conditions):\n//   GG_HELLO.at s after the state began: cue
     'hello' (the NPC greets first: nod + wave + smile)\n//   -> pause -> instruction
-    1 -> followed: cue -> pause -> instruction 2 -> ... -> instruction 5 -> cue ->
+    1 -> followed: cue -> pause -> instruction 2 -> ... -> instruction 6 -> cue ->
     pause -> touch\n// Each pause lasts react + GG_REACT_MARGIN, where react is how
     long the NPC's answer to that cue lasts in the social-cue\n// condition (NpcController.js:
     NPC_CFG.GREET_REACTIONS; a wave WAVE_SEC 1.6 s, a nod alone NOD_SEC 0.8 s, the
@@ -113,7 +114,8 @@ MonoBehaviour:
     react: 0.8 },       // NPC: nod + smile\n  { id: 'move', text: '\u53F3\u30781\u6B69\uFF08\u7D0450cm\uFF09\\n\u52D5\u3044\u3066\u304F\u3060\u3055\u3044',
     react: 1.5 },          // NPC: turns to face them\n  { id: 'lookAgain', text:
     '\u3082\u3046\u4E00\u5EA6\u3001\\n\u76F8\u624B\u306E\u9854\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
-    react: 1.6 },      // NPC: wave + smile\n];\nconst GG_REACT_MARGIN = 1.4;    
+    react: 1.6 },      // NPC: wave + smile\n  { id: 'center', text: '\u4E2D\u592E\uFF08\u5E8A\u306E\u9752\u3044\u30DE\u30FC\u30AF\uFF09\u306B\u623B\u3063\u3066\u3001\\n\u6B63\u9762\u3092\u898B\u3066\u304F\u3060\u3055\u3044',
+    react: 1.5 }, // NPC: turns to face them\n];\nconst GG_REACT_MARGIN = 1.4;    
     // after an answer should have ended (message delay, frame drops) before going
     on\nconst GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not
     answer\nfunction gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN
@@ -121,41 +123,43 @@ MonoBehaviour:
     followed for this long is skipped (greetTimeouts)\nconst GG_MAX_SEC = 180;         
     // the greeting ends after this long, whatever happened\nconst GG_LOOK_AT_DEG
     = 20;       // looking at the NPC: head forward within this angle of the NPC's
-    head ...\nconst GG_LOOK_AWAY_DEG = 45;     // ... looking away: head yaw at least
+    head ...\nconst GG_LOOK_AWAY_DEG = 30;     // ... looking away: head yaw at least
     this far from the NPC ...\nconst GG_LOOK_HOLD_SEC = 0.3;    // ... for this long\nconst
     GG_HAND_BELOW_HEAD = 0.10; // waving: a hand (wrist) higher than the head bone
     minus this ...\nconst GG_WAVE_TRAVEL = 0.12;     // ... that has moved this far
-    horizontally while raised (m)\nconst GG_MOVE_DIST = 0.30;       // stepping aside:
-    the head has moved this far sideways (m)\nconst GG_REPLACE_DEG = 30;       //
-    the panel is put in front of the face again when it is this far off the\nconst
-    GG_REPLACE_DIST = 0.25;    //   head's forward direction, or this much nearer
-    / farther than GG_DIST\n\nfunction gg_begin() {\n  $.state.gg_active = true;\n 
-    $.state.gg_startTs = Date.now();\n  $.state.gg_step = 0; $.state.gg_phase = 'wait';
-    $.state.gg_t = 0; $.state.gg_wait = GG_HELLO.at;\n  $.state.gg_hello = false;
-    $.state.gg_lastCueTs = 0;\n  $.state.gg_secs = []; $.state.gg_timeouts = 0;\n 
-    gg_hide();\n}\n// seconds since the greeting began, for the log\nfunction gg_now()
-    { return 't=' + ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1)
-    + ' s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs = Date.now();\n  try
-    { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }\n  catch
-    (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop() { $.state.gg_active
-    = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown = false;\n  SetText('');\n 
-    const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction gg_head(p)
-    {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head), rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n 
-    return (pos && rot) ? { pos: pos, rot: rot, fwd: new Vector3(0, 0, 1).applyQuaternion(rot)
-    } : null;\n}\n// Panel in front of the face: GG_DIST along the head's horizontal
-    forward, GG_DROP below the head bone, turned to\n// the eyes. (The item does
-    not move; the Text sub-node is placed in its local frame.)\nfunction gg_place(head)
-    {\n  const t = $.subNode('Text');\n  if (!t) return;\n  const f = head.fwd.clone();
-    f.y = 0;\n  if (f.length() < 0.2) return;\n  f.normalize();\n  const world =
-    head.pos.clone().add(f.multiplyScalar(GG_DIST)).add(new Vector3(0, -GG_DROP,
-    0));\n  const d = world.clone().sub(head.pos.clone().add(new Vector3(0, GG_EYE_UP,
-    0))).normalize();\n  const rot = new Quaternion().setFromEulerAngles(new Vector3(-Math.asin(d.y)
-    * 180 / Math.PI, Math.atan2(d.x, d.z) * 180 / Math.PI, 0));\n  const inv = $.getRotation().clone().invert();\n 
-    t.setPosition(world.clone().sub($.getPosition()).applyQuaternion(inv));\n  t.setRotation(inv.clone().multiply(rot));\n 
-    $.state.gg_anchor = world;\n}\nfunction gg_follow(head) {\n  const a = $.state.gg_anchor;\n 
-    if (!a) { gg_place(head); return; }\n  const to = a.clone().sub(head.pos); to.y
-    = 0;\n  const f = head.fwd.clone(); f.y = 0;\n  if (f.length() < 0.2 || to.length()
-    < 1e-3) return;\n  const ang = Math.acos(Math.max(-1, Math.min(1, f.normalize().dot(to.clone().normalize()))))
+    horizontally while raised (m)\nconst GG_MOVE_DIST = 0.20;       // stepping aside:
+    the head has moved this far sideways (m)\nconst GG_CENTER_DIST = 0.15;     //
+    back in the centre: the head is within this of the marker sideways (m), looking
+    ahead\nconst GG_REPLACE_DEG = 30;       // the panel is put in front of the face
+    again when it is this far off the\nconst GG_REPLACE_DIST = 0.25;    //   head's
+    forward direction, or this much nearer / farther than GG_DIST\n\nfunction gg_begin()
+    {\n  $.state.gg_active = true;\n  $.state.gg_startTs = Date.now();\n  $.state.gg_step
+    = 0; $.state.gg_phase = 'wait'; $.state.gg_t = 0; $.state.gg_wait = GG_HELLO.at;\n 
+    $.state.gg_hello = false; $.state.gg_lastCueTs = 0;\n  $.state.gg_secs = [];
+    $.state.gg_timeouts = 0;\n  gg_hide();\n}\n// seconds since the greeting began,
+    for the log\nfunction gg_now() { return 't=' + ((Date.now() - ($.state.gg_startTs
+    || Date.now())) / 1000).toFixed(1) + ' s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs
+    = Date.now();\n  try { $.worldItemReference('NPC').send('npc_greet_cue', { cue:
+    id }); }\n  catch (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop()
+    { $.state.gg_active = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown
+    = false;\n  SetText('');\n  const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction
+    gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head), rot
+    = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  return (pos && rot) ? { pos:
+    pos, rot: rot, fwd: new Vector3(0, 0, 1).applyQuaternion(rot) } : null;\n}\n//
+    Panel in front of the face: GG_DIST along the head's horizontal forward, GG_DROP
+    below the head bone, turned to\n// the eyes. (The item does not move; the Text
+    sub-node is placed in its local frame.)\nfunction gg_place(head) {\n  const t
+    = $.subNode('Text');\n  if (!t) return;\n  const f = head.fwd.clone(); f.y =
+    0;\n  if (f.length() < 0.2) return;\n  f.normalize();\n  const world = head.pos.clone().add(f.multiplyScalar(GG_DIST)).add(new
+    Vector3(0, -GG_DROP, 0));\n  const d = world.clone().sub(head.pos.clone().add(new
+    Vector3(0, GG_EYE_UP, 0))).normalize();\n  const rot = new Quaternion().setFromEulerAngles(new
+    Vector3(-Math.asin(d.y) * 180 / Math.PI, Math.atan2(d.x, d.z) * 180 / Math.PI,
+    0));\n  const inv = $.getRotation().clone().invert();\n  t.setPosition(world.clone().sub($.getPosition()).applyQuaternion(inv));\n 
+    t.setRotation(inv.clone().multiply(rot));\n  $.state.gg_anchor = world;\n}\nfunction
+    gg_follow(head) {\n  const a = $.state.gg_anchor;\n  if (!a) { gg_place(head);
+    return; }\n  const to = a.clone().sub(head.pos); to.y = 0;\n  const f = head.fwd.clone();
+    f.y = 0;\n  if (f.length() < 0.2 || to.length() < 1e-3) return;\n  const ang
+    = Math.acos(Math.max(-1, Math.min(1, f.normalize().dot(to.clone().normalize()))))
     * 180 / Math.PI;\n  if (ang > GG_REPLACE_DEG || Math.abs(to.length() - GG_DIST)
     > GG_REPLACE_DIST) gg_place(head);\n}\nfunction gg_show(text, head) {\n  gg_place(head);\n 
     SetText(text);\n  const lines = String(text).split('\\n');\n  let w = 0;\n  for
@@ -181,45 +185,49 @@ MonoBehaviour:
     head, $.state.gg_prevR);\n  $.state.gg_prevL = l.rel; $.state.gg_prevR = r.rel;\n 
     $.state.gg_travel = ($.state.gg_travel || 0) + l.d + r.d;\n  return $.state.gg_travel
     >= GG_WAVE_TRAVEL;\n}\n// Has the participant followed instruction id? now: judge
-    this instant (before the panel is shown); otherwise the\n// gaze conditions must
-    hold for GG_LOOK_HOLD_SEC.\nfunction gg_done(id, p, head, dt, now) {\n  if (id
-    === 'wave') return gg_waved(p, head);\n  if (id === 'move') return Math.abs(head.pos.clone().sub($.state.gg_base).dot(GG_RIGHT))
-    >= GG_MOVE_DIST;\n  const ok = id === 'lookAway' ? gg_npcAngle(head, true) >=
-    GG_LOOK_AWAY_DEG : gg_npcAngle(head, false) <= GG_LOOK_AT_DEG;\n  if (now) return
-    ok;\n  $.state.gg_hold = ok ? ($.state.gg_hold || 0) + dt : 0;\n  return $.state.gg_hold
-    >= GG_LOOK_HOLD_SEC;\n}\nfunction gg_tick(dt) {\n  if (!$.state.gg_active) return;\n 
-    if ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000 > GG_MAX_SEC) {\n   
-    $.log('[GreetingGuide] not finished within ' + GG_MAX_SEC + ' s; moving on');\n   
-    gg_report(); gg_finish(); return;\n  }\n  const p = PARTICIPANTS[1];\n  const
-    head = (p && p.exists()) ? gg_head(p) : null;\n  if (!head) return;\n  $.state.gg_t
-    = ($.state.gg_t || 0) + dt;\n  const i = $.state.gg_step || 0;\n  if ($.state.gg_phase
-    === 'wait') {\n    if ($.state.gg_t < ($.state.gg_wait || 0)) return;\n    if
-    (!$.state.gg_hello) {\n      // the NPC greets first; the first instruction comes
-    once that greeting has surely ended\n      $.state.gg_hello = true; $.state.gg_t
-    = 0; $.state.gg_wait = gg_pause(GG_HELLO.react);\n      gg_cue('hello');\n     
-    $.log('[GreetingGuide] ' + gg_now() + 'hello; first instruction in ' + $.state.gg_wait.toFixed(1)
-    + ' s');\n      return;\n    }\n    if (i >= GG_STEPS.length) { gg_finish();
-    return; }\n    // next instruction; not shown at all when the participant is
-    already doing it\n    $.state.gg_phase = 'prompt'; $.state.gg_t = 0; $.state.gg_hold
-    = 0;\n    $.state.gg_base = head.pos; $.state.gg_travel = 0; $.state.gg_prevL
-    = null; $.state.gg_prevR = null;\n    if (gg_done(GG_STEPS[i].id, p, head, dt,
-    true)) gg_next(i, 0, false);\n    else { gg_show(GG_STEPS[i].text, head); $.log('[GreetingGuide]
-    ' + gg_now() + 'show ' + GG_STEPS[i].id); }\n    return;\n  }\n  if (gg_done(GG_STEPS[i].id,
-    p, head, dt, false)) { gg_next(i, $.state.gg_t, false); return; }\n  if ($.state.gg_t
-    > GG_TIMEOUT_SEC) { gg_next(i, -1, true); return; }\n  gg_follow(head);\n}\n//
-    Instruction i is over (followed after sec seconds, or skipped): hide the panel
-    at once, tell the NPC, pause.\nfunction gg_next(i, sec, timedOut) {\n  gg_hide();\n 
-    const step = GG_STEPS[i];\n  const secs = $.state.gg_secs || [];\n  secs.push(timedOut
-    ? -1 : Math.round(sec * 10) / 10);\n  $.state.gg_secs = secs;\n  if (timedOut)
-    $.state.gg_timeouts = ($.state.gg_timeouts || 0) + 1;\n  else gg_cue(step.id);\n 
-    $.state.gg_step = i + 1; $.state.gg_phase = 'wait'; $.state.gg_t = 0;\n  $.state.gg_wait
-    = timedOut ? 0.5 : gg_pause(step.react);\n  $.log('[GreetingGuide] ' + gg_now()
-    + step.id + (timedOut ? ' skipped (timeout)' : ' done after ' + secs[secs.length
-    - 1] + ' s') +\n        '; next in ' + $.state.gg_wait.toFixed(1) + ' s');\n 
-    // written before the last pause, so well before the NPC writes its own greeting
-    counters at the end of the state\n  if (i + 1 >= GG_STEPS.length) gg_report();\n}\nfunction
-    gg_report() {\n  SendDataToCollector('greetStepSec', ($.state.gg_secs || []).join(','));\n 
-    SendDataToCollector('greetTimeouts', $.state.gg_timeouts || 0);\n}\nfunction
-    gg_finish() {\n  const since = $.state.gg_lastCueTs ? ((Date.now() - $.state.gg_lastCueTs)
-    / 1000).toFixed(1) + ' s after the last cue' : 'no cue';\n  $.log('[GreetingGuide]
-    ' + gg_now() + 'finished (' + since + ')');\n  gg_stop(); ToNextState();\n}\n"
+    this instant (before the panel is shown); otherwise the\n// gaze conditions (and
+    'center') must hold for GG_LOOK_HOLD_SEC.\nfunction gg_done(id, p, head, dt,
+    now) {\n  if (id === 'wave') return gg_waved(p, head);\n  if (id === 'move')
+    return Math.abs(head.pos.clone().sub($.state.gg_base).dot(GG_RIGHT)) >= GG_MOVE_DIST;\n 
+    // 'center': over the marker again (sideways) and looking ahead (the NPC stands
+    straight ahead of the marker)\n  const ok = id === 'lookAway' ? gg_npcAngle(head,
+    true) >= GG_LOOK_AWAY_DEG\n    : (id !== 'center' || Math.abs(head.pos.clone().sub(GG_ORIGIN).dot(GG_RIGHT))
+    <= GG_CENTER_DIST) && gg_npcAngle(head, false) <= GG_LOOK_AT_DEG;\n  if (now)
+    return ok;\n  $.state.gg_hold = ok ? ($.state.gg_hold || 0) + dt : 0;\n  return
+    $.state.gg_hold >= GG_LOOK_HOLD_SEC;\n}\nfunction gg_tick(dt) {\n  if (!$.state.gg_active)
+    return;\n  if ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000 > GG_MAX_SEC)
+    {\n    $.log('[GreetingGuide] not finished within ' + GG_MAX_SEC + ' s; moving
+    on');\n    gg_report(); gg_finish(); return;\n  }\n  const p = PARTICIPANTS[1];\n 
+    const head = (p && p.exists()) ? gg_head(p) : null;\n  if (!head) return;\n 
+    $.state.gg_t = ($.state.gg_t || 0) + dt;\n  const i = $.state.gg_step || 0;\n 
+    if ($.state.gg_phase === 'wait') {\n    if ($.state.gg_t < ($.state.gg_wait ||
+    0)) return;\n    if (!$.state.gg_hello) {\n      // the NPC greets first; the
+    first instruction comes once that greeting has surely ended\n      $.state.gg_hello
+    = true; $.state.gg_t = 0; $.state.gg_wait = gg_pause(GG_HELLO.react);\n     
+    gg_cue('hello');\n      $.log('[GreetingGuide] ' + gg_now() + 'hello; first instruction
+    in ' + $.state.gg_wait.toFixed(1) + ' s');\n      return;\n    }\n    if (i >=
+    GG_STEPS.length) { gg_finish(); return; }\n    // next instruction; not shown
+    at all when the participant is already doing it\n    $.state.gg_phase = 'prompt';
+    $.state.gg_t = 0; $.state.gg_hold = 0;\n    $.state.gg_base = head.pos; $.state.gg_travel
+    = 0; $.state.gg_prevL = null; $.state.gg_prevR = null;\n    if (gg_done(GG_STEPS[i].id,
+    p, head, dt, true)) gg_next(i, 0, false);\n    else { gg_show(GG_STEPS[i].text,
+    head); $.log('[GreetingGuide] ' + gg_now() + 'show ' + GG_STEPS[i].id); }\n   
+    return;\n  }\n  if (gg_done(GG_STEPS[i].id, p, head, dt, false)) { gg_next(i,
+    $.state.gg_t, false); return; }\n  if ($.state.gg_t > GG_TIMEOUT_SEC) { gg_next(i,
+    -1, true); return; }\n  gg_follow(head);\n}\n// Instruction i is over (followed
+    after sec seconds, or skipped): hide the panel at once, tell the NPC, pause.\nfunction
+    gg_next(i, sec, timedOut) {\n  gg_hide();\n  const step = GG_STEPS[i];\n  const
+    secs = $.state.gg_secs || [];\n  secs.push(timedOut ? -1 : Math.round(sec * 10)
+    / 10);\n  $.state.gg_secs = secs;\n  if (timedOut) $.state.gg_timeouts = ($.state.gg_timeouts
+    || 0) + 1;\n  else gg_cue(step.id);\n  $.state.gg_step = i + 1; $.state.gg_phase
+    = 'wait'; $.state.gg_t = 0;\n  $.state.gg_wait = timedOut ? 0.5 : gg_pause(step.react);\n 
+    $.log('[GreetingGuide] ' + gg_now() + step.id + (timedOut ? ' skipped (timeout)'
+    : ' done after ' + secs[secs.length - 1] + ' s') +\n        '; next in ' + $.state.gg_wait.toFixed(1)
+    + ' s');\n  // written before the last pause, so well before the NPC writes its
+    own greeting counters at the end of the state\n  if (i + 1 >= GG_STEPS.length)
+    gg_report();\n}\nfunction gg_report() {\n  SendDataToCollector('greetStepSec',
+    ($.state.gg_secs || []).join(','));\n  SendDataToCollector('greetTimeouts', $.state.gg_timeouts
+    || 0);\n}\nfunction gg_finish() {\n  const since = $.state.gg_lastCueTs ? ((Date.now()
+    - $.state.gg_lastCueTs) / 1000).toFixed(1) + ' s after the last cue' : 'no cue';\n 
+    $.log('[GreetingGuide] ' + gg_now() + 'finished (' + since + ')');\n  gg_stop();
+    ToNextState();\n}\n"

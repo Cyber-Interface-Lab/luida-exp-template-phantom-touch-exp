@@ -237,10 +237,10 @@ MonoBehaviour:
     greeting\n//                                                  (GreetingGuide
     item; cue = \"hello\" (sent before the first instruction:\n//                                                 
     the NPC greets first) | \"wave\" | \"lookAway\" | \"lookBack\" | \"move\" |\n//                                                 
-    \"lookAgain\"): social condition only, react as GREET_REACTIONS says\n//   \"npc_greeting_end\"   
-    {}                    -> stop the greeting reactions, write greeting counters\n//  
-    \"npc_trial_start\"     { block, rep, avatar, social, fwd, reset } -> (reset:
-    put the participant back on the\n//                                                 
+    \"lookAgain\" | \"center\"): social condition only, react as GREET_REACTIONS
+    says\n//   \"npc_greeting_end\"    {}                    -> stop the greeting
+    reactions, write greeting counters\n//   \"npc_trial_start\"     { block, rep,
+    avatar, social, fwd, reset } -> (reset: put the participant back on the\n//                                                 
     marker, on their platform) -> (reappear at the conversation spot if\n//                                                 
     hidden) -> turn to the participant and step closer -> prep -> raise hand\n//                                                 
     -> approach (2 cm/s) -> stroke the face vertically (2 cm/s) -> hold\n//                                                 
@@ -313,19 +313,20 @@ MonoBehaviour:
     looked away, then at the NPC again: nod and smile\n    move: { turn: true },                             
     // stepped aside: turn to them (head and eyes follow anyway)\n    lookAgain:
     { wave: true, joy: true },              // ... and looked at the NPC again: wave
-    and smile\n  },\n  PREP_REACTION: { nod: true, wave: true, joy: true }, // touch
-    phase, before the hand is raised: greet once\n  HEAD_MAX_DEG: 50,        // gaze:
-    the head alone turns up to this angle ...\n  EYE_EXTRA_DEG: 12,       // ...
-    and the eyes a bit further\n  BODY_TURN_START_DEG: 35, // greeting: if the participant
-    is farther than this from the NPC's facing,\n  BODY_TURN_STOP_DEG: 4,   //  
-    the whole body turns toward them (lerp) until within this angle;\n  BODY_TURN_RATE:
-    2.5,     //   exponential rate (1/s). The head's local rotation unwinds as the
-    body turns.\n  LOOK_AT_DEG: 30,         // participant \"looks at\" the NPC when
-    head forward is within this angle\n  LOOK_AWAY_DEG: 45,       // ... and stops
-    when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET: 0.10, // a hand
-    counts as raised when above (head height - this)\n  NOD_SEC: 0.8,           
-    // nod-only reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC: 1.6,           //
-    reaction duration when it includes a wave\n  TOUCH_COOLDOWN_SEC: 1.5, // surprised
+    and smile\n    center: { turn: true },                            // back on
+    the marker, facing forward: turn to them again\n  },\n  PREP_REACTION: { nod:
+    true, wave: true, joy: true }, // touch phase, before the hand is raised: greet
+    once\n  HEAD_MAX_DEG: 50,        // gaze: the head alone turns up to this angle
+    ...\n  EYE_EXTRA_DEG: 12,       // ... and the eyes a bit further\n  BODY_TURN_START_DEG:
+    35, // greeting: if the participant is farther than this from the NPC's facing,\n 
+    BODY_TURN_STOP_DEG: 4,   //   the whole body turns toward them (lerp) until within
+    this angle;\n  BODY_TURN_RATE: 2.5,     //   exponential rate (1/s). The head's
+    local rotation unwinds as the body turns.\n  LOOK_AT_DEG: 30,         // participant
+    \"looks at\" the NPC when head forward is within this angle\n  LOOK_AWAY_DEG:
+    45,       // ... and stops when it exceeds this angle (hysteresis)\n  HAND_RAISE_OFFSET:
+    0.10, // a hand counts as raised when above (head height - this)\n  NOD_SEC:
+    0.8,            // nod-only reaction duration\n  NOD_DEG: 15,\n  WAVE_SEC: 1.6,          
+    // reaction duration when it includes a wave\n  TOUCH_COOLDOWN_SEC: 1.5, // surprised
     face when touched: minimum interval\n  TOUCH_HAND_MARGIN: 0.06, // participant
     hand bone (wrist) -> fingers allowance (m)\n  RETREAT_THRESHOLD: 0.02, // m,
     for the in-world retreat-onset estimate\n  MODEL_NODE: \"Model\",     // sub-node
@@ -619,40 +620,41 @@ MonoBehaviour:
     const r = $.state.npc_social ? NPC_CFG.GREET_REACTIONS[cue] : null;\n  $.log(\"[NPC]
     greet cue \" + cue + (r ? \" -> \" + JSON.stringify(r) : \" (no reaction)\"));\n 
     if (!r) return;\n  if (r.turn) { $.state.npc_bodyTurning = true; $.state.npc_turnCueAt
-    = nowSec(); }\n  if (r.nod || r.wave) startReaction(r, cue);\n}\n// Start a reaction
-    r = { nod, wave, joy }: nod and / or left-hand wave, smiling while it lasts when
-    joy is set (the\n// face returns to neutral when the reaction ends). Replaces
-    a reaction that is still running. name: for the log.\nfunction startReaction(r,
-    name) {\n  $.state.npc_react = { t: 0, nod: !!r.nod, wave: !!r.wave, dur: r.wave
-    ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC, name: name || \"\" };\n  $.state.npc_gReact
-    = ($.state.npc_gReact || 0) + 1;\n  if (r.nod) $.state.npc_gNods = ($.state.npc_gNods
-    || 0) + 1;\n  if (r.wave) $.state.npc_gWaves = ($.state.npc_gWaves || 0) + 1;\n 
-    setJoy(!!r.joy);\n}\n// Rotate the whole body toward the participant when they
-    are too far to the side, or when a greeting cue asked for\n// it (npc_bodyTurning),
-    until it faces them (greeting only).\nfunction turnBodyToward(head, rest, ip,
-    dt) {\n  const faceDir = vhoriz(vsub(head.pos, ip.pos));\n  const curFwd = vhoriz(qrot(ip.rot,
-    rest.fwd));\n  const cosA = Math.max(-1, Math.min(1, vdot(curFwd, faceDir)));\n 
-    const ang = Math.acos(cosA) * 180 / Math.PI;\n  if (!$.state.npc_bodyTurning
-    && ang > NPC_CFG.BODY_TURN_START_DEG) $.state.npc_bodyTurning = true;\n  if (!$.state.npc_bodyTurning)
-    return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG) {\n    $.state.npc_bodyTurning
-    = false;\n    if ($.state.npc_turnCueAt !== null && $.state.npc_turnCueAt !==
-    undefined) {\n      $.log(\"[NPC] reaction move (turn) ended after \" + f3(nowSec()
-    - $.state.npc_turnCueAt) + \" s\");\n      $.state.npc_turnCueAt = null;\n   
-    }\n    return ip;\n  }\n  const yaw = cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd,
-    faceDir);\n  const target = qmul(yaw, ip.rot);\n  const rot = qslerp(ip.rot,
-    target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE * dt));\n  $.setRotation(rot);\n 
-    return { pos: ip.pos, rot: rot };\n}\n// Participant hand(s) touching the NPC's
-    head / torso / arms (edge-triggered).\nfunction detectTouch(p, rest, ip) {\n 
-    const hands = [p.getHumanoidBonePosition(HumanoidBone.LeftHand), p.getHumanoidBonePosition(HumanoidBone.RightHand)];\n 
-    const parts = [\n    { bone: HumanoidBone.Head, up: 0.07, r: 0.13 },\n    { bone:
-    HumanoidBone.Chest, up: 0.0, r: 0.17 },\n    { bone: HumanoidBone.Hips, up: 0.0,
-    r: 0.16 },\n    { bone: HumanoidBone.LeftUpperArm, up: 0.0, r: 0.07 },\n    {
-    bone: HumanoidBone.RightUpperArm, up: 0.0, r: 0.07 },\n    { bone: HumanoidBone.LeftLowerArm,
-    up: 0.0, r: 0.06 },\n    { bone: HumanoidBone.RightLowerArm, up: 0.0, r: 0.06
-    },\n  ];\n  let touching = false;\n  for (const part of parts) {\n    const info
-    = nodeByBone[part.bone];\n    if (!info) continue;\n    const gp = info.node.getGlobalPosition();\n   
-    if (!gp) continue;\n    const c = vadd(gp, vscale(UP, part.up));\n    for (const
-    h of hands) {\n      if (h && vlen(vsub(h, c)) < part.r + NPC_CFG.TOUCH_HAND_MARGIN)
+    = nowSec(); $.state.npc_turnCue = cue; }\n  if (r.nod || r.wave) startReaction(r,
+    cue);\n}\n// Start a reaction r = { nod, wave, joy }: nod and / or left-hand
+    wave, smiling while it lasts when joy is set (the\n// face returns to neutral
+    when the reaction ends). Replaces a reaction that is still running. name: for
+    the log.\nfunction startReaction(r, name) {\n  $.state.npc_react = { t: 0, nod:
+    !!r.nod, wave: !!r.wave, dur: r.wave ? NPC_CFG.WAVE_SEC : NPC_CFG.NOD_SEC, name:
+    name || \"\" };\n  $.state.npc_gReact = ($.state.npc_gReact || 0) + 1;\n  if
+    (r.nod) $.state.npc_gNods = ($.state.npc_gNods || 0) + 1;\n  if (r.wave) $.state.npc_gWaves
+    = ($.state.npc_gWaves || 0) + 1;\n  setJoy(!!r.joy);\n}\n// Rotate the whole
+    body toward the participant when they are too far to the side, or when a greeting
+    cue asked for\n// it (npc_bodyTurning), until it faces them (greeting only).\nfunction
+    turnBodyToward(head, rest, ip, dt) {\n  const faceDir = vhoriz(vsub(head.pos,
+    ip.pos));\n  const curFwd = vhoriz(qrot(ip.rot, rest.fwd));\n  const cosA = Math.max(-1,
+    Math.min(1, vdot(curFwd, faceDir)));\n  const ang = Math.acos(cosA) * 180 / Math.PI;\n 
+    if (!$.state.npc_bodyTurning && ang > NPC_CFG.BODY_TURN_START_DEG) $.state.npc_bodyTurning
+    = true;\n  if (!$.state.npc_bodyTurning) return ip;\n  if (ang < NPC_CFG.BODY_TURN_STOP_DEG)
+    {\n    $.state.npc_bodyTurning = false;\n    if ($.state.npc_turnCueAt !== null
+    && $.state.npc_turnCueAt !== undefined) {\n      $.log(\"[NPC] reaction \" +
+    ($.state.npc_turnCue || \"?\") + \" (turn) ended after \" + f3(nowSec() - $.state.npc_turnCueAt)
+    + \" s\");\n      $.state.npc_turnCueAt = null;\n    }\n    return ip;\n  }\n 
+    const yaw = cosA < -0.999 ? qaxis(UP, 180) : qfromTo(curFwd, faceDir);\n  const
+    target = qmul(yaw, ip.rot);\n  const rot = qslerp(ip.rot, target, 1 - Math.exp(-NPC_CFG.BODY_TURN_RATE
+    * dt));\n  $.setRotation(rot);\n  return { pos: ip.pos, rot: rot };\n}\n// Participant
+    hand(s) touching the NPC's head / torso / arms (edge-triggered).\nfunction detectTouch(p,
+    rest, ip) {\n  const hands = [p.getHumanoidBonePosition(HumanoidBone.LeftHand),
+    p.getHumanoidBonePosition(HumanoidBone.RightHand)];\n  const parts = [\n    {
+    bone: HumanoidBone.Head, up: 0.07, r: 0.13 },\n    { bone: HumanoidBone.Chest,
+    up: 0.0, r: 0.17 },\n    { bone: HumanoidBone.Hips, up: 0.0, r: 0.16 },\n   
+    { bone: HumanoidBone.LeftUpperArm, up: 0.0, r: 0.07 },\n    { bone: HumanoidBone.RightUpperArm,
+    up: 0.0, r: 0.07 },\n    { bone: HumanoidBone.LeftLowerArm, up: 0.0, r: 0.06
+    },\n    { bone: HumanoidBone.RightLowerArm, up: 0.0, r: 0.06 },\n  ];\n  let
+    touching = false;\n  for (const part of parts) {\n    const info = nodeByBone[part.bone];\n   
+    if (!info) continue;\n    const gp = info.node.getGlobalPosition();\n    if (!gp)
+    continue;\n    const c = vadd(gp, vscale(UP, part.up));\n    for (const h of
+    hands) {\n      if (h && vlen(vsub(h, c)) < part.r + NPC_CFG.TOUCH_HAND_MARGIN)
     { touching = true; break; }\n    }\n    if (touching) break;\n  }\n  const edge
     = touching && !$.state.npc_touching;\n  $.state.npc_touching = touching;\n  return
     edge;\n}\n// Detect the participant's social signals (gaze alignment, raised

@@ -2778,6 +2778,7 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
                "// length in both conditions. After the last instruction the state ends; the greeting has no time limit of its own.\n" +
                "const GG_NPC = new Vector3(" + F4(npc.x) + ", 0, " + F4(npc.z) + ");        // where the NPC stands (horizontal)\n" +
                "const GG_RIGHT = new Vector3(" + F4(l.right.x) + ", 0, " + F4(l.right.z) + ");      // the marker's right\n" +
+               "const GG_ORIGIN = new Vector3(" + F4(l.origin.x) + ", 0, " + F4(l.origin.z) + ");   // the marker (horizontal)\n" +
                "const GG_DIST = " + F4(GuideDist) + ", GG_DROP = " + F4(GuideDrop) + ", GG_EYE_UP = " + F4(GuideEyeAboveHead) +
                ";   // panel: in front of / below the head bone; eyes above it\n" +
                "const GG_SIZE = " + F4(GuideTextSize) + ", GG_GLYPH_W = " + F4(GlyphW) + ", GG_LINE_H = " + F4(LineH) + ", GG_PAD = " + F4(GuidePad) + ";\n" +
@@ -2786,7 +2787,7 @@ function rp_end() { rp_hideAll(); HideChild('Text'); $.state.rp_active = false; 
 
     const string GreetingGuideJs = @"// Timeline (the same in both social conditions):
 //   GG_HELLO.at s after the state began: cue 'hello' (the NPC greets first: nod + wave + smile)
-//   -> pause -> instruction 1 -> followed: cue -> pause -> instruction 2 -> ... -> instruction 5 -> cue -> pause -> touch
+//   -> pause -> instruction 1 -> followed: cue -> pause -> instruction 2 -> ... -> instruction 6 -> cue -> pause -> touch
 // Each pause lasts react + GG_REACT_MARGIN, where react is how long the NPC's answer to that cue lasts in the social-cue
 // condition (NpcController.js: NPC_CFG.GREET_REACTIONS; a wave WAVE_SEC 1.6 s, a nod alone NOD_SEC 0.8 s, the body
 // turn about 1 s), or GG_NO_REACT_PAUSE when the NPC does not answer. In the condition without social cues the NPC
@@ -2799,6 +2800,7 @@ const GG_STEPS = [
   { id: 'lookBack', text: 'もう一度、\n相手の顔を見てください', react: 0.8 },       // NPC: nod + smile
   { id: 'move', text: '右へ1歩（約50cm）\n動いてください', react: 1.5 },          // NPC: turns to face them
   { id: 'lookAgain', text: 'もう一度、\n相手の顔を見てください', react: 1.6 },      // NPC: wave + smile
+  { id: 'center', text: '中央（床の青いマーク）に戻って、\n正面を見てください', react: 1.5 }, // NPC: turns to face them
 ];
 const GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message delay, frame drops) before going on
 const GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not answer
@@ -2806,11 +2808,12 @@ function gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN : GG_NO_RE
 const GG_TIMEOUT_SEC = 30;       // an instruction not followed for this long is skipped (greetTimeouts)
 const GG_MAX_SEC = 180;          // the greeting ends after this long, whatever happened
 const GG_LOOK_AT_DEG = 20;       // looking at the NPC: head forward within this angle of the NPC's head ...
-const GG_LOOK_AWAY_DEG = 45;     // ... looking away: head yaw at least this far from the NPC ...
+const GG_LOOK_AWAY_DEG = 30;     // ... looking away: head yaw at least this far from the NPC ...
 const GG_LOOK_HOLD_SEC = 0.3;    // ... for this long
 const GG_HAND_BELOW_HEAD = 0.10; // waving: a hand (wrist) higher than the head bone minus this ...
 const GG_WAVE_TRAVEL = 0.12;     // ... that has moved this far horizontally while raised (m)
-const GG_MOVE_DIST = 0.30;       // stepping aside: the head has moved this far sideways (m)
+const GG_MOVE_DIST = 0.20;       // stepping aside: the head has moved this far sideways (m)
+const GG_CENTER_DIST = 0.15;     // back in the centre: the head is within this of the marker sideways (m), looking ahead
 const GG_REPLACE_DEG = 30;       // the panel is put in front of the face again when it is this far off the
 const GG_REPLACE_DIST = 0.25;    //   head's forward direction, or this much nearer / farther than GG_DIST
 
@@ -2903,11 +2906,13 @@ function gg_waved(p, head) {
   return $.state.gg_travel >= GG_WAVE_TRAVEL;
 }
 // Has the participant followed instruction id? now: judge this instant (before the panel is shown); otherwise the
-// gaze conditions must hold for GG_LOOK_HOLD_SEC.
+// gaze conditions (and 'center') must hold for GG_LOOK_HOLD_SEC.
 function gg_done(id, p, head, dt, now) {
   if (id === 'wave') return gg_waved(p, head);
   if (id === 'move') return Math.abs(head.pos.clone().sub($.state.gg_base).dot(GG_RIGHT)) >= GG_MOVE_DIST;
-  const ok = id === 'lookAway' ? gg_npcAngle(head, true) >= GG_LOOK_AWAY_DEG : gg_npcAngle(head, false) <= GG_LOOK_AT_DEG;
+  // 'center': over the marker again (sideways) and looking ahead (the NPC stands straight ahead of the marker)
+  const ok = id === 'lookAway' ? gg_npcAngle(head, true) >= GG_LOOK_AWAY_DEG
+    : (id !== 'center' || Math.abs(head.pos.clone().sub(GG_ORIGIN).dot(GG_RIGHT)) <= GG_CENTER_DIST) && gg_npcAngle(head, false) <= GG_LOOK_AT_DEG;
   if (now) return ok;
   $.state.gg_hold = ok ? ($.state.gg_hold || 0) + dt : 0;
   return $.state.gg_hold >= GG_LOOK_HOLD_SEC;

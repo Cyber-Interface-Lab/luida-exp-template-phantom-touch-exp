@@ -16,7 +16,7 @@
 //   "npc_greet_cue"       { cue }               -> the participant has followed an instruction of the guided greeting
 //                                                  (GreetingGuide item; cue = "hello" (sent before the first instruction:
 //                                                  the NPC greets first) | "wave" | "lookAway" | "lookBack" | "move" |
-//                                                  "lookAgain"): social condition only, react as GREET_REACTIONS says
+//                                                  "lookAgain" | "center"): social condition only, react as GREET_REACTIONS says
 //   "npc_greeting_end"    {}                    -> stop the greeting reactions, write greeting counters
 //   "npc_trial_start"     { block, rep, avatar, social, fwd, reset } -> (reset: put the participant back on the
 //                                                  marker, on their platform) -> (reappear at the conversation spot if
@@ -86,6 +86,7 @@ const NPC_CFG = {
     lookBack: { nod: true, joy: true },                // looked away, then at the NPC again: nod and smile
     move: { turn: true },                              // stepped aside: turn to them (head and eyes follow anyway)
     lookAgain: { wave: true, joy: true },              // ... and looked at the NPC again: wave and smile
+    center: { turn: true },                            // back on the marker, facing forward: turn to them again
   },
   PREP_REACTION: { nod: true, wave: true, joy: true }, // touch phase, before the hand is raised: greet once
   HEAD_MAX_DEG: 50,        // gaze: the head alone turns up to this angle ...
@@ -594,7 +595,7 @@ function greetCue(cue) {
   const r = $.state.npc_social ? NPC_CFG.GREET_REACTIONS[cue] : null;
   $.log("[NPC] greet cue " + cue + (r ? " -> " + JSON.stringify(r) : " (no reaction)"));
   if (!r) return;
-  if (r.turn) { $.state.npc_bodyTurning = true; $.state.npc_turnCueAt = nowSec(); }
+  if (r.turn) { $.state.npc_bodyTurning = true; $.state.npc_turnCueAt = nowSec(); $.state.npc_turnCue = cue; }
   if (r.nod || r.wave) startReaction(r, cue);
 }
 // Start a reaction r = { nod, wave, joy }: nod and / or left-hand wave, smiling while it lasts when joy is set (the
@@ -618,7 +619,7 @@ function turnBodyToward(head, rest, ip, dt) {
   if (ang < NPC_CFG.BODY_TURN_STOP_DEG) {
     $.state.npc_bodyTurning = false;
     if ($.state.npc_turnCueAt !== null && $.state.npc_turnCueAt !== undefined) {
-      $.log("[NPC] reaction move (turn) ended after " + f3(nowSec() - $.state.npc_turnCueAt) + " s");
+      $.log("[NPC] reaction " + ($.state.npc_turnCue || "?") + " (turn) ended after " + f3(nowSec() - $.state.npc_turnCueAt) + " s");
       $.state.npc_turnCueAt = null;
     }
     return ip;
