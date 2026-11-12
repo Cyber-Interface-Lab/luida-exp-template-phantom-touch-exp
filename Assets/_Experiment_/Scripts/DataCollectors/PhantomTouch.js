@@ -23,9 +23,10 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // forehead height (same row): both hands held at the forehead for 3 s in the pose check, mean height above the
-    // head bone (m; '' when the check was passed with the rescue button), and each hand's mean
-    foreheadCalUp: CD['foreheadCalUp'], foreheadCalLeftUp: CD['foreheadCalLeftUp'], foreheadCalRightUp: CD['foreheadCalRightUp'],
+    // hands held at the top of the head for 3 s in the pose check (same row): mean height of both hands above the head
+    // bone (m; '' when the check was passed with the rescue button), and each hand's mean. The NPC aims halfway
+    // between this and the eyes (faceUp in the trial rows).
+    poseHandsUp: CD['poseHandsUp'], poseHandsLeftUp: CD['poseHandsLeftUp'], poseHandsRightUp: CD['poseHandsRightUp'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],

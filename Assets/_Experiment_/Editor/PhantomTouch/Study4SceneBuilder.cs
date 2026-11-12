@@ -552,9 +552,10 @@ return {
     setupSec: CD['setupSec'], setupRetry: CD['setupRetry'], avatarCheckFallback: CD['avatarCheckFallback'],
     // device check
     deviceCheckSec: CD['deviceCheckSec'], deviceCheckForced: CD['deviceCheckForced'],
-    // forehead height (same row): both hands held at the forehead for 3 s in the pose check, mean height above the
-    // head bone (m; '' when the check was passed with the rescue button), and each hand's mean
-    foreheadCalUp: CD['foreheadCalUp'], foreheadCalLeftUp: CD['foreheadCalLeftUp'], foreheadCalRightUp: CD['foreheadCalRightUp'],
+    // hands held at the top of the head for 3 s in the pose check (same row): mean height of both hands above the head
+    // bone (m; '' when the check was passed with the rescue button), and each hand's mean. The NPC aims halfway
+    // between this and the eyes (faceUp in the trial rows).
+    poseHandsUp: CD['poseHandsUp'], poseHandsLeftUp: CD['poseHandsLeftUp'], poseHandsRightUp: CD['poseHandsRightUp'],
     // per-trial report
     rating: CD['rating'], mc: CD['mc'], ptype: CD['ptype'], ploc: CD['ploc'], reportDoneTs: CD['reportDoneTs'],
     ptypeOther: CD['ptypeOther'], plocOther: CD['plocOther'],
@@ -2073,7 +2074,7 @@ return {
                 L(Custom("ins_okButton(false);"))),
             Listener(S_TSTART, L(Custom("ins_show('front', 'ブロック ' + CONDITION['block'] + ' / 2');"))),
             // pose (tracking) check after the avatar switch, before the NPC appears: 1st trial of each block only
-            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を額の高さに上げて、3秒そのまま');"))),
+            Listener(S_POSE, L(Custom("if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\\n1) 頭をゆっくり左右に向ける\\n2) 両手を頭のてっぺんの高さに上げて、3秒そのまま');"))),
             // greeting: the concrete instructions come one by one on the GreetingGuide's panel in front of the face
             Listener(S_GREET, L(Ins("front", "目の前に赤く表示される指示に、\\nひとつずつ従ってください。"))),
             // the stick moves the participant slowly here (NpcDirector, ND_TOUCH_MOVE_RATE): said in brackets, the same
@@ -2512,19 +2513,19 @@ function ag_end() {
         };
     }
 
-    const string DeviceCheckLegacy = BlockTrialJs + @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands held at the forehead) ----
+    const string DeviceCheckLegacy = BlockTrialJs + @"// ---- Study 4: DeviceCheck (head yaw left/right + both hands held at the top of the head) ----
 // Runs in the pose-check state (after the avatar switch, before the NPC appears) on the 1st trial of each block,
 // with the MirrorPanel's front mirror shown; the later trials of a block skip it immediately.
-// The hands-at-the-forehead hold also measures the participant's own forehead height in this avatar, where the NPC's
-// hand goes (Cluster puts the first-person camera a little off the avatar's eye bones, and an item script cannot read
-// the camera): both hands above the eyes (head bone + DC_EYE_UP) and below DC_HANDS_MAX_UP, each staying within
-// DC_HANDS_STILL of where it was when the hold began, for DC_HANDS_SEC. The mean height of both hands above the head
-// bone over the hold is sent to the NPC ('npc_forehead_cal'), which aims its hand there in this block.
+// The hands hold also tells the NPC where to aim (Cluster puts the first-person camera a little off the avatar's eye
+// bones, and an item script cannot read the camera): both hands above the eyes (head bone + DC_EYE_UP) and below
+// DC_HANDS_MAX_UP (arms fully raised), each staying within DC_HANDS_STILL of where it was when the hold began, for
+// DC_HANDS_SEC. The mean height of both hands above the head bone over the hold is sent to the NPC ('npc_hands_cal'),
+// which aims its hand halfway between that and the eyes in this block.
 const DC_YAW_DEG = 25, DC_RESCUE_SEC = 60;
 const DC_HANDS_SEC = 3.0;        // hold this long ...
 const DC_EYE_UP = 0.06;          // ... both hands higher than the eyes (head bone + this; the eye bones of the project's
                                  //     VRoid models; not read: the editor emulator throws for avatars without them) ...
-const DC_HANDS_MAX_UP = 0.25;    // ... but not raised above the head (head bone + this) ...
+const DC_HANDS_MAX_UP = 0.40;    // ... but not with the arms fully raised (head bone + this) ...
 const DC_HANDS_STILL = 0.05;     // ... each hand within this of where it was when the hold began (m)
 const DC_FORCE_LABEL = '確認できない場合は\nこちらを押してください';
 function dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg', cfg); } catch (e) { $.log('[DeviceCheck] send: ' + e); } }
@@ -2552,10 +2553,10 @@ function dc_angleDiff(a, b) { let d = a - b; while (d > 180) d -= 360; while (d 
 function dc_render() {
   const t = 'トラッキングの確認\n' +
     (($.state.dc_left && $.state.dc_right) ? '[済] ' : '[　] ') + '頭を左右に向ける\n' +
-    ($.state.dc_cal ? '[済] ' : '[　] ') + '両手を額の高さに（3秒）';
+    ($.state.dc_cal ? '[済] ' : '[　] ') + '両手を頭のてっぺんに（3秒）';
   if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }
 }
-// Both hands at the forehead, held still: accumulate; any break starts the hold again from the current position.
+// Both hands at the top of the head, held still: accumulate; any break starts the hold again from the current position.
 function dc_holdHands(head, lh, rh, dt) {
   if ($.state.dc_cal) return;
   const at = (h) => h && h.y > head.y + DC_EYE_UP && h.y < head.y + DC_HANDS_MAX_UP;
@@ -2571,7 +2572,7 @@ function dc_holdHands(head, lh, rh, dt) {
   if ($.state.dc_hold >= DC_HANDS_SEC && s.w > 0) {
     const l = s.l / s.w, r = s.r / s.w;
     $.state.dc_cal = { up: (l + r) / 2, left: l, right: r };
-    $.log('[DeviceCheck] hands held at the forehead: ' + ((l + r) / 2).toFixed(3) + ' m above the head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3) + ')');
+    $.log('[DeviceCheck] hands held ' + ((l + r) / 2).toFixed(3) + ' m above the head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3) + ')');
   }
 }
 function dc_update(dt) {
@@ -2596,7 +2597,7 @@ function dc_update(dt) {
   if (passed || forced) { dc_finish(elapsed, forced); return; }
   dc_render();
 }
-// The forehead height goes to the NPC when the hold was completed (also when the rest was passed with the rescue
+// The hands height goes to the NPC when the hold was completed (also when the rest was passed with the rescue
 // button); without it the NPC uses the avatar's eye bones.
 function dc_finish(elapsed, forced) {
   $.state.dc_active = false;
@@ -2604,14 +2605,14 @@ function dc_finish(elapsed, forced) {
   const r3 = (x) => Math.round(x * 1000) / 1000;
   SendDataToCollector('deviceCheckSec', elapsed);
   SendDataToCollector('deviceCheckForced', !!forced);
-  SendDataToCollector('foreheadCalUp', c ? r3(c.up) : '');
-  SendDataToCollector('foreheadCalLeftUp', c ? r3(c.left) : '');
-  SendDataToCollector('foreheadCalRightUp', c ? r3(c.right) : '');
+  SendDataToCollector('poseHandsUp', c ? r3(c.up) : '');
+  SendDataToCollector('poseHandsLeftUp', c ? r3(c.left) : '');
+  SendDataToCollector('poseHandsRightUp', c ? r3(c.right) : '');
   if (c) {
-    try { $.worldItemReference('NPC').send('npc_forehead_cal', { up: c.up }); }
-    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' + e); }
+    try { $.worldItemReference('NPC').send('npc_hands_cal', { up: c.up }); }
+    catch (e) { $.log('[DeviceCheck] npc_hands_cal: ' + e); }
   }
-  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; forehead height ' +
+  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed') + ' after ' + elapsed.toFixed(1) + ' s; hands ' +
         (c ? r3(c.up) + ' m above the head bone' : 'not measured'));
   ProcessAndSaveCollectedData();
   dc_send({ visible: false });

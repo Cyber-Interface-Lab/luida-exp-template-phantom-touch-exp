@@ -88,21 +88,21 @@ MonoBehaviour:
     TRIALS_PER_BLOCK : 0) + 1;\n}\nfunction firstTrialOfBlock() { return trialInBlock()
     === 1; }\nfunction lastTrialOfBlock() { return trialInBlock() === TRIALS_PER_BLOCK;
     }\n// ---- Study 4: DeviceCheck (head yaw left/right + both hands held at the
-    forehead) ----\n// Runs in the pose-check state (after the avatar switch, before
-    the NPC appears) on the 1st trial of each block,\n// with the MirrorPanel's front
-    mirror shown; the later trials of a block skip it immediately.\n// The hands-at-the-forehead
-    hold also measures the participant's own forehead height in this avatar, where
-    the NPC's\n// hand goes (Cluster puts the first-person camera a little off the
-    avatar's eye bones, and an item script cannot read\n// the camera): both hands
-    above the eyes (head bone + DC_EYE_UP) and below DC_HANDS_MAX_UP, each staying
-    within\n// DC_HANDS_STILL of where it was when the hold began, for DC_HANDS_SEC.
-    The mean height of both hands above the head\n// bone over the hold is sent to
-    the NPC ('npc_forehead_cal'), which aims its hand there in this block.\nconst
-    DC_YAW_DEG = 25, DC_RESCUE_SEC = 60;\nconst DC_HANDS_SEC = 3.0;        // hold
-    this long ...\nconst DC_EYE_UP = 0.06;          // ... both hands higher than
-    the eyes (head bone + this; the eye bones of the project's\n                                
-    //     VRoid models; not read: the editor emulator throws for avatars without
-    them) ...\nconst DC_HANDS_MAX_UP = 0.25;    // ... but not raised above the head
+    top of the head) ----\n// Runs in the pose-check state (after the avatar switch,
+    before the NPC appears) on the 1st trial of each block,\n// with the MirrorPanel's
+    front mirror shown; the later trials of a block skip it immediately.\n// The
+    hands hold also tells the NPC where to aim (Cluster puts the first-person camera
+    a little off the avatar's eye\n// bones, and an item script cannot read the camera):
+    both hands above the eyes (head bone + DC_EYE_UP) and below\n// DC_HANDS_MAX_UP
+    (arms fully raised), each staying within DC_HANDS_STILL of where it was when
+    the hold began, for\n// DC_HANDS_SEC. The mean height of both hands above the
+    head bone over the hold is sent to the NPC ('npc_hands_cal'),\n// which aims
+    its hand halfway between that and the eyes in this block.\nconst DC_YAW_DEG =
+    25, DC_RESCUE_SEC = 60;\nconst DC_HANDS_SEC = 3.0;        // hold this long ...\nconst
+    DC_EYE_UP = 0.06;          // ... both hands higher than the eyes (head bone
+    + this; the eye bones of the project's\n                                 //    
+    VRoid models; not read: the editor emulator throws for avatars without them)
+    ...\nconst DC_HANDS_MAX_UP = 0.40;    // ... but not with the arms fully raised
     (head bone + this) ...\nconst DC_HANDS_STILL = 0.05;     // ... each hand within
     this of where it was when the hold began (m)\nconst DC_FORCE_LABEL = '\u78BA\u8A8D\u3067\u304D\u306A\u3044\u5834\u5408\u306F\\n\u3053\u3061\u3089\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044';\nfunction
     dc_send(cfg) { try { const h = $.worldItemReference('DC_Force'); if (h) h.send('btn_cfg',
@@ -121,11 +121,11 @@ MonoBehaviour:
     d; }\nfunction dc_render() {\n  const t = '\u30C8\u30E9\u30C3\u30AD\u30F3\u30B0\u306E\u78BA\u8A8D\\n'
     +\n    (($.state.dc_left && $.state.dc_right) ? '[\u6E08] ' : '[\u3000] ') +
     '\u982D\u3092\u5DE6\u53F3\u306B\u5411\u3051\u308B\\n' +\n    ($.state.dc_cal
-    ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u984D\u306E\u9AD8\u3055\u306B\uFF083\u79D2\uFF09';\n 
+    ? '[\u6E08] ' : '[\u3000] ') + '\u4E21\u624B\u3092\u982D\u306E\u3066\u3063\u307A\u3093\u306B\uFF083\u79D2\uFF09';\n 
     if (t !== $.state.dc_lastText) { $.state.dc_lastText = t; SetText(t); }\n}\n//
-    Both hands at the forehead, held still: accumulate; any break starts the hold
-    again from the current position.\nfunction dc_holdHands(head, lh, rh, dt) {\n 
-    if ($.state.dc_cal) return;\n  const at = (h) => h && h.y > head.y + DC_EYE_UP
+    Both hands at the top of the head, held still: accumulate; any break starts the
+    hold again from the current position.\nfunction dc_holdHands(head, lh, rh, dt)
+    {\n  if ($.state.dc_cal) return;\n  const at = (h) => h && h.y > head.y + DC_EYE_UP
     && h.y < head.y + DC_HANDS_MAX_UP;\n  const near = (h, a) => a && h.clone().sub(a).length()
     <= DC_HANDS_STILL;\n  if (!(head && at(lh) && at(rh))) { $.state.dc_hold = 0;
     $.state.dc_anchorL = null; return; }\n  if (!near(lh, $.state.dc_anchorL) ||
@@ -135,10 +135,10 @@ MonoBehaviour:
     dt; s.w += dt;\n  $.state.dc_sum = s;\n  $.state.dc_hold = ($.state.dc_hold ||
     0) + dt;\n  if ($.state.dc_hold >= DC_HANDS_SEC && s.w > 0) {\n    const l =
     s.l / s.w, r = s.r / s.w;\n    $.state.dc_cal = { up: (l + r) / 2, left: l, right:
-    r };\n    $.log('[DeviceCheck] hands held at the forehead: ' + ((l + r) / 2).toFixed(3)
-    + ' m above the head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3)
-    + ')');\n  }\n}\nfunction dc_update(dt) {\n  if (!$.state.dc_active) return;\n 
-    const p = PARTICIPANTS[1];\n  if (!p || !p.exists()) return;\n  const yaw = dc_yaw(p);\n 
+    r };\n    $.log('[DeviceCheck] hands held ' + ((l + r) / 2).toFixed(3) + ' m
+    above the head bone (left ' + l.toFixed(3) + ', right ' + r.toFixed(3) + ')');\n 
+    }\n}\nfunction dc_update(dt) {\n  if (!$.state.dc_active) return;\n  const p
+    = PARTICIPANTS[1];\n  if (!p || !p.exists()) return;\n  const yaw = dc_yaw(p);\n 
     if (yaw !== null) {\n    if ($.state.dc_yaw0 === null || $.state.dc_yaw0 ===
     undefined) $.state.dc_yaw0 = yaw;\n    const d = dc_angleDiff(yaw, $.state.dc_yaw0);\n   
     if (d <= -DC_YAW_DEG) $.state.dc_left = true;\n    if (d >= DC_YAW_DEG) $.state.dc_right
@@ -150,18 +150,18 @@ MonoBehaviour:
     if (b > 0) { $.setStateCompat('this', 'dc_btn', 0); if ($.state.dc_rescue) forced
     = true; }\n  const passed = $.state.dc_left && $.state.dc_right && !!$.state.dc_cal;\n 
     if (passed || forced) { dc_finish(elapsed, forced); return; }\n  dc_render();\n}\n//
-    The forehead height goes to the NPC when the hold was completed (also when the
-    rest was passed with the rescue\n// button); without it the NPC uses the avatar's
+    The hands height goes to the NPC when the hold was completed (also when the rest
+    was passed with the rescue\n// button); without it the NPC uses the avatar's
     eye bones.\nfunction dc_finish(elapsed, forced) {\n  $.state.dc_active = false;\n 
     const c = $.state.dc_cal;\n  const r3 = (x) => Math.round(x * 1000) / 1000;\n 
     SendDataToCollector('deviceCheckSec', elapsed);\n  SendDataToCollector('deviceCheckForced',
-    !!forced);\n  SendDataToCollector('foreheadCalUp', c ? r3(c.up) : '');\n  SendDataToCollector('foreheadCalLeftUp',
-    c ? r3(c.left) : '');\n  SendDataToCollector('foreheadCalRightUp', c ? r3(c.right)
-    : '');\n  if (c) {\n    try { $.worldItemReference('NPC').send('npc_forehead_cal',
-    { up: c.up }); }\n    catch (e) { $.log('[DeviceCheck] npc_forehead_cal: ' +
-    e); }\n  }\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed')
-    + ' after ' + elapsed.toFixed(1) + ' s; forehead height ' +\n        (c ? r3(c.up)
-    + ' m above the head bone' : 'not measured'));\n  ProcessAndSaveCollectedData();\n 
+    !!forced);\n  SendDataToCollector('poseHandsUp', c ? r3(c.up) : '');\n  SendDataToCollector('poseHandsLeftUp',
+    c ? r3(c.left) : '');\n  SendDataToCollector('poseHandsRightUp', c ? r3(c.right)
+    : '');\n  if (c) {\n    try { $.worldItemReference('NPC').send('npc_hands_cal',
+    { up: c.up }); }\n    catch (e) { $.log('[DeviceCheck] npc_hands_cal: ' + e);
+    }\n  }\n  $.log('[DeviceCheck] pose check ' + (forced ? 'forced' : 'passed')
+    + ' after ' + elapsed.toFixed(1) + ' s; hands ' +\n        (c ? r3(c.up) + '
+    m above the head bone' : 'not measured'));\n  ProcessAndSaveCollectedData();\n 
     dc_send({ visible: false });\n  SetText('\u78BA\u8A8D\u3067\u304D\u307E\u3057\u305F\u3002\\n\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002');\n 
     ToNextState();\n}\nfunction dc_end() { dc_send({ visible: false }); HideChild('Text');
     $.state.dc_active = false; }\n"

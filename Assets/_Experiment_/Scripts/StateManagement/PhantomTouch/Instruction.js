@@ -17,7 +17,7 @@ const stateEnterActions = {
     ],
     2: [
         { type: "exec", action: (deltaTime) => {
-            if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両手を額の高さに上げて、3秒そのまま');
+            if (firstTrialOfBlock()) ins_show('front', '鏡を見ながら、次の動きをしてください。\n1) 頭をゆっくり左右に向ける\n2) 両手を頭のてっぺんの高さに上げて、3秒そのまま');
         } }
     ],
     3: [
