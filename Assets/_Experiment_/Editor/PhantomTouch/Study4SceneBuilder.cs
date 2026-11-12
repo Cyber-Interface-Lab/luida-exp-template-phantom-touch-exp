@@ -2894,7 +2894,7 @@ const GG_STEPS = [
 const GG_REACT_MARGIN = 1.4;     // after an answer should have ended (message delay, frame drops) before going on
 const GG_NO_REACT_PAUSE = 1.0;   // after an instruction the NPC does not answer
 function gg_pause(react) { return react > 0 ? react + GG_REACT_MARGIN : GG_NO_REACT_PAUSE; }
-const GG_TIMEOUT_SEC = 30;       // an instruction not followed for this long is skipped (greetTimeouts)
+const GG_TIMEOUT_SEC = 10;       // an instruction not followed for this long is skipped (greetTimeouts)
 const GG_MAX_SEC = 180;          // the greeting ends after this long, whatever happened
 const GG_LOOK_AT_DEG = 20;       // looking at the NPC: head forward within this angle of the NPC's head ...
 const GG_LOOK_AWAY_DEG = 30;     // ... looking away: head yaw at least this far from the NPC ...
@@ -2904,7 +2904,8 @@ const GG_WAVE_TRAVEL = 0.12;     // ... that has moved this far horizontally whi
 const GG_MOVE_DIST = 0.20;       // stepping aside: the head has moved this far sideways (m)
 const GG_CENTER_DIST = 0.15;     // back in the centre: the head is within this of the marker sideways (m), looking ahead
 const GG_REPLACE_DEG = 30;       // the panel is put in front of the face again when it is this far off the
-const GG_REPLACE_DIST = 0.25;    //   head's forward direction, or this much nearer / farther than GG_DIST
+const GG_REPLACE_DIST = 0.25;    //   head's forward direction, or this much nearer / farther than GG_DIST, or when
+const GG_REPLACE_MOVE = 0.10;    //   the head has moved this far (horizontally) since it was placed (stepping aside)
 
 function gg_begin() {
   $.state.gg_active = true;
@@ -2947,6 +2948,7 @@ function gg_place(head) {
   t.setPosition(world.clone().sub($.getPosition()).applyQuaternion(inv));
   t.setRotation(inv.clone().multiply(rot));
   $.state.gg_anchor = world;
+  $.state.gg_anchorHead = head.pos.clone();
 }
 function gg_follow(head) {
   const a = $.state.gg_anchor;
@@ -2955,7 +2957,9 @@ function gg_follow(head) {
   const f = head.fwd.clone(); f.y = 0;
   if (f.length() < 0.2 || to.length() < 1e-3) return;
   const ang = Math.acos(Math.max(-1, Math.min(1, f.normalize().dot(to.clone().normalize())))) * 180 / Math.PI;
-  if (ang > GG_REPLACE_DEG || Math.abs(to.length() - GG_DIST) > GG_REPLACE_DIST) gg_place(head);
+  const h0 = $.state.gg_anchorHead;
+  const moved = h0 ? Math.hypot(head.pos.x - h0.x, head.pos.z - h0.z) : 0;
+  if (ang > GG_REPLACE_DEG || Math.abs(to.length() - GG_DIST) > GG_REPLACE_DIST || moved > GG_REPLACE_MOVE) gg_place(head);
 }
 function gg_show(text, head) {
   gg_place(head);

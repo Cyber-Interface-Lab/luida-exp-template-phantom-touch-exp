@@ -192,15 +192,23 @@ test("the panel sits 0.7 m in front of the face, below the eyes, and comes along
   g.p.yaw = 40; g.run(0.3);
   assert.ok(Math.abs(pos().x - 0.7 * Math.sin(40 * Math.PI / 180)) < 1e-6, "in front of the face again");
   assert.match(g.text(), /手を振って/, "looking aside is not waving");
+  g.p.yaw = 0; g.run(0.3);
+  const x0 = pos().x;
+  g.p.head = new V3(0.15, 1.5, -2); g.run(0.2);
+  assert.ok(Math.abs(pos().x - 0.15) < 1e-6 && Math.abs(pos().x - x0) > 0.1, "stepping 15 cm aside brings it along, without turning the head");
+  g.p.head = new V3(0.2, 1.5, -2); g.run(0.2);
+  assert.ok(Math.abs(pos().x - 0.15) < 1e-6, "a further 5 cm does not");
 });
 
-test("raising a hand without moving it is not a wave; an instruction that is not followed is skipped after 30 s", (t) => {
+test("raising a hand without moving it is not a wave; an instruction that is not followed is skipped after 10 s", (t) => {
   const g = start(t);
   g.run(4.2);
   g.p.rh = new V3(0.3, 1.6, -1.9);
   g.run(5.0);
   assert.match(g.text(), /手を振って/);
-  g.run(26.0);
+  g.run(4.7);
+  assert.match(g.text(), /手を振って/, "not yet after 9.7 s");
+  g.run(1.3);
   assert.equal(g.shown(), true, "next instruction");
   assert.match(g.text(), /目をそらして/);
   assert.deepEqual(g.cues(), ["hello"], "the NPC is not told about a skipped instruction");
@@ -209,7 +217,7 @@ test("raising a hand without moving it is not a wave; an instruction that is not
   g.run(1.2);
   g.p.yaw = 0; g.run(0.5);
   g.run(2.4);
-  g.run(31.0);                                            // never steps aside
+  g.run(11.0);                                            // never steps aside
   g.run(1.0);
   // still looking at the NPC: the instruction is not shown at all, the NPC is told at once
   assert.deepEqual(g.cues(), ["hello", "lookAway", "lookBack", "lookAgain"]);

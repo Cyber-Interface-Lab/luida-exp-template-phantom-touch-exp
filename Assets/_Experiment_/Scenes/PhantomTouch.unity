@@ -20712,7 +20712,7 @@ PrefabInstance:
         delay, frame drops) before going on\nconst GG_NO_REACT_PAUSE = 1.0;   //
         after an instruction the NPC does not answer\nfunction gg_pause(react) {
         return react > 0 ? react + GG_REACT_MARGIN : GG_NO_REACT_PAUSE; }\nconst
-        GG_TIMEOUT_SEC = 30;       // an instruction not followed for this long is
+        GG_TIMEOUT_SEC = 10;       // an instruction not followed for this long is
         skipped (greetTimeouts)\nconst GG_MAX_SEC = 180;          // the greeting
         ends after this long, whatever happened\nconst GG_LOOK_AT_DEG = 20;      
         // looking at the NPC: head forward within this angle of the NPC's head ...\nconst
@@ -20726,17 +20726,19 @@ PrefabInstance:
         sideways (m), looking ahead\nconst GG_REPLACE_DEG = 30;       // the panel
         is put in front of the face again when it is this far off the\nconst GG_REPLACE_DIST
         = 0.25;    //   head's forward direction, or this much nearer / farther than
-        GG_DIST\n\nfunction gg_begin() {\n  $.state.gg_active = true;\n  $.state.gg_startTs
-        = Date.now();\n  $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t
-        = 0; $.state.gg_wait = GG_HELLO.at;\n  $.state.gg_hello = false; $.state.gg_lastCueTs
-        = 0;\n  $.state.gg_secs = []; $.state.gg_timeouts = 0;\n  gg_hide();\n}\n//
-        seconds since the greeting began, for the log\nfunction gg_now() { return
-        't=' + ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1)
-        + ' s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs = Date.now();\n 
-        try { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }\n 
-        catch (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop()
-        { $.state.gg_active = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown
-        = false;\n  SetText('');\n  const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction
+        GG_DIST, or when\nconst GG_REPLACE_MOVE = 0.10;    //   the head has moved
+        this far (horizontally) since it was placed (stepping aside)\n\nfunction
+        gg_begin() {\n  $.state.gg_active = true;\n  $.state.gg_startTs = Date.now();\n 
+        $.state.gg_step = 0; $.state.gg_phase = 'wait'; $.state.gg_t = 0; $.state.gg_wait
+        = GG_HELLO.at;\n  $.state.gg_hello = false; $.state.gg_lastCueTs = 0;\n 
+        $.state.gg_secs = []; $.state.gg_timeouts = 0;\n  gg_hide();\n}\n// seconds
+        since the greeting began, for the log\nfunction gg_now() { return 't=' +
+        ((Date.now() - ($.state.gg_startTs || Date.now())) / 1000).toFixed(1) + '
+        s: '; }\nfunction gg_cue(id) {\n  $.state.gg_lastCueTs = Date.now();\n  try
+        { $.worldItemReference('NPC').send('npc_greet_cue', { cue: id }); }\n  catch
+        (e) { $.log('[GreetingGuide] cue: ' + e); }\n}\nfunction gg_stop() { $.state.gg_active
+        = false; gg_hide(); }\nfunction gg_hide() {\n  $.state.gg_shown = false;\n 
+        SetText('');\n  const bg = $.subNode('Bg');\n  if (bg) bg.setEnabled(false);\n}\nfunction
         gg_head(p) {\n  const pos = p.getHumanoidBonePosition(HumanoidBone.Head),
         rot = p.getHumanoidBoneRotation(HumanoidBone.Head);\n  return (pos && rot)
         ? { pos: pos, rot: rot, fwd: new Vector3(0, 0, 1).applyQuaternion(rot) }
@@ -20750,16 +20752,19 @@ PrefabInstance:
         0))).normalize();\n  const rot = new Quaternion().setFromEulerAngles(new
         Vector3(-Math.asin(d.y) * 180 / Math.PI, Math.atan2(d.x, d.z) * 180 / Math.PI,
         0));\n  const inv = $.getRotation().clone().invert();\n  t.setPosition(world.clone().sub($.getPosition()).applyQuaternion(inv));\n 
-        t.setRotation(inv.clone().multiply(rot));\n  $.state.gg_anchor = world;\n}\nfunction
-        gg_follow(head) {\n  const a = $.state.gg_anchor;\n  if (!a) { gg_place(head);
-        return; }\n  const to = a.clone().sub(head.pos); to.y = 0;\n  const f = head.fwd.clone();
-        f.y = 0;\n  if (f.length() < 0.2 || to.length() < 1e-3) return;\n  const
-        ang = Math.acos(Math.max(-1, Math.min(1, f.normalize().dot(to.clone().normalize()))))
-        * 180 / Math.PI;\n  if (ang > GG_REPLACE_DEG || Math.abs(to.length() - GG_DIST)
-        > GG_REPLACE_DIST) gg_place(head);\n}\nfunction gg_show(text, head) {\n 
-        gg_place(head);\n  SetText(text);\n  const lines = String(text).split('\\n');\n 
-        let w = 0;\n  for (const ln of lines) { let lw = 0; for (let i = 0; i < ln.length;
-        i++) lw += ln.charCodeAt(i) < 0x80 ? 0.56 : 1; if (lw > w) w = lw; }\n  const
+        t.setRotation(inv.clone().multiply(rot));\n  $.state.gg_anchor = world;\n 
+        $.state.gg_anchorHead = head.pos.clone();\n}\nfunction gg_follow(head) {\n 
+        const a = $.state.gg_anchor;\n  if (!a) { gg_place(head); return; }\n  const
+        to = a.clone().sub(head.pos); to.y = 0;\n  const f = head.fwd.clone(); f.y
+        = 0;\n  if (f.length() < 0.2 || to.length() < 1e-3) return;\n  const ang
+        = Math.acos(Math.max(-1, Math.min(1, f.normalize().dot(to.clone().normalize()))))
+        * 180 / Math.PI;\n  const h0 = $.state.gg_anchorHead;\n  const moved = h0
+        ? Math.hypot(head.pos.x - h0.x, head.pos.z - h0.z) : 0;\n  if (ang > GG_REPLACE_DEG
+        || Math.abs(to.length() - GG_DIST) > GG_REPLACE_DIST || moved > GG_REPLACE_MOVE)
+        gg_place(head);\n}\nfunction gg_show(text, head) {\n  gg_place(head);\n 
+        SetText(text);\n  const lines = String(text).split('\\n');\n  let w = 0;\n 
+        for (const ln of lines) { let lw = 0; for (let i = 0; i < ln.length; i++)
+        lw += ln.charCodeAt(i) < 0x80 ? 0.56 : 1; if (lw > w) w = lw; }\n  const
         bg = $.subNode('Bg');\n  if (bg) {\n    try {\n      bg.getUnityComponent('Transform').unityProp.localScale
         = new Vector3(w * GG_GLYPH_W * GG_SIZE + GG_PAD * 2, lines.length * GG_LINE_H
         * GG_SIZE + GG_PAD, 1);\n      bg.setEnabled(true);\n    } catch (e) { $.log('[GreetingGuide]
